@@ -1,0 +1,5 @@
+{
+  "$schema": "./_schema.json",
+  "name": "Jumbo Storage",
+  "type": "storage"
+}

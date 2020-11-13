@@ -1,0 +1,6 @@
+{
+  "$schema": "./_schema.json",
+  "name": "Wood",
+  "stackSize": 25,
+  "weight": 5
+}
