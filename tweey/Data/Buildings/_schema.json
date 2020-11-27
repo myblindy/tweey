@@ -12,8 +12,14 @@
     "type": {
       "type": "string",
       "enum": [ "workPlace", "storage" ]
+    },
+    "width": {
+      "type": "number"
+    },
+    "height": {
+      "type": "number"
     }
   },
 
-  "required": [ "name", "type" ]
+  "required": [ "name", "type", "width", "height" ]
 }

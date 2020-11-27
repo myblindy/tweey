@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
+using tweey.Actors;
+using tweey.Actors.Interfaces;
 using tweey.Loaders;
 
 namespace tweey
@@ -10,15 +13,21 @@ namespace tweey
     class World
     {
         public ResourceTemplates Resources { get; }
-        readonly BuildingTemplates buildingTemplates;
+        public BuildingTemplates BuildingTemplates { get; }
 
-        record PlacedResourceBucket(ResourceBucket ResourceBucket, double X, double Y) { }
-        readonly List<PlacedResourceBucket> placedResourceBuckets = new();
+        public List<IPlaceableEntity> PlacedEntities { get; } = new();
 
         public World(ILoader loader) =>
-            (Resources, buildingTemplates) = (new(loader), new(loader));
+            (Resources, BuildingTemplates) = (new(loader), new(loader));
 
-        public void PlaceResources(double x, double y, ResourceBucket resources) =>
-            placedResourceBuckets.Add(new(resources, x, y));
+        public void PlaceEntity(IPlaceableEntity entity)
+        {
+            PlacedEntities.Add(entity);
+
+            if (entity is IResourceNeed resourceNeed)
+            {
+
+            }
+        }
     }
 }

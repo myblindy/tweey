@@ -1,13 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
-
-namespace tweey.Loaders
+﻿namespace tweey.Loaders
 {
     enum BuildingType { WorkPlace, Storage }
 
@@ -15,6 +6,8 @@ namespace tweey.Loaders
     {
         public string Name { get; set; }
         public BuildingType Type { get; set; }
+        public float Width { get; set; }
+        public float Height { get; set; }
     }
 
     class BuildingTemplates : BaseTemplates<BuildingTemplate>

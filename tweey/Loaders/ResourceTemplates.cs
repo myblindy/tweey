@@ -21,10 +21,6 @@ namespace tweey.Loaders
     {
     }
 
-    record ResourceBucket(params ResourceQuantity[] Resources)
-    {
-    }
-
     class ResourceTemplates : BaseTemplates<Resource>
     {
         public ResourceTemplates(ILoader loader) : base(loader, "Resources", x => x.Name)
