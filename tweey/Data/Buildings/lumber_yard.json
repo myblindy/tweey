@@ -1,0 +1,13 @@
+{
+  "$schema": "./_schema.json",
+  "name": "Lumber Yard",
+  "type": "production",
+  "inputs": [
+    {
+      "quantity": 4,
+      "resource": "wood"
+    }
+  ],
+  "width": 3,
+  "height": 3
+}

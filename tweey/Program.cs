@@ -57,7 +57,7 @@ namespace tweey
 
             world = new World(DiskLoader.Instance);
             world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 20)) { Location = new(25, 20) });
-            world.PlaceEntity(Building.FromTemplate(world.BuildingTemplates["jumbo storage"], new(3, 20), new[] { world.Resources["wood"] }));
+            world.PlaceEntity(Building.FromTemplate(world.BuildingTemplates["lumber yard"], new(3, 20)));
             world.PlaceEntity(new Villager { Location = new(1, 1) });
 
             worldRenderer = new(world);
@@ -72,6 +72,7 @@ namespace tweey
 
         protected override void OnUpdateFrame(FrameEventArgs args)
         {
+            world.Update(args.Time);
         }
 
         protected override void OnRenderFrame(FrameEventArgs args)

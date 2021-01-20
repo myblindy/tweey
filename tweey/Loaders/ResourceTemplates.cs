@@ -17,10 +17,6 @@ namespace tweey.Loaders
         public double Weight { get; set; }
     }
 
-    record ResourceQuantity(Resource Resource, double Quantity)
-    {
-    }
-
     class ResourceTemplates : BaseTemplates<Resource>
     {
         public ResourceTemplates(ILoader loader) : base(loader, "Resources", x => x.Name)

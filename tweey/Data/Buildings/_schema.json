@@ -11,7 +11,21 @@
     },
     "type": {
       "type": "string",
-      "enum": [ "workPlace", "storage" ]
+      "enum": [ "production", "storage" ]
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "quantity": {
+            "type": "number"
+          },
+          "resource": {
+            "type": "string"
+          }
+        }
+      }
     },
     "width": {
       "type": "number"

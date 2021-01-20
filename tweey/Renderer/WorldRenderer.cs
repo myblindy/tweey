@@ -72,6 +72,12 @@ namespace tweey.Renderer
                     case Building building:
                         worldQuad(Box2.FromCenterSize(building.Location, building.Width, building.Height), new Vector4(1, 1, 1, 1));
                         break;
+                    case Villager villager:
+                        worldQuad(Box2.FromCenterSize(villager.Location, 1, 1), new Vector4(0, .5f, 1, 1));
+                        break;
+                    case ResourceBucket resourceBucket:
+                        worldQuad(Box2.FromCenterSize(resourceBucket.Location, 1, 1), new Vector4(1, .5f, 0, 1));
+                        break;
                 }
 
             shaderProgram.Use();

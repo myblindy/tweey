@@ -55,6 +55,8 @@ namespace tweey.Renderer
                 GL.VertexArrayAttribFormat(vertexArrayName, idx, fieldCounts[fi.FieldType], fieldTypes[fi.FieldType], false, offset);
                 offset += fieldSizes[fi.FieldType];
                 GL.VertexArrayAttribBinding(vertexArrayName, idx, 0);
+
+                ++idx;
             }
         }
 
