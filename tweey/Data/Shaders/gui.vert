@@ -5,8 +5,8 @@ layout(std140) uniform ubo_window
     vec2 window_size;
 };
 
-in vec2 location;
-in vec4 color;
+layout(location = 0) in vec2 location;
+layout(location = 1) in vec4 color;
 
 out vec4 fs_color;
 

@@ -1,16 +1,11 @@
-﻿using AutoMapper;
-using OpenTK.Graphics.OpenGL4;
-//using OpenTK.Mathematics;
+﻿using OpenTK.Graphics.OpenGL4;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
-using System;
-using System.Numerics;
-using System.Text;
-using tweey.Actors;
-using tweey.Loaders;
-using tweey.Renderer;
+using Tweey.Actors;
+using Tweey.Loaders;
+using Tweey.Renderer;
 
-namespace tweey
+namespace Tweey
 {
     class Program : GameWindow
     {
@@ -22,20 +17,20 @@ namespace tweey
                 IsMultiThreaded = false,
             }, new()
             {
-                Profile = ContextProfile.Any,
+                Profile = ContextProfile.Core,
                 API = ContextAPI.OpenGL,
-                APIVersion = new Version(4, 6),
+                APIVersion = new(4, 6),
                 StartFocused = true,
                 StartVisible = true,
-                Size = new OpenTK.Mathematics.Vector2i(800, 600),
+                Size = new(800, 600),
                 Title = "TwEEY",
                 Flags = ContextFlags.ForwardCompatible,
             })
         {
         }
 
-        World world;
-        WorldRenderer worldRenderer;
+        readonly World world = new(DiskLoader.Instance);
+        WorldRenderer? worldRenderer;
 
         protected override unsafe void OnLoad()
         {
@@ -55,8 +50,10 @@ namespace tweey
             GL.Disable(EnableCap.DepthTest);
             GL.Disable(EnableCap.CullFace);
 
-            world = new World(DiskLoader.Instance);
-            world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 20)) { Location = new(25, 20) });
+            world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 24)) { Location = new(25, 20) });
+            world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 83)) { Location = new(22, 19) });
+            world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 67)) { Location = new(24, 19) });
+            world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 67), new ResourceQuantity(world.Resources["iron"], 125)) { Location = new(20, 20) });
             world.PlaceEntity(Building.FromTemplate(world.BuildingTemplates["jumbo storage"], new(3, 20), new[] { world.Resources["wood"] }));
             world.PlaceEntity(new Villager { Location = new(1, 1) });
 
@@ -67,7 +64,7 @@ namespace tweey
         protected override void OnResize(ResizeEventArgs e)
         {
             GL.Viewport(0, 0, e.Width, e.Height);
-            worldRenderer.Resize(e.Width, e.Height);
+            worldRenderer!.Resize(e.Width, e.Height);
         }
 
         protected override void OnUpdateFrame(FrameEventArgs args)
@@ -76,7 +73,7 @@ namespace tweey
 
         protected override void OnRenderFrame(FrameEventArgs args)
         {
-            worldRenderer.Render(args.Time);
+            worldRenderer!.Render(args.Time);
             SwapBuffers();
         }
 

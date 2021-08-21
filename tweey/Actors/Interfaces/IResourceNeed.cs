@@ -1,7 +1,7 @@
 ﻿using System.Collections.Immutable;
-using tweey.Loaders;
+using Tweey.Loaders;
 
-namespace tweey.Actors.Interfaces
+namespace Tweey.Actors.Interfaces
 {
     interface IResourceNeed
     {

@@ -1,15 +1,9 @@
 ﻿using OpenTK.Graphics.OpenGL4;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
-using tweey.Actors;
-using tweey.Support;
+using Tweey.Actors;
+using Tweey.Support;
 
-namespace tweey.Renderer
+namespace Tweey.Renderer
 {
     class WorldRenderer
     {
@@ -49,9 +43,11 @@ namespace tweey.Renderer
             windowUbo.Update();
         }
 
-        float pixelZoom = 10f;
+        float pixelZoom = 26;
 
-        public void Render(double deltaTime)
+        static readonly Vector4 colorWhite = new(1, 1, 1, 1);
+
+        public void Render(double _)
         {
             vaoGui.Vertices.Clear();
 
@@ -70,7 +66,20 @@ namespace tweey.Renderer
                 switch (entity)
                 {
                     case Building building:
-                        worldQuad(Box2.FromCenterSize(building.Location, building.Width, building.Height), new Vector4(1, 1, 1, 1));
+                        worldQuad(Box2.FromCornerSize(building.Location, building.Width, building.Height), building.Color);
+                        break;
+                    case ResourceBucket resourceBucket:
+                        var resWeight = resourceBucket.Resources.Sum(rq => rq.Weight);
+                        worldQuad(Box2.FromCornerSize(resourceBucket.Location, 1, 1), colorWhite);
+                        foreach (var resQ in resourceBucket.Resources)
+                        {
+                            var percentage = (float)(resWeight / world.Configuration.Data.GroundStackMaximumWeight);
+                            worldQuad(Box2.FromCornerSize(new(resourceBucket.Location.X + (1 - percentage) / 2, resourceBucket.Location.Y), percentage, 1), resQ.Resource.Color);
+                            resWeight -= resQ.Weight;
+                        }
+                        break;
+                    case Villager villager:
+                        worldQuad(Box2.FromCornerSize(villager.Location, 1, 1), colorWhite);
                         break;
                 }
 

@@ -14,12 +14,23 @@
       "enum": [ "workPlace", "storage" ]
     },
     "width": {
-      "type": "number"
+      "type": "integer",
+      "minimum": 1
     },
     "height": {
-      "type": "number"
+      "type": "integer",
+      "minimum": 1
+    },
+    "color": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "description": "The representative color of this building",
+      "items": {
+        "type": "number"
+      }
     }
   },
 
-  "required": [ "name", "type", "width", "height" ]
+  "required": [ "name", "type", "width", "height", "color" ]
 }

@@ -1,13 +1,9 @@
 ﻿using AutoMapper;
-using System.Collections;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Numerics;
-using tweey.Actors;
-using tweey.Actors.Interfaces;
-using tweey.Loaders;
+using Tweey.Actors.Interfaces;
+using Tweey.Loaders;
 
-namespace tweey.Actors
+namespace Tweey.Actors
 {
     class Building : BuildingTemplate, IPlaceableEntity, IResourceNeed
     {
@@ -16,6 +12,8 @@ namespace tweey.Actors
         public Vector2 Location { get; set; }
 
         public ImmutableArray<Resource> StorageResourceNeeds { get; set; }
+
+        public bool Contains(Vector2i pt) => Location.X <= pt.X && pt.X < Location.X + Width && Location.Y <= pt.Y && pt.Y < Location.Y + Height;
 
         public static Building FromTemplate(BuildingTemplate template, Vector2 location, IEnumerable<Resource> storageResourceNeeds)
         {

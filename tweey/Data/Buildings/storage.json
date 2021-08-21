@@ -3,5 +3,6 @@
   "name": "Jumbo Storage",
   "type": "storage",
   "width": 3,
-  "height": 3
+  "height": 3,
+  "color": [ 0.5, 0.5, 0.5 ]
 }

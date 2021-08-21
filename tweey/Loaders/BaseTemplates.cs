@@ -1,28 +1,24 @@
-﻿using MoreLinq;
-using System;
+﻿using AutoMapper;
 using System.Collections;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 
-namespace tweey.Loaders
+namespace Tweey.Loaders
 {
-    abstract class BaseTemplates<T> : IEnumerable<string>
+    abstract class BaseTemplates<TIn, TVal> : IEnumerable<string>
     {
-        readonly ImmutableDictionary<string, T> resources;
+        readonly ImmutableDictionary<string, TVal> resources;
 
-        public BaseTemplates(ILoader loader, string subFolder, Func<T, string> keySelector)
+        public BaseTemplates(ILoader loader, IMapper mapper, string subFolder, Func<TVal, string> keySelector)
         {
             var options = Loader.BuildJsonOptions();
             resources = loader.GetAllJsonData($@"Data/{subFolder}").Values
                 .Select(sgen =>
                 {
                     using var stream = new StreamReader(sgen());
-                    return JsonSerializer.Deserialize<T>(stream.ReadToEnd(), options);
+                    var @in = JsonSerializer.Deserialize<TIn>(stream.ReadToEnd(), options)!;
+                    return mapper is not null ? mapper.Map<TVal>(@in) : (TVal)(object)@in;
                 })
                 .ToImmutableDictionary(keySelector, StringComparer.CurrentCultureIgnoreCase);
         }
@@ -31,6 +27,6 @@ namespace tweey.Loaders
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-        public T this[string key] => resources[key];
+        public TVal this[string key] => resources[key];
     }
 }

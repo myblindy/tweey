@@ -1,18 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 
-namespace tweey.Loaders
+namespace Tweey.Loaders
 {
     interface ILoader
     {
         ImmutableDictionary<string, Func<Stream>> GetAllJsonData(string root);
+        Func<Stream> GetJsonData(string path);
     }
 
     class DiskLoader : ILoader
@@ -20,7 +16,9 @@ namespace tweey.Loaders
         public ImmutableDictionary<string, Func<Stream>> GetAllJsonData(string root) =>
             Directory.EnumerateFiles(root, "*.json", SearchOption.AllDirectories)
                 .Where(path => !Path.GetFileName(path).Equals("_schema.json", StringComparison.OrdinalIgnoreCase))
-                .ToImmutableDictionary(path => path, path => new Func<Stream>(() => File.OpenRead(path)));
+                .ToImmutableDictionary(path => path, GetJsonData);
+
+        public Func<Stream> GetJsonData(string path) => () => File.OpenRead(path);
 
         public static DiskLoader Instance { get; } = new();
     }

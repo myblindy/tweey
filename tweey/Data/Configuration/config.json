@@ -1,0 +1,6 @@
+{
+  "$schema": "./_schema.json",
+  "baseCarryWeight": 45,
+  "groundStackMaximumWeight": 75,
+  "maximumGroundDropSpillOverRange": 2
+}

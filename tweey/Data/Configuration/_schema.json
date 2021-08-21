@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema",
+  "title": "JSON Schema for configuration",
+
+  "type": "object",
+
+  "properties": {
+    "groundStackMaximumWeight": {
+      "type": "number"
+    },
+    "baseCarryWeight": {
+      "type": "number"
+    },
+    "maximumGroundDropSpillOverRange": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "How far resources heavier than groundStackMaximumWeight will spill-over to the ground"
+    }
+  },
+
+  "required": [ "groundStackMaximumWeight", "baseCarryWeight", "maximumGroundDropSpillOverRange" ]
+}

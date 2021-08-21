@@ -1,29 +1,39 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
+﻿using AutoMapper;
 
-namespace tweey.Loaders
+namespace Tweey.Loaders
 {
-    class Resource
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+    class ResourceIn
     {
         public string Name { get; set; }
-        public int StackSize { get; set; }
         public double Weight { get; set; }
+        public float[] Color { get; set; }
+    }
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+
+    public class Resource
+    {
+        public string? Name { get; set; }
+        public double Weight { get; set; }
+        public Vector4 Color { get; set; }
     }
 
-    record ResourceQuantity(Resource Resource, double Quantity)
+    public record ResourceQuantity(Resource Resource)
     {
+        public ResourceQuantity(Resource resource, double quantity) : this(resource) =>
+            Quantity = quantity;
+
+        public double Quantity { get; set; }
+        public double Weight => Resource.Weight * Quantity;
     }
 
-    class ResourceTemplates : BaseTemplates<Resource>
+    class ResourceTemplates : BaseTemplates<ResourceIn, Resource>
     {
-        public ResourceTemplates(ILoader loader) : base(loader, "Resources", x => x.Name)
+        static readonly IMapper mapper = new Mapper(new MapperConfiguration(cfg =>
+            cfg.CreateMap<ResourceIn, Resource>()
+                .ForMember(x => x.Color, opt => opt.MapFrom(src => src.Color.Length == 3 ? new Vector4(src.Color[0], src.Color[1], src.Color[2], 1) : new(src.Color)))));
+
+        public ResourceTemplates(ILoader loader) : base(loader, mapper, "Resources", x => x.Name!)
         {
         }
     }
