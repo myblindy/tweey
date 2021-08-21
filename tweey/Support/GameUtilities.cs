@@ -1,7 +1,4 @@
-﻿
-using Vector2 = System.Numerics.Vector2;
-
-namespace Tweey.Support
+﻿namespace Tweey.Support
 {
     public static class GameUtilities
     {

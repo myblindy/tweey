@@ -1,11 +1,4 @@
-﻿using OpenTK.Graphics.OpenGL4;
-using OpenTK.Windowing.Common;
-using OpenTK.Windowing.Desktop;
-using Tweey.Actors;
-using Tweey.Loaders;
-using Tweey.Renderer;
-
-namespace Tweey
+﻿namespace Tweey
 {
     class Program : GameWindow
     {

@@ -1,10 +1,4 @@
-﻿using AutoMapper;
-using System.Collections;
-using System.Collections.Immutable;
-using System.IO;
-using System.Text.Json;
-
-namespace Tweey.Loaders
+﻿namespace Tweey.Loaders
 {
     abstract class BaseTemplates<TIn, TVal> : IEnumerable<string>
     {

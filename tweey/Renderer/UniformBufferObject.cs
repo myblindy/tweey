@@ -1,7 +1,4 @@
-﻿using OpenTK.Graphics.OpenGL4;
-using System.Runtime.CompilerServices;
-
-namespace Tweey.Renderer
+﻿namespace Tweey.Renderer
 {
     class UniformBufferObject<T> where T : unmanaged
     {

@@ -1,7 +1,4 @@
-﻿using AutoMapper;
-using System.Diagnostics.CodeAnalysis;
-
-namespace Tweey.Loaders
+﻿namespace Tweey.Loaders
 {
     enum BuildingType { WorkPlace, Storage }
 

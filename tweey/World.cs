@@ -1,9 +1,4 @@
-﻿using Tweey.Actors;
-using Tweey.Actors.Interfaces;
-using Tweey.Loaders;
-using Tweey.Support;
-
-namespace Tweey
+﻿namespace Tweey
 {
     class World
     {
@@ -35,7 +30,7 @@ namespace Tweey
                                 .Where(l => l.rb is null || l.rb.Weight < Configuration.Data.GroundStackMaximumWeight));
                     }
 
-                    var chosenNeighbourIndex = ThreadSafeRandom.ThisThreadsRandom.Next(availableNeighbours.Count);
+                    var chosenNeighbourIndex = Random.Shared.Next(availableNeighbours.Count);
                     var chosenNeighbour = availableNeighbours[chosenNeighbourIndex];
                     availableNeighbours.Remove(chosenNeighbour);
 

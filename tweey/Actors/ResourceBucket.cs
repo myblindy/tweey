@@ -1,7 +1,4 @@
-﻿using Tweey.Actors.Interfaces;
-using Tweey.Loaders;
-
-namespace Tweey.Actors
+﻿namespace Tweey.Actors
 {
     public class ResourceBucket : IPlaceableEntity
     {

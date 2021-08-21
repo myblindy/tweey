@@ -1,6 +1,4 @@
-﻿using System.Runtime.InteropServices;
-
-namespace Tweey.Support
+﻿namespace Tweey.Support
 {
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     struct Box2

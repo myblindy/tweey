@@ -1,9 +1,4 @@
-﻿using AutoMapper;
-using System.Collections.Immutable;
-using Tweey.Actors.Interfaces;
-using Tweey.Loaders;
-
-namespace Tweey.Actors
+﻿namespace Tweey.Actors
 {
     class Building : BuildingTemplate, IPlaceableEntity, IResourceNeed
     {

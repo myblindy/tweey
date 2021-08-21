@@ -1,7 +1,4 @@
-﻿using OpenTK.Graphics.OpenGL4;
-using System.IO;
-
-namespace Tweey.Renderer
+﻿namespace Tweey.Renderer
 {
     class ShaderProgram
     {

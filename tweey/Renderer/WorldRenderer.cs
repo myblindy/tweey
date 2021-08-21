@@ -1,9 +1,4 @@
-﻿using OpenTK.Graphics.OpenGL4;
-using System.Runtime.InteropServices;
-using Tweey.Actors;
-using Tweey.Support;
-
-namespace Tweey.Renderer
+﻿namespace Tweey.Renderer
 {
     class WorldRenderer
     {

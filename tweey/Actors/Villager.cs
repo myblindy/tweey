@@ -1,6 +1,4 @@
-﻿using Tweey.Actors.Interfaces;
-
-namespace Tweey.Actors
+﻿namespace Tweey.Actors
 {
     class Villager : IPlaceableEntity
     {
