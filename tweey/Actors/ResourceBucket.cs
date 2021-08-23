@@ -22,7 +22,7 @@ namespace Tweey.Actors
         {
             ResourceBucket? plannedRB = null;
 
-            foreach (var rq in AvailableResourceQuantities)
+            foreach (var rq in AvailableResourceQuantities.Where(rq => rq.Weight > 0))
                 if (rq.Resource.Weight <= availableCarryWeight)
                 {
                     var usedQuantity = Math.Min(rq.Quantity, Math.Floor(availableCarryWeight / rq.Resource.Weight));

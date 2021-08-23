@@ -67,6 +67,9 @@ public class ResourcePickupAIPlan : AIPlan
 
                     villager.Inventory.AddRange(plannedRB.ResourceQuantities);
 
+                    // sort the events for distance to our new position
+                    WorldBuckets.Sort((a, b) => (a.Center - villager.Center).LengthSquared().CompareTo((b.Center - villager.Center).LengthSquared()));
+
                     state = State.MoveToResource;
                     return;
                 }

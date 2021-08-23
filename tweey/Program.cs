@@ -45,6 +45,7 @@
             GL.Disable(EnableCap.CullFace);
 
             world.PlaceEntity(new Villager(world.Configuration.Data) { Location = new(5, 1) });
+            world.PlaceEntity(new Villager(world.Configuration.Data) { Location = new(15, 20) });
 
             world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["firewood"], 5)) { Location = new(3, 4) });
             world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["iron"], 2)) { Location = new(7, 4) });
