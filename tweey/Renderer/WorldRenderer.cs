@@ -50,19 +50,20 @@ class WorldRenderer
 
         void worldQuad(Box2 box, Vector4 color)
         {
+            var br = box.BottomRight + Vector2.One;
             vaoGui.Vertices.Add(new(box.TopLeft * pixelZoom, color));
-            vaoGui.Vertices.Add(new(box.BottomRight * pixelZoom, color));
-            vaoGui.Vertices.Add(new(new(box.Right * pixelZoom, box.Top * pixelZoom), color));
+            vaoGui.Vertices.Add(new(br * pixelZoom, color));
+            vaoGui.Vertices.Add(new(new((box.Right + 1) * pixelZoom, box.Top * pixelZoom), color));
 
-            vaoGui.Vertices.Add(new(new(box.Left * pixelZoom, box.Bottom * pixelZoom), color));
-            vaoGui.Vertices.Add(new(box.BottomRight * pixelZoom, color));
+            vaoGui.Vertices.Add(new(new(box.Left * pixelZoom, (box.Bottom + 1) * pixelZoom), color));
+            vaoGui.Vertices.Add(new(br * pixelZoom, color));
             vaoGui.Vertices.Add(new(box.TopLeft * pixelZoom, color));
         }
 
         void worldLine(Box2 box1, Box2 box2, Vector4 color)
         {
-            vaoGui.Vertices.Add(new(box1.Center * pixelZoom, color));
-            vaoGui.Vertices.Add(new(box2.Center * pixelZoom, color));
+            vaoGui.Vertices.Add(new((box1.Center + new Vector2(.5f, .5f)) * pixelZoom, color));
+            vaoGui.Vertices.Add(new((box2.Center + new Vector2(.5f, .5f)) * pixelZoom, color));
         }
 
         // store the actual entities' vertices

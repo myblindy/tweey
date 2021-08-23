@@ -1,7 +1,6 @@
-﻿namespace Tweey.Actors.Interfaces
+﻿namespace Tweey.Actors.Interfaces;
+
+interface IResourceNeed
 {
-    interface IResourceNeed
-    {
-        public ImmutableArray<Resource> StorageResourceNeeds { get; }
-    }
+    public ImmutableArray<Resource> StorageResourceNeeds { get; }
 }

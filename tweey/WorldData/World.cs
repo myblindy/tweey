@@ -19,7 +19,7 @@ public class World
             // obey the maximum ground stack weight
             List<(Vector2i pt, ResourceBucket? rb)> availableNeighbours = new();
             int availableNeighboursSearchRadius = -1;
-            while (resourceBucket.Weight > 0)
+            while (resourceBucket.AvailableWeight > 0)
             {
                 // take any spill-over and put it in a random direction, up to maximumGroundDropSpillOverRange range
                 while (availableNeighbours.Count == 0)
@@ -28,7 +28,7 @@ public class World
                     availableNeighbours.AddRange(
                         GameUtilities.EnumerateNeighbourLocations(resourceBucket.Location, radiusMin: availableNeighboursSearchRadius, radiusMax: availableNeighboursSearchRadius)
                             .Select(l => (l, rb: PlacedEntities.OfType<ResourceBucket>().FirstOrDefault(e => e.Contains(l))))
-                            .Where(l => l.rb is null || l.rb.Weight < Configuration.Data.GroundStackMaximumWeight));
+                            .Where(l => l.rb is null || l.rb.AvailableWeight < Configuration.Data.GroundStackMaximumWeight));
                 }
 
                 var chosenNeighbourIndex = Random.Shared.Next(availableNeighbours.Count);
@@ -37,7 +37,7 @@ public class World
 
                 var newRB = chosenNeighbour.rb ?? new() { Location = chosenNeighbour.pt.ToNumericsVector2() };
                 if (chosenNeighbour.rb is null) PlacedEntities.Add(newRB);
-                var newRBWeight = newRB.Weight;
+                var newRBWeight = newRB.AvailableWeight;
                 int resourceIndex = 0;
                 for (; resourceIndex < resourceBucket.ResourceQuantities.Count && resourceBucket.ResourceQuantities[resourceIndex].Quantity == 0; resourceIndex++) { }
 
