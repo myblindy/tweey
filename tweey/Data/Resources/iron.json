@@ -1,6 +1,7 @@
 {
   "$schema": "./_schema.json",
   "name": "Iron",
-  "weight": 6,
-  "color": [ 0.777, 0.777, 0.777 ]
+  "weight": 0.6,
+  "color": [ 0.777, 0.777, 0.777 ],
+  "pickupSpeedMultiplier": 0.6
 }

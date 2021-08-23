@@ -4,5 +4,6 @@
   "baseCarryWeight": 45,
   "groundStackMaximumWeight": 75,
   "maximumGroundDropSpillOverRange": 2,
-  "baseMovementSpeed": 0.7
+  "baseMovementSpeed": 2,
+  "basePickupSpeed": 1
 }

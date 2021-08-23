@@ -42,6 +42,7 @@ class WorldRenderer
 
     static readonly Vector4 colorWhite = new(1, 1, 1, 1);
     static readonly Vector4 colorRed = new(1, 0, 0, 1);
+    static readonly Vector4 colorCyan = new(0, 1, 1, 1);
 
     public void Render(double _)
     {
@@ -82,7 +83,7 @@ class WorldRenderer
                     }
                     break;
                 case Villager villager:
-                    worldQuad(Box2.FromCornerSize(villager.Location, 1, 1), colorWhite);
+                    worldQuad(Box2.FromCornerSize(villager.Location, 1, 1), colorCyan);
                     break;
             }
         var entityVertexCount = vaoGui.Vertices.Length;

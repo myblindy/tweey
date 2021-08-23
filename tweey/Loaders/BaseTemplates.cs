@@ -1,6 +1,6 @@
 ﻿namespace Tweey.Loaders
 {
-    abstract class BaseTemplates<TIn, TVal> : IEnumerable<string>
+    public abstract class BaseTemplates<TIn, TVal> : IEnumerable<string>
     {
         readonly ImmutableDictionary<string, TVal> resources;
 

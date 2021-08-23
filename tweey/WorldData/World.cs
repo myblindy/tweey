@@ -1,6 +1,6 @@
 ﻿namespace Tweey.WorldData;
 
-class World
+public class World
 {
     public ResourceTemplates Resources { get; }
     public BuildingTemplates BuildingTemplates { get; }
@@ -46,8 +46,11 @@ class World
                     var resQ = resourceBucket.ResourceQuantities[resourceIndex];
                     var maxNewWeight = Configuration.Data.GroundStackMaximumWeight - newRBWeight;
                     var quantityToMove = (int)Math.Floor(Math.Min(maxNewWeight, resQ.Weight) / resQ.Resource.Weight);
-                    newRB.Add(new(resQ.Resource, quantityToMove));
-                    if ((resQ.Quantity -= quantityToMove) > 0)
+
+                    var newResQ = new ResourceQuantity(resQ.Resource, quantityToMove);
+                    newRB.Add(newResQ);
+                    resourceBucket.Remove(newResQ);
+                    if (resQ.Quantity > 0)
                         break;  // couldn't finish the stack
                     newRBWeight += resQ.Resource.Weight * quantityToMove;
 
@@ -63,6 +66,10 @@ class World
 
         }
     }
+
+    public bool RemoveEntity(PlaceableEntity entity) => PlacedEntities.Remove(entity);
+    public void RemoveEntitiesWhere(Predicate<PlaceableEntity> entitiesMatch) => PlacedEntities.RemoveAll(entitiesMatch);
+    public void RemoveEntitiesWhere<T>(Predicate<T> entitiesMatch) where T : PlaceableEntity => PlacedEntities.RemoveAll(w => w is T t && entitiesMatch(t));
 
     public void Update(double deltaSec) => AIManager.Update(deltaSec);
 

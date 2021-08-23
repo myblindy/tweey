@@ -20,6 +20,11 @@
       "type": "number",
       "minimum": 0,
       "description": "How far a villager will move in units of cells/sec."
+    },
+    "basePickupSpeed": {
+      "type": "number",
+      "minimum": 0,
+      "description": "How fast a villager will pick up resources in units of 1/sec and multiplied by the individual resource pickup multipliers."
     }
   },
 

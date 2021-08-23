@@ -1,6 +1,7 @@
 {
   "$schema": "./_schema.json",
   "name": "Wood",
-  "weight": 5,
-  "color": [ 0.545, 0.270, 0.074 ]
+  "weight": 0.5,
+  "color": [ 0.545, 0.270, 0.074 ],
+  "pickupSpeedMultiplier": 0.9
 }

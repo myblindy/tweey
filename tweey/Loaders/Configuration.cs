@@ -1,14 +1,15 @@
 ﻿namespace Tweey.Loaders
 {
-    class ConfigurationData
+    public class ConfigurationData
     {
         public double GroundStackMaximumWeight { get; set; }
         public double BaseCarryWeight { get; set; }
         public int MaximumGroundDropSpillOverRange { get; set; }
         public double BaseMovementSpeed { get; set; }
+        public double BasePickupSpeed { get; set; }
     }
 
-    class Configuration
+    public class Configuration
     {
         public ConfigurationData Data { get; }
 

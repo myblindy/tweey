@@ -11,18 +11,24 @@
     },
     "weight": {
       "type": "number",
+      "minimum": 0,
       "description": "The weight of one unit of this resource."
+    },
+    "pickupSpeedMultiplier": {
+      "type": "number",
+      "minimum": 0,
+      "description": "The multiplier to be applied to a villager's pickup speed, on a per-resource basis."
     },
     "color": {
       "type": "array",
       "minItems": 3,
       "maxItems": 3,
-      "description": "The representative color of this resource",
+      "description": "The representative color of this resource.",
       "items": {
         "type": "number"
       }
     }
   },
 
-  "required": [ "name", "weight", "color" ]
+  "required": [ "name", "weight", "color", "pickupSpeedMultiplier" ]
 }

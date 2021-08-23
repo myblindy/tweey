@@ -1,8 +1,15 @@
 ﻿namespace Tweey.Support
 {
-    public record ActionTime(double ActionsPerSecond)
+    public class ActionTime
     {
+        public ActionTime() { }
+        public ActionTime(double actionsPerSecond) : this() => ActionsPerSecond = actionsPerSecond;
+
+        public double ActionsPerSecond { get; set; }
+
         double timerSec;
+
+        public void Reset(double actionsPerSecond) => (ActionsPerSecond, timerSec) = (actionsPerSecond, 0);
 
         public void AdvanceTime(double deltaSec) => timerSec += deltaSec;
 
