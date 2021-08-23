@@ -1,12 +1,11 @@
-﻿using System.Text.Json;
-
-namespace Tweey.Loaders
+﻿namespace Tweey.Loaders
 {
     class ConfigurationData
     {
         public double GroundStackMaximumWeight { get; set; }
         public double BaseCarryWeight { get; set; }
         public int MaximumGroundDropSpillOverRange { get; set; }
+        public double BaseMovementSpeed { get; set; }
     }
 
     class Configuration

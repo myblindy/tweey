@@ -14,9 +14,14 @@
     "maximumGroundDropSpillOverRange": {
       "type": "integer",
       "minimum": 1,
-      "description": "How far resources heavier than groundStackMaximumWeight will spill-over to the ground"
+      "description": "How far resources heavier than groundStackMaximumWeight will spill-over to the ground."
+    },
+    "baseMovementSpeed": {
+      "type": "number",
+      "minimum": 0,
+      "description": "How far a villager will move in units of cells/sec."
     }
   },
 
-  "required": [ "groundStackMaximumWeight", "baseCarryWeight", "maximumGroundDropSpillOverRange" ]
+  "required": [ "groundStackMaximumWeight", "baseCarryWeight", "maximumGroundDropSpillOverRange", "baseMovementSpeed" ]
 }

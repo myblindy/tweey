@@ -1,7 +1,7 @@
 ﻿namespace Tweey.Support
 {
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    struct Box2
+    public struct Box2
     {
         public Vector2 TopLeft, BottomRight;
 
@@ -9,6 +9,8 @@
         public float Top => TopLeft.Y;
         public float Right => BottomRight.X;
         public float Bottom => BottomRight.Y;
+
+        public Vector2 Center => TopLeft + new Vector2((Right - Left) / 2, (Bottom - Top) / 2);
 
         public Vector2 Size => BottomRight - TopLeft;
 

@@ -1,11 +1,13 @@
 ﻿namespace Tweey.Actors
 {
-    class Villager : IPlaceableEntity
+    public class Villager : PlaceableEntity
     {
-        public Vector2 Location { get; set; }
-        public int Width => 1;
-        public int Height => 1;
+        public Villager(double baseMovementPerSecond) => 
+            (Width, Height, MovementActionTime) = (1, 1, new(baseMovementPerSecond));
 
-        public bool Contains(Vector2i pt) => Location.X <= pt.X && pt.X < Location.X + Width && Location.Y <= pt.Y && pt.Y < Location.Y + Height;
+        public AIPlan? AIPlan { get; set; }
+
+        public ActionTime MovementActionTime { get; }
+        public ResourceBucket Inventory { get; } = new();
     }
 }
