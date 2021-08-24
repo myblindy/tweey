@@ -22,11 +22,7 @@ public class BuildingTemplateIn
 
 public class BuildingTemplates : BaseTemplates<BuildingTemplateIn, BuildingTemplate>
 {
-    static readonly IMapper mapper = new Mapper(new MapperConfiguration(cfg =>
-        cfg.CreateMap<BuildingTemplateIn, BuildingTemplate>()
-            .ForMember(x => x.Color, opt => opt.MapFrom(src => src.Color!.Length == 3 ? new Vector4(src.Color[0], src.Color[1], src.Color[2], 1) : new(src.Color)))));
-
-    public BuildingTemplates(ILoader loader) : base(loader, mapper, "Buildings", x => x.Name)
+        public BuildingTemplates(ILoader loader) : base(loader, "Buildings", x => x.Name)
     {
     }
 }
