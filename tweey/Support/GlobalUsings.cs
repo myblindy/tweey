@@ -11,7 +11,6 @@ global using System.Runtime.InteropServices;
 global using System.Text.Json;
 global using System.Text.Json.Serialization;
 
-
 global using Tweey.Actors;
 global using Tweey.Actors.Interfaces;
 global using Tweey.Loaders;
@@ -22,8 +21,6 @@ global using Tweey.WorldData;
 global using OpenTK.Graphics.OpenGL4;
 global using OpenTK.Windowing.Common;
 global using OpenTK.Windowing.Desktop;
-
-global using AutoMapper;
 
 global using static MoreLinq.Extensions.ForEachExtension;
 
