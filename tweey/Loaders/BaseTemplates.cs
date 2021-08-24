@@ -1,8 +1,8 @@
-﻿using AutoMapper;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Immutable;
 using System.IO;
 using System.Text.Json;
+using Tweey.Support;
 
 namespace Tweey.Loaders
 {
@@ -10,7 +10,7 @@ namespace Tweey.Loaders
     {
         readonly ImmutableDictionary<string, TVal> resources;
 
-        public BaseTemplates(ILoader loader, IMapper mapper, string subFolder, Func<TVal, string> keySelector)
+        public BaseTemplates(ILoader loader, string subFolder, Func<TVal, string> keySelector)
         {
             var options = Loader.BuildJsonOptions();
             resources = loader.GetAllJsonData($@"Data/{subFolder}").Values
@@ -18,7 +18,7 @@ namespace Tweey.Loaders
                 {
                     using var stream = new StreamReader(sgen());
                     var @in = JsonSerializer.Deserialize<TIn>(stream.ReadToEnd(), options)!;
-                    return mapper is not null ? mapper.Map<TVal>(@in) : (TVal)(object)@in;
+                    return GlobalMapper.Mapper.Map<TVal>(@in) ?? (TVal)(object)@in;
                 })
                 .ToImmutableDictionary(keySelector, StringComparer.CurrentCultureIgnoreCase);
         }
