@@ -64,4 +64,7 @@ class ShaderProgram
 
     public void UniformBlockBind(string uniformVariableName, int bindingPoint) =>
         GL.UniformBlockBinding(programName, attributeLocations[uniformVariableName], bindingPoint);
+
+    public void Uniform(string uniformVariableName, int value) =>
+        GL.ProgramUniform1(programName, attributeLocations[uniformVariableName], value);
 }

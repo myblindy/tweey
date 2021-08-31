@@ -44,15 +44,20 @@ public class World
                 while (resourceIndex < resourceBucket.ResourceQuantities.Count)
                 {
                     var resQ = resourceBucket.ResourceQuantities[resourceIndex];
-                    var maxNewWeight = Configuration.Data.GroundStackMaximumWeight - newRBWeight;
-                    var quantityToMove = (int)Math.Floor(Math.Min(maxNewWeight, resQ.Weight) / resQ.Resource.Weight);
 
-                    var newResQ = new ResourceQuantity(resQ.Resource, quantityToMove);
-                    newRB.Add(newResQ);
-                    resourceBucket.Remove(newResQ);
-                    if (resQ.Quantity > 0)
-                        break;  // couldn't finish the stack
-                    newRBWeight += resQ.Resource.Weight * quantityToMove;
+                    // only allow one resource kind on the ground
+                    if (!newRB.ResourceQuantities.Any() || newRB.ResourceQuantities.Any(rq => rq.Resource == resQ.Resource))
+                    {
+                        var maxNewWeight = Configuration.Data.GroundStackMaximumWeight - newRBWeight;
+                        var quantityToMove = (int)Math.Floor(Math.Min(maxNewWeight, resQ.Weight) / resQ.Resource.Weight);
+
+                        var newResQ = new ResourceQuantity(resQ.Resource, quantityToMove);
+                        newRB.Add(newResQ);
+                        resourceBucket.Remove(newResQ);
+                        if (resQ.Quantity > 0)
+                            break;  // couldn't finish the stack
+                        newRBWeight += resQ.Resource.Weight * quantityToMove;
+                    }
 
                     for (++resourceIndex; resourceIndex < resourceBucket.ResourceQuantities.Count && resourceBucket.ResourceQuantities[resourceIndex].Quantity == 0; resourceIndex++) { }
                 }

@@ -2,18 +2,18 @@
 
 public interface ILoader
 {
-    ImmutableDictionary<string, Func<Stream>> GetAllJsonData(string root);
-    Func<Stream> GetJsonData(string path);
+    ImmutableDictionary<string, Func<(Stream stream, string fileName)>> GetAllJsonData(string root);
+    Func<(Stream stream, string fileName)> GetJsonData(string path);
 }
 
 public class DiskLoader : ILoader
 {
-    public ImmutableDictionary<string, Func<Stream>> GetAllJsonData(string root) =>
+    public ImmutableDictionary<string, Func<(Stream stream, string fileName)>> GetAllJsonData(string root) =>
         Directory.EnumerateFiles(root, "*.json", SearchOption.AllDirectories)
             .Where(path => !Path.GetFileName(path).Equals("_schema.json", StringComparison.OrdinalIgnoreCase))
             .ToImmutableDictionary(path => path, GetJsonData);
 
-    public Func<Stream> GetJsonData(string path) => () => File.OpenRead(path);
+    public Func<(Stream stream, string fileName)> GetJsonData(string path) => () => (File.OpenRead(path), path);
 
     public static DiskLoader Instance { get; } = new();
 }

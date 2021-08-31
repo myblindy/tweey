@@ -11,6 +11,9 @@ global using System.Runtime.InteropServices;
 global using System.Text.Json;
 global using System.Text.Json.Serialization;
 
+global using SixLabors.ImageSharp.PixelFormats;
+global using SixLabors.ImageSharp;
+
 global using Tweey.Actors;
 global using Tweey.Actors.Interfaces;
 global using Tweey.Loaders;
@@ -25,3 +28,4 @@ global using OpenTK.Windowing.Desktop;
 global using static MoreLinq.Extensions.ForEachExtension;
 
 global using Vector2i = OpenTK.Mathematics.Vector2i;
+global using Configuration = Tweey.Loaders.Configuration;

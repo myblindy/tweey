@@ -1,7 +1,4 @@
-﻿using Tweey.Actors;
-using Tweey.Loaders;
-
-namespace Tweey.Support;
+﻿namespace Tweey.Support;
 
 internal partial class InternalMapper : FastAutoMapper.FastAutoMapperBase { }
 
