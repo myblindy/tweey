@@ -1,19 +1,26 @@
 ﻿namespace Tweey.Loaders;
 
+public interface ITemplateFileName
+{
+    string? FileName { get; set; }
+}
 
-public abstract class BaseTemplates<TIn, TVal> : IEnumerable<string>
+public abstract class BaseTemplates<TIn, TVal> : IEnumerable<string> where TVal : ITemplateFileName
 {
     readonly ImmutableDictionary<string, TVal> resources;
 
-        public BaseTemplates(ILoader loader, string subFolder, Func<TVal, string> keySelector)
+    public BaseTemplates(ILoader loader, string subFolder, Func<TVal, string> keySelector)
     {
         var options = Loader.BuildJsonOptions();
         resources = loader.GetAllJsonData($@"Data/{subFolder}").Values
             .Select(sgen =>
             {
-                using var stream = new StreamReader(sgen());
-                var @in = JsonSerializer.Deserialize<TIn>(stream.ReadToEnd(), options)!;
-                    return GlobalMapper.Mapper.Map<TVal>(@in) ?? (TVal)(object)@in;
+                var (stream, fileName) = sgen();
+                using var streamReader = new StreamReader(stream);
+                var @in = JsonSerializer.Deserialize<TIn>(streamReader.ReadToEnd(), options)!;
+                var result = GlobalMapper.Mapper.Map<TVal>(@in) ?? (TVal)(object)@in;
+                result.FileName = Path.GetFileNameWithoutExtension(fileName);
+                return result;
             })
             .ToImmutableDictionary(keySelector, StringComparer.CurrentCultureIgnoreCase);
     }

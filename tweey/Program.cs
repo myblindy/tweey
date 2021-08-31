@@ -43,6 +43,8 @@ class Program : GameWindow
         GL.ClipControl(ClipOrigin.UpperLeft, ClipDepthMode.ZeroToOne);
         GL.Disable(EnableCap.DepthTest);
         GL.Disable(EnableCap.CullFace);
+        GL.Enable(EnableCap.Blend);
+        GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
         world.PlaceEntity(new Villager(world.Configuration.Data) { Location = new(5, 1) });
         world.PlaceEntity(new Villager(world.Configuration.Data) { Location = new(15, 20) });

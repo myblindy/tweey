@@ -16,7 +16,7 @@ public class Configuration
     public Configuration(ILoader loader)
     {
         var options = Loader.BuildJsonOptions();
-        using var stream = new StreamReader(loader.GetJsonData(@"Data/Configuration/config.json")());
+        using var stream = new StreamReader(loader.GetJsonData(@"Data/Configuration/config.json")().stream);
         Data = JsonSerializer.Deserialize<ConfigurationData>(stream.ReadToEnd(), options)!;
     }
 }
