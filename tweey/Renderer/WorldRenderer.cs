@@ -67,8 +67,8 @@ class WorldRenderer
             vaoGui.Vertices.Add(new(box.TopLeft * zoom, color, entry.TextureCoordinate0));
         }
 
-        void worldChar(char ch, FontDescription fontDescription, Vector2 location, Vector4 color) =>
-            fontRenderer.Render(ch, fontDescription, location.ToVector2i(), (box, atlasEntry) => worldQuad(box, color, atlasEntry, false));
+        void worldString(string s, FontDescription fontDescription, Vector2 location, Vector4 color) =>
+            fontRenderer.Render(s, fontDescription, location.ToVector2i(), (box, atlasEntry) => worldQuad(box, color, atlasEntry, false));
 
         void worldLine(Box2 box1, Box2 box2, Vector4 color)
         {
@@ -93,7 +93,7 @@ class WorldRenderer
                     break;
             }
 
-        worldChar('m', new() { Size = 16 }, new(), colorWhite);
+        worldString("deep", new() { Size = 16 }, new(), colorWhite);
 
         var entityVertexCount = vaoGui.Vertices.Length;
 

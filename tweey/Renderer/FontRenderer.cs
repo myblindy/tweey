@@ -77,4 +77,15 @@ public class FontRenderer
 
         write(Box2.FromCornerSize(position.ToNumericsVector2(), fullAtlasEntry.pixelSize.ToNumericsVector2()), fullAtlasEntry.entry);
     }
+
+    public void Render(string s, FontDescription fontDescription, Vector2i position, Action<Box2, AtlasEntry> write,
+        HorizontalAlignment horizontalAlignment = HorizontalAlignment.Center, VerticalAlignment verticalAlignment = VerticalAlignment.Center)
+    {
+        foreach (var ch in s)
+            Render(ch, fontDescription, position, (box, atlasEntry) =>
+            {
+                write(box, atlasEntry);
+                position += new Vector2i((int)MathF.Ceiling(box.Size.X), 0);
+            }, horizontalAlignment, verticalAlignment);
+    }
 }
