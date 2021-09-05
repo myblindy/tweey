@@ -4,6 +4,7 @@ class WorldRenderer
 {
     readonly World world;
     readonly GrowableTextureAtlas3D atlas = new(2048, 2048, 5);
+    readonly FontRenderer fontRenderer;
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     struct WindowUbo
@@ -31,6 +32,7 @@ class WorldRenderer
     public WorldRenderer(World world)
     {
         this.world = world;
+        fontRenderer = new(atlas);
         shaderProgram.UniformBlockBind("ubo_window", windowUboBindingPoint);
         shaderProgram.Uniform("atlasSampler", 0);
     }
@@ -52,17 +54,21 @@ class WorldRenderer
     {
         vaoGui.Vertices.Clear();
 
-        void worldQuad(Box2 box, Vector4 color, AtlasEntry entry)
+        void worldQuad(Box2 box, Vector4 color, AtlasEntry entry, bool useScale = true)
         {
+            var zoom = useScale ? pixelZoom : 1;
             var br = box.BottomRight + Vector2.One;
-            vaoGui.Vertices.Add(new(box.TopLeft * pixelZoom, color, entry.TextureCoordinate0));
-            vaoGui.Vertices.Add(new(br * pixelZoom, color, entry.TextureCoordinate1));
-            vaoGui.Vertices.Add(new(new((box.Right + 1) * pixelZoom, box.Top * pixelZoom), color, new(entry.TextureCoordinate1.X, entry.TextureCoordinate0.Y, entry.TextureCoordinate0.Z)));
+            vaoGui.Vertices.Add(new(box.TopLeft * zoom, color, entry.TextureCoordinate0));
+            vaoGui.Vertices.Add(new(br * zoom, color, entry.TextureCoordinate1));
+            vaoGui.Vertices.Add(new(new((box.Right + 1) * zoom, box.Top * zoom), color, new(entry.TextureCoordinate1.X, entry.TextureCoordinate0.Y, entry.TextureCoordinate0.Z)));
 
-            vaoGui.Vertices.Add(new(new(box.Left * pixelZoom, (box.Bottom + 1) * pixelZoom), color, new(entry.TextureCoordinate0.X, entry.TextureCoordinate1.Y, entry.TextureCoordinate0.Z)));
-            vaoGui.Vertices.Add(new(br * pixelZoom, color, entry.TextureCoordinate1));
-            vaoGui.Vertices.Add(new(box.TopLeft * pixelZoom, color, entry.TextureCoordinate0));
+            vaoGui.Vertices.Add(new(new(box.Left * zoom, (box.Bottom + 1) * zoom), color, new(entry.TextureCoordinate0.X, entry.TextureCoordinate1.Y, entry.TextureCoordinate0.Z)));
+            vaoGui.Vertices.Add(new(br * zoom, color, entry.TextureCoordinate1));
+            vaoGui.Vertices.Add(new(box.TopLeft * zoom, color, entry.TextureCoordinate0));
         }
+
+        void worldChar(char ch, FontDescription fontDescription, Vector2 location, Vector4 color) =>
+            fontRenderer.Render(ch, fontDescription, location.ToVector2i(), (box, atlasEntry) => worldQuad(box, color, atlasEntry, false));
 
         void worldLine(Box2 box1, Box2 box2, Vector4 color)
         {
@@ -86,6 +92,9 @@ class WorldRenderer
                     worldQuad(Box2.FromCornerSize(villager.Location, 1, 1), colorWhite, atlas["Data/Misc/villager.png"]);
                     break;
             }
+
+        worldChar('m', new() { Size = 16 }, new(), colorWhite);
+
         var entityVertexCount = vaoGui.Vertices.Length;
 
         // store the ai plan targets' vertices
