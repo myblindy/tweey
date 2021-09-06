@@ -49,6 +49,7 @@ public class FontRenderer
             tempImage = new Image<Bgra32>(width + 20, height + 20);
     }
 
+    static readonly DrawingOptions drawingOptions = new() { TextOptions = { ApplyKerning = true, RenderColorFonts = true } };
     public void Render(char ch, FontDescription fontDescription, Vector2i position, Action<Box2, AtlasEntry> write,
         HorizontalAlignment horizontalAlignment = HorizontalAlignment.Center, VerticalAlignment verticalAlignment = VerticalAlignment.Center)
     {
@@ -63,22 +64,22 @@ public class FontRenderer
 
             // measure the character
             var s = ch.ToString();
-            var renderOptions = new RendererOptions(font) { ApplyKerning = true };
+            var renderOptions = new RendererOptions(font) { ApplyKerning = true, ColorFontSupport = ColorFontSupport.MicrosoftColrFormat };
             var fontRect = TextMeasurer.Measure(s, renderOptions);
             var (width, height) = ((int)MathF.Ceiling(fontRect.Width), (int)MathF.Ceiling(fontRect.Height));
 
             // draw the character
-            EnsureTempImage(width, height);
+            EnsureTempImage(width + (int)MathF.Floor(fontRect.Left), height + (int)MathF.Floor(fontRect.Top));
             fontAtlasEntries[(fontDescription, ch)] = fullAtlasEntry = (backingTextureAtlas.AddFromImage(tempImage, width, height, atlasPosition =>
                 tempImage.Mutate(ctx => ctx
                     .Clear(Color.Transparent)
-                    .DrawText(s, font, Color.White, new()))), new(width, height));
+                    .DrawText(drawingOptions, s, font, Color.White, new(fontRect.Left, fontRect.Top)))), new(width, height));
         }
 
         write(Box2.FromCornerSize(position.ToNumericsVector2(), fullAtlasEntry.pixelSize.ToNumericsVector2()), fullAtlasEntry.entry);
     }
 
-    public void Render(string s, FontDescription fontDescription, Vector2i position, Action<Box2, AtlasEntry> write,
+    public void Render(ReadOnlySpan<char> s, FontDescription fontDescription, Vector2i position, Action<Box2, AtlasEntry> write,
         HorizontalAlignment horizontalAlignment = HorizontalAlignment.Center, VerticalAlignment verticalAlignment = VerticalAlignment.Center)
     {
         foreach (var ch in s)

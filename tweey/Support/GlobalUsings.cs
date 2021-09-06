@@ -21,7 +21,8 @@ global using Tweey.Renderer;
 global using Tweey.Support;
 global using Tweey.WorldData;
 
-global using OpenTK.Graphics.OpenGL4;
+global using OpenTK.Graphics;
+global using OpenTK.Graphics.OpenGL;
 global using OpenTK.Windowing.Common;
 global using OpenTK.Windowing.Desktop;
 

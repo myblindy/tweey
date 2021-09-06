@@ -47,10 +47,12 @@ class WorldRenderer
 
     static readonly Vector4 colorWhite = new(1, 1, 1, 1);
     static readonly Vector4 colorRed = new(1, 0, 0, 1);
+    static readonly Vector4 colorGreen = new(0, 1, 0, 1);
     static readonly Vector4 colorCyan = new(0, 1, 1, 1);
     static readonly Vector4 colorYellow = new(1, 1, 0, 1);
 
-    public void Render(double _)
+    FrameData frameData;
+    public void Render(double deltaSec, double deltaUpdateTimeSec, double deltaRenderTimeSec)
     {
         vaoGui.Vertices.Clear();
 
@@ -93,7 +95,9 @@ class WorldRenderer
                     break;
             }
 
-        worldString("deep", new() { Size = 16 }, new(), colorWhite);
+        frameData.NewFrame(TimeSpan.FromSeconds(deltaSec), TimeSpan.FromSeconds(deltaUpdateTimeSec), TimeSpan.FromSeconds(deltaRenderTimeSec));
+        worldString($"FPS: {frameData.Rate:0.0}, update: {frameData.UpdateTimePercentage * 100:0.00}%, render: {frameData.RenderTimePercentage * 100:0.00}%",
+            new() { Size = 22 }, new(2, 2), colorGreen);
 
         var entityVertexCount = vaoGui.Vertices.Length;
 

@@ -40,7 +40,7 @@ class Program : GameWindow
                 Console.WriteLine($"GL ERROR {Encoding.ASCII.GetString((byte*)msg, len)}, type: {type}, severity: {severity}, source: {src}");
         }, IntPtr.Zero);
 
-        GL.ClipControl(ClipOrigin.UpperLeft, ClipDepthMode.ZeroToOne);
+        GL.ClipControl(ClipControlOrigin.UpperLeft, ClipControlDepth.ZeroToOne);
         GL.Disable(EnableCap.DepthTest);
         GL.Disable(EnableCap.CullFace);
         GL.Enable(EnableCap.Blend);
@@ -80,7 +80,7 @@ class Program : GameWindow
     protected override void OnRenderFrame(FrameEventArgs args)
     {
         GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-        worldRenderer!.Render(args.Time);
+        worldRenderer!.Render(args.Time, UpdateTime, RenderTime);
         SwapBuffers();
     }
 

@@ -12,19 +12,19 @@ class VertexArrayObject<TVertex, TIndex> : IVertexArrayObject where TVertex : un
         VertexCapacity = vertexCapacity;
         IndexCapacity = indexCapacity;
 
-        GL.CreateBuffers(1, out vertexBufferName);
-        GL.NamedBufferStorage(vertexBufferName, Unsafe.SizeOf<TVertex>() * vertexCapacity, IntPtr.Zero,
-            BufferStorageFlags.MapWriteBit | BufferStorageFlags.MapReadBit | BufferStorageFlags.MapPersistentBit | BufferStorageFlags.MapCoherentBit | BufferStorageFlags.DynamicStorageBit);
-        Vertices = new((TVertex*)GL.MapNamedBufferRange(vertexBufferName, IntPtr.Zero, Unsafe.SizeOf<TVertex>() * vertexCapacity,
-            BufferAccessMask.MapWriteBit | BufferAccessMask.MapReadBit | BufferAccessMask.MapPersistentBit | BufferAccessMask.MapCoherentBit).ToPointer(), vertexCapacity);
+        vertexBufferHandle = GL.CreateBuffer();
+        GL.NamedBufferStorage(vertexBufferHandle, Unsafe.SizeOf<TVertex>() * vertexCapacity, IntPtr.Zero,
+            BufferStorageMask.MapWriteBit | BufferStorageMask.MapReadBit | BufferStorageMask.MapPersistentBit | BufferStorageMask.MapCoherentBit | BufferStorageMask.DynamicStorageBit);
+        Vertices = new((TVertex*)GL.MapNamedBufferRange(vertexBufferHandle, IntPtr.Zero, Unsafe.SizeOf<TVertex>() * vertexCapacity,
+            MapBufferAccessMask.MapWriteBit | MapBufferAccessMask.MapReadBit | MapBufferAccessMask.MapPersistentBit | MapBufferAccessMask.MapCoherentBit), vertexCapacity);
 
         if (hasIndexBuffer)
         {
-            GL.CreateBuffers(1, out indexBufferName);
-            GL.NamedBufferStorage(indexBufferName, Unsafe.SizeOf<TIndex>() * indexCapacity, IntPtr.Zero,
-                BufferStorageFlags.MapWriteBit | BufferStorageFlags.MapReadBit | BufferStorageFlags.MapPersistentBit | BufferStorageFlags.MapCoherentBit | BufferStorageFlags.DynamicStorageBit);
-            Indices = new((TIndex*)GL.MapNamedBufferRange(indexBufferName, IntPtr.Zero, Unsafe.SizeOf<TIndex>() * indexCapacity,
-                BufferAccessMask.MapWriteBit | BufferAccessMask.MapReadBit | BufferAccessMask.MapPersistentBit | BufferAccessMask.MapCoherentBit).ToPointer(), indexCapacity);
+            indexBufferHandle = GL.CreateBuffer();
+            GL.NamedBufferStorage(indexBufferHandle, Unsafe.SizeOf<TIndex>() * indexCapacity, IntPtr.Zero,
+                BufferStorageMask.MapWriteBit | BufferStorageMask.MapReadBit | BufferStorageMask.MapPersistentBit | BufferStorageMask.MapCoherentBit | BufferStorageMask.DynamicStorageBit);
+            Indices = new((TIndex*)GL.MapNamedBufferRange(indexBufferHandle, IntPtr.Zero, Unsafe.SizeOf<TIndex>() * indexCapacity,
+                MapBufferAccessMask.MapWriteBit | MapBufferAccessMask.MapReadBit | MapBufferAccessMask.MapPersistentBit | MapBufferAccessMask.MapCoherentBit), indexCapacity);
 
             drawElementsType =
                 typeof(TIndex) == typeof(byte) ? DrawElementsType.UnsignedByte :
@@ -36,16 +36,16 @@ class VertexArrayObject<TVertex, TIndex> : IVertexArrayObject where TVertex : un
                 throw new InvalidOperationException();
         }
 
-        GL.CreateVertexArrays(1, out vertexArrayName);
-        GL.VertexArrayVertexBuffer(vertexArrayName, 0, vertexBufferName, IntPtr.Zero, Unsafe.SizeOf<TVertex>());
+        vertexArrayHandle = GL.CreateVertexArray();
+        GL.VertexArrayVertexBuffer(vertexArrayHandle, 0, vertexBufferHandle, IntPtr.Zero, Unsafe.SizeOf<TVertex>());
 
-        int idx = 0, offset = 0;
+        uint idx = 0, offset = 0;
         foreach (var fi in typeof(TVertex).GetFields())
         {
-            GL.EnableVertexArrayAttrib(vertexArrayName, idx);
-            GL.VertexArrayAttribFormat(vertexArrayName, idx, fieldCounts[fi.FieldType], fieldTypes[fi.FieldType], false, offset);
+            GL.EnableVertexArrayAttrib(vertexArrayHandle, idx);
+            GL.VertexArrayAttribFormat(vertexArrayHandle, idx, fieldCounts[fi.FieldType], fieldTypes[fi.FieldType], false, offset);
             offset += fieldSizes[fi.FieldType];
-            GL.VertexArrayAttribBinding(vertexArrayName, idx, 0);
+            GL.VertexArrayAttribBinding(vertexArrayHandle, idx, 0);
             ++idx;
         }
     }
@@ -66,12 +66,12 @@ class VertexArrayObject<TVertex, TIndex> : IVertexArrayObject where TVertex : un
         [typeof(Vector4)] = VertexAttribType.Float,
     };
 
-    static readonly Dictionary<Type, int> fieldSizes = new()
+    static readonly Dictionary<Type, uint> fieldSizes = new()
     {
-        [typeof(float)] = Unsafe.SizeOf<float>(),
-        [typeof(Vector2)] = Unsafe.SizeOf<Vector2>(),
-        [typeof(Vector3)] = Unsafe.SizeOf<Vector3>(),
-        [typeof(Vector4)] = Unsafe.SizeOf<Vector4>(),
+        [typeof(float)] = (uint)Unsafe.SizeOf<float>(),
+        [typeof(Vector2)] = (uint)Unsafe.SizeOf<Vector2>(),
+        [typeof(Vector3)] = (uint)Unsafe.SizeOf<Vector3>(),
+        [typeof(Vector4)] = (uint)Unsafe.SizeOf<Vector4>(),
     };
 
     static IVertexArrayObject? lastBoundVertexArray;
@@ -86,7 +86,7 @@ class VertexArrayObject<TVertex, TIndex> : IVertexArrayObject where TVertex : un
     {
         if (lastBoundVertexArray != this)
         {
-            GL.BindVertexArray(vertexArrayName);
+            GL.BindVertexArray(vertexArrayHandle);
             lastBoundVertexArray = this;
         }
 
@@ -98,7 +98,8 @@ class VertexArrayObject<TVertex, TIndex> : IVertexArrayObject where TVertex : un
                 vertexOrIndexCount >= 0 ? vertexOrIndexCount : Vertices.Length - vertexOrIndexOffset);
     }
 
-    readonly int vertexBufferName, indexBufferName, vertexArrayName;
+    readonly BufferHandle vertexBufferHandle, indexBufferHandle;
+    readonly VertexArrayHandle vertexArrayHandle;
     readonly DrawElementsType drawElementsType;
 
     RefArray<TVertex> vertices;

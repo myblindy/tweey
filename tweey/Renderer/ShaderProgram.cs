@@ -2,56 +2,68 @@
 
 class ShaderProgram
 {
-    readonly int programName;
+    readonly ProgramHandle programHandle;
     readonly Dictionary<string, int> attributeLocations = new();
 
     public ShaderProgram(string vsPath, string fsPath)
     {
-        static int CompileShader(ShaderType type, string path)
+        static ShaderHandle CompileShader(ShaderType type, string path)
         {
-            var name = GL.CreateShader(type);
-            GL.ShaderSource(name, File.ReadAllText(path));
-            GL.CompileShader(name);
+            var handle = GL.CreateShader(type);
+            GL.ShaderSource(handle, File.ReadAllText(path));
+            GL.CompileShader(handle);
 
-            GL.GetShader(name, ShaderParameter.CompileStatus, out var status);
+            int status = 0;
+            GL.GetShaderi(handle, ShaderParameterName.CompileStatus, ref status);
             if (status == 0)
-                throw new InvalidOperationException($"Compilation errors for '{path}':\n\n{GL.GetShaderInfoLog(name)}");
+            {
+                GL.GetShaderInfoLog(handle, out var statusInfoLog);
+                throw new InvalidOperationException($"Compilation errors for '{path}':\n\n{statusInfoLog}");
+            }
 
-            return name;
+            return handle;
         }
 
         var vsName = CompileShader(ShaderType.VertexShader, Path.Combine("Data", "Shaders", vsPath));
         var fsName = CompileShader(ShaderType.FragmentShader, Path.Combine("Data", "Shaders", fsPath));
 
-        programName = GL.CreateProgram();
-        GL.AttachShader(programName, vsName);
-        GL.AttachShader(programName, fsName);
-        GL.LinkProgram(programName);
+        programHandle = GL.CreateProgram();
+        GL.AttachShader(programHandle, vsName);
+        GL.AttachShader(programHandle, fsName);
+        GL.LinkProgram(programHandle);
 
-        GL.GetProgram(programName, GetProgramParameterName.LinkStatus, out var status);
+        int status = 0;
+        GL.GetProgrami(programHandle, ProgramPropertyARB.LinkStatus, ref status);
         if (status == 0)
-            throw new InvalidOperationException($"Linking errors for '{vsPath}' and '{fsPath}':\n\n{GL.GetProgramInfoLog(programName)}");
+        {
+            GL.GetProgramInfoLog(programHandle, out var programInfoLog);
+            throw new InvalidOperationException($"Linking errors for '{vsPath}' and '{fsPath}':\n\n{programInfoLog}");
+        }
 
         GL.DeleteShader(vsName);
         GL.DeleteShader(fsName);
 
-        GL.GetProgram(programName, GetProgramParameterName.ActiveUniformMaxLength, out var activeUniformMaxLength);
-        GL.GetProgram(programName, GetProgramParameterName.ActiveUniforms, out var uniformCount);
-        for (int i = 0; i < uniformCount; ++i)
+        int activeUniformMaxLength = 0, uniformCount = 0;
+        GL.GetProgrami(programHandle, ProgramPropertyARB.ActiveUniformMaxLength, ref activeUniformMaxLength);
+        GL.GetProgrami(programHandle, ProgramPropertyARB.ActiveUniforms, ref uniformCount);
+        for (uint i = 0; i < uniformCount; ++i)
         {
-            GL.GetActiveUniformName(programName, i, Math.Max(1, activeUniformMaxLength), out _, out var name);
-            int location = GL.GetUniformLocation(programName, name);
+            int length = 0;
+            var name = GL.GetActiveUniformName(programHandle, i, Math.Max(1, activeUniformMaxLength), ref length);
+            int location = GL.GetUniformLocation(programHandle, name);
 
             if (location >= 0)
                 attributeLocations[name] = location;
         }
 
-        GL.GetProgram(programName, GetProgramParameterName.ActiveUniformBlockMaxNameLength, out var xctiveUniformBlockMaxNameLength);
-        GL.GetProgram(programName, GetProgramParameterName.ActiveUniformBlocks, out var uniformBlockCount);
-        for (int i = 0; i < uniformBlockCount; ++i)
+        int activeUniformBlockMaxNameLength = 0, uniformBlockCount = 0;
+        GL.GetProgrami(programHandle, ProgramPropertyARB.ActiveUniformBlockMaxNameLength, ref activeUniformBlockMaxNameLength);
+        GL.GetProgrami(programHandle, ProgramPropertyARB.ActiveUniformBlocks, ref uniformBlockCount);
+        for (uint i = 0; i < uniformBlockCount; ++i)
         {
-            GL.GetActiveUniformBlockName(programName, i, Math.Max(1, xctiveUniformBlockMaxNameLength), out _, out var name);
-            int location = GL.GetUniformBlockIndex(programName, name);
+            int length = 0;
+            var name = GL.GetActiveUniformBlockName(programHandle, i, Math.Max(1, activeUniformBlockMaxNameLength), ref length);
+            var location = (int)GL.GetUniformBlockIndex(programHandle, name);
 
             if (location >= 0)
                 attributeLocations[name] = location;
@@ -60,11 +72,19 @@ class ShaderProgram
 
     public ShaderProgram(string path) : this(path + ".vert", path + ".frag") { }
 
-    public void Use() => GL.UseProgram(programName);
+    static ShaderProgram? lastUsedProgram;
+    public void Use()
+    {
+        if (lastUsedProgram != this)
+        {
+            GL.UseProgram(programHandle);
+            lastUsedProgram = this;
+        }
+    }
 
-    public void UniformBlockBind(string uniformVariableName, int bindingPoint) =>
-        GL.UniformBlockBinding(programName, attributeLocations[uniformVariableName], bindingPoint);
+    public void UniformBlockBind(string uniformVariableName, uint bindingPoint) =>
+        GL.UniformBlockBinding(programHandle, (uint)attributeLocations[uniformVariableName], bindingPoint);
 
     public void Uniform(string uniformVariableName, int value) =>
-        GL.ProgramUniform1(programName, attributeLocations[uniformVariableName], value);
+        GL.ProgramUniform1i(programHandle, attributeLocations[uniformVariableName], value);
 }
