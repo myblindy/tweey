@@ -16,6 +16,7 @@ global using SixLabors.ImageSharp;
 
 global using Tweey.Actors;
 global using Tweey.Actors.Interfaces;
+global using Tweey.Gui;
 global using Tweey.Loaders;
 global using Tweey.Renderer;
 global using Tweey.Support;

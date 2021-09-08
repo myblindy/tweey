@@ -8,6 +8,7 @@ public class World
 
     AIManager AIManager { get; }
     List<PlaceableEntity> PlacedEntities { get; } = new();
+    public PlaceableEntity? SelectedEntity { get; set; }
 
     public World(ILoader loader) =>
         (Resources, BuildingTemplates, Configuration, AIManager) = (new(loader), new(loader), new(loader), new(this));

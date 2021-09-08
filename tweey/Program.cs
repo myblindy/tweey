@@ -46,7 +46,9 @@ class Program : GameWindow
         GL.Enable(EnableCap.Blend);
         GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
-        world.PlaceEntity(new Villager(world.Configuration.Data) { Location = new(5, 1) });
+        var villager = new Villager(world.Configuration.Data) { Location = new(5, 1) };
+        world.PlaceEntity(villager);
+        world.SelectedEntity = villager;
         world.PlaceEntity(new Villager(world.Configuration.Data) { Location = new(15, 20) });
 
         world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["firewood"], 5)) { Location = new(3, 4) });

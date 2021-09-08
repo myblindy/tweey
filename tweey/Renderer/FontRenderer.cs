@@ -50,8 +50,18 @@ public class FontRenderer
     }
 
     static readonly DrawingOptions drawingOptions = new() { TextOptions = { ApplyKerning = true, RenderColorFonts = true } };
+
+    public Vector2 Measure(char ch, FontDescription fontDescription) =>
+        GetFullAtlasEntry(ch, fontDescription).pixelSize.ToNumericsVector2();
+
     public void Render(char ch, FontDescription fontDescription, Vector2i position, Action<Box2, AtlasEntry> write,
         HorizontalAlignment horizontalAlignment = HorizontalAlignment.Center, VerticalAlignment verticalAlignment = VerticalAlignment.Center)
+    {
+        var fullAtlasEntry = GetFullAtlasEntry(ch, fontDescription);
+        write(Box2.FromCornerSize(position.ToNumericsVector2(), fullAtlasEntry.pixelSize.ToNumericsVector2()), fullAtlasEntry.entry);
+    }
+
+    private (AtlasEntry entry, Vector2i pixelSize) GetFullAtlasEntry(char ch, FontDescription fontDescription)
     {
         if (!fontAtlasEntries.TryGetValue((fontDescription, ch), out var fullAtlasEntry))
         {
@@ -76,7 +86,19 @@ public class FontRenderer
                     .DrawText(drawingOptions, s, font, Color.White, new(fontRect.Left, fontRect.Top)))), new(width, height));
         }
 
-        write(Box2.FromCornerSize(position.ToNumericsVector2(), fullAtlasEntry.pixelSize.ToNumericsVector2()), fullAtlasEntry.entry);
+        return fullAtlasEntry;
+    }
+
+    public Vector2 Measure(ReadOnlySpan<char> s, FontDescription fontDescription)
+    {
+        Vector2 result = default;
+        foreach (var ch in s)
+        {
+            var charSize = Measure(ch, fontDescription);
+            result = new(result.X + charSize.X, Math.Max(result.Y, charSize.Y));
+        }
+
+        return result;
     }
 
     public void Render(ReadOnlySpan<char> s, FontDescription fontDescription, Vector2i position, Action<Box2, AtlasEntry> write,
