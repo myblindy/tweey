@@ -8,7 +8,9 @@ public record struct Thickness(int Left, int Top, int Right, int Bottom)
 
 public abstract class View
 {
+    public View? Parent { get; internal set; }
     public Func<bool>? Visible { get; set; }
+    public bool InheritParentSize { get; set; }
     public Thickness Padding { get; set; }
     public Func<int>? MinWidth { get; set; }
     public Func<int>? MinHeight { get; set; }
