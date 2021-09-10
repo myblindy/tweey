@@ -40,15 +40,27 @@ partial class WorldRenderer
         gui.RootViewDescriptions.Add(new(
             new StackView(StackType.Vertical)
             {
-                BackgroundColor = Colors.DarkCyan,
+                BackgroundColor = new(.1f, .1f, .1f, 1),
                 MinWidth = () => WidthPercentage(50),
                 MinHeight = () => HeightPercentage(20),
                 Children =
                 {
-                    new LabelView
+                    new StackView(StackType.Horizontal)
                     {
-                        Text = () => world.SelectedEntity is null ? null : $"{world.SelectedEntity.GetType().Name}: {world.SelectedEntity.Name}",
-                        FontSize = 30,
+                        Children =
+                        {
+                            new LabelView
+                            {
+                                Text = () => world.SelectedEntity is null ? null : $"{world.SelectedEntity.GetType().Name}: ",
+                                FontSize = 30,
+                            },
+                            new LabelView
+                            {
+                                Text = () => world.SelectedEntity?.Name,
+                                FontSize = 30,
+                                ForegroundColor = Colors.Aqua
+                            },
+                        }
                     },
                     new LabelView
                     {

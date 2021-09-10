@@ -92,26 +92,34 @@ public class GrowableTextureAtlas3D
             if (map.TryGetValue(path, out var entry))
                 return entry;
 
-            Span<Bgra32> imageBytes;
             int width, height;
 
+            int x, y, page;
             if (path is BlankName)
             {
-                imageBytes = new(new Bgra32[] { new(255, 255, 255) });
+                var white = new Bgra32(255, 255, 255, 255);
                 (width, height) = (1, 1);
+
+                (x, y, page) = FindAndMarkSpace(new(3, 3));
+                GL.PixelStorei(PixelStoreParameter.UnpackAlignment, 1);
+                GL.PixelStorei(PixelStoreParameter.UnpackRowLength, 0);
+                fixed (Bgra32* p = new[] { white, white, white, white, white, white, white, white, white })
+                    GL.TextureSubImage3D(handle, 0, x, y, page, 3, 3, 1, PixelFormat.Bgra, PixelType.UnsignedByte, p);
+                x += 1;
+                y += 1;
             }
             else
             {
                 var image = Image.Load<Bgra32>(path);
                 (width, height) = (image.Width, image.Height);
-                if (!image.TryGetSinglePixelSpan(out imageBytes)) throw new NotImplementedException();
-            }
+                if (!image.TryGetSinglePixelSpan(out var imageBytes)) throw new NotImplementedException();
 
-            var (x, y, page) = FindAndMarkSpace(new(width, height));
-            GL.PixelStorei(PixelStoreParameter.UnpackAlignment, 1);
-            GL.PixelStorei(PixelStoreParameter.UnpackRowLength, 0);
-            fixed (Bgra32* p = imageBytes)
-                GL.TextureSubImage3D(handle, 0, x, y, page, width, height, 1, PixelFormat.Bgra, PixelType.UnsignedByte, p);
+                (x, y, page) = FindAndMarkSpace(new(width, height));
+                GL.PixelStorei(PixelStoreParameter.UnpackAlignment, 1);
+                GL.PixelStorei(PixelStoreParameter.UnpackRowLength, 0);
+                fixed (Bgra32* p = imageBytes)
+                    GL.TextureSubImage3D(handle, 0, x, y, page, width, height, 1, PixelFormat.Bgra, PixelType.UnsignedByte, p);
+            }
 
             var max = new Vector3(size.X - 1, size.Y - 1, pages - 1);
             return map[path] = new(new Vector3(x, y, page) / max, new Vector3(x + width - 1, y + height - 1, page) / max);
