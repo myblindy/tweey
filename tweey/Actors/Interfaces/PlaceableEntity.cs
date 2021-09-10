@@ -5,6 +5,7 @@ public abstract class PlaceableEntity
     public Vector2 Location { get; set; }
     public int Width { get; set; }
     public int Height { get; set; }
+    public abstract string? Name { get; set; }
 
     public Box2 Box => Box2.FromCornerSize(Location, Width, Height);
     public Vector2 Center => Location + new Vector2((Width - 1) / 2, (Height - 1) / 2);

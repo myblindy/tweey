@@ -9,6 +9,8 @@ public class ResourceBucket : PlaceableEntity
         AddRange(rq);
     }
 
+    public override string? Name { get => ResourceQuantities.FirstOrDefault()?.Resource.Name; set => throw new NotImplementedException(); }
+
     readonly List<ResourceQuantity> resourceQuantities = new(), availableResourceQuantities = new();
 
     public ReadOnlyCollection<ResourceQuantity> ResourceQuantities { get; }

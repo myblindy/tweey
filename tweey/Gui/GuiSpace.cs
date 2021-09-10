@@ -7,7 +7,7 @@ public enum Anchor
     BottomLeft, Bottom, BottomRight,
 }
 
-public record RootViewDescription(View View, Vector2i Location, Anchor Anchor = Anchor.TopLeft);
+public record RootViewDescription(View View, Anchor Anchor = Anchor.TopLeft);
 
 class GuiSpace
 {

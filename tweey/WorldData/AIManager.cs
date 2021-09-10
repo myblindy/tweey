@@ -14,6 +14,8 @@ public abstract class AIPlan
 
     public abstract PlaceableEntity? FirstTarget { get; }
 
+    public abstract string Description { get; }
+
     protected void StepToPlaceable(PlaceableEntity entity, double deltaSec, Action targetReached)
     {
         villager.MovementActionTime.AdvanceTime(deltaSec);
@@ -39,6 +41,7 @@ public class ResourcePickupAIPlan : AIPlan
 
     public List<ResourceBucket> WorldBuckets { get; } = new();
     public override PlaceableEntity? FirstTarget => WorldBuckets.FirstOrDefault();
+    public override string Description => "Gathering resources to haul.";
 
     enum State { MoveToResource, PickupResources }
     State state = State.MoveToResource;
@@ -93,6 +96,7 @@ public class StoreInventoryAIPlan : AIPlan
     public StoreInventoryAIPlan(World world, Villager villager, Building storage) : base(world, villager) => this.storage = storage;
 
     public override PlaceableEntity? FirstTarget => storage;
+    public override string Description => $"Dropping resources off to {storage.Name}.";
 
     enum State { MoveToStorage, StoreResources }
     State state = State.MoveToStorage;

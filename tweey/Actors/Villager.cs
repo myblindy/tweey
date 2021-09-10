@@ -6,6 +6,8 @@ public class Villager : PlaceableEntity
         (Width, Height, MovementActionTime, PickupActionsPerSecond) =
         (1, 1, new(configurationData.BaseMovementSpeed), configurationData.BasePickupSpeed);
 
+    public override string? Name { get; set; }
+
     public AIPlan? AIPlan { get; set; }
 
     public ActionTime MovementActionTime { get; }
