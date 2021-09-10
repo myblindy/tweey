@@ -40,9 +40,11 @@ partial class WorldRenderer
         gui.RootViewDescriptions.Add(new(
             new StackView(StackType.Vertical)
             {
+                Visible = () => world.SelectedEntity is not null,
                 BackgroundColor = new(.1f, .1f, .1f, 1),
                 MinWidth = () => WidthPercentage(50),
                 MinHeight = () => HeightPercentage(20),
+                Padding = new(8),
                 Children =
                 {
                     new StackView(StackType.Horizontal)
@@ -51,12 +53,12 @@ partial class WorldRenderer
                         {
                             new LabelView
                             {
-                                Text = () => world.SelectedEntity is null ? null : $"{world.SelectedEntity.GetType().Name}: ",
+                                Text = () => $"{world.SelectedEntity!.GetType().Name}: ",
                                 FontSize = 30,
                             },
                             new LabelView
                             {
-                                Text = () => world.SelectedEntity?.Name,
+                                Text = () => world.SelectedEntity!.Name,
                                 FontSize = 30,
                                 ForegroundColor = Colors.Aqua
                             },
@@ -65,10 +67,30 @@ partial class WorldRenderer
                     new LabelView
                     {
                         Text = () => world.SelectedEntity is Villager villager ? villager.AIPlan is { } aiPlan ? aiPlan.Description : "Idle." : null,
-                        FontSize = 14,
+                        FontSize = 18,
+                    },
+                    new LabelView
+                    {
+                        Text = () => world.SelectedEntity switch
+                        {
+                            Villager villager => $"Inventory: {villager.Inventory}.",
+                            Building building => $"Inventory: {building.Inventory}.",
+                            ResourceBucket resourceBucket => $"Inventory: {resourceBucket}.",
+                            _ => null
+                        },
+                        FontSize = 18,
                     }
                 }
             }, Anchor.BottomLeft));
+
+        gui.RootViewDescriptions.Add(new(
+            new LabelView
+            {
+                Text = () => $"FPS: {Math.Round(frameData.Rate, 1, MidpointRounding.ToPositiveInfinity):0.0}, update: {frameData.UpdateTimePercentage * 100:0.00}%, render: {frameData.RenderTimePercentage * 100:0.00}%",
+                FontSize = 22,
+                Padding = new(2),
+                ForegroundColor = Colors.Lime
+            }));
     }
 
     public void Resize(int width, int height)
@@ -106,8 +128,6 @@ partial class WorldRenderer
 
         // frame data
         frameData.NewFrame(TimeSpan.FromSeconds(deltaSec), TimeSpan.FromSeconds(deltaUpdateTimeSec), TimeSpan.FromSeconds(deltaRenderTimeSec));
-        ScreenString($"FPS: {frameData.Rate:0.0}, update: {frameData.UpdateTimePercentage * 100:0.00}%, render: {frameData.RenderTimePercentage * 100:0.00}%",
-            new() { Size = 22 }, new(2, 2), Colors.Lime);
 
         var triVertexCount = vaoGui.Vertices.Length;
 
@@ -127,4 +147,6 @@ partial class WorldRenderer
         vaoGui.Draw(PrimitiveType.Triangles, vertexOrIndexCount: triVertexCount);
         vaoGui.Draw(PrimitiveType.Lines, triVertexCount, lineVertexCount);
     }
+
+    public Vector2i GetLocationFromScreenPoint(Vector2i screenPoint) => screenPoint / (int)pixelZoom;
 }

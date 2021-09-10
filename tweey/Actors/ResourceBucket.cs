@@ -106,4 +106,7 @@ public class ResourceBucket : PlaceableEntity
     public bool IsAllEmpty => !ResourceQuantities.Any(rq => rq.Quantity > 0);
     public double FullWeight => ResourceQuantities.Sum(rq => rq.Weight);
     public double PickupSpeedMultiplier => AvailableResourceQuantities.Sum(rq => rq.PickupSpeedMultiplier / rq.Quantity);
+
+    public override string ToString() => 
+        ResourceQuantities.Any(rq => rq.Quantity > 0) ? string.Join(", ", ResourceQuantities.Where(rq => rq.Quantity > 0).Select(rq => $"{rq.Quantity}x {rq.Resource.Name}")) : "nothing";
 }

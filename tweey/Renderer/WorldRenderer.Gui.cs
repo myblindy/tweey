@@ -48,12 +48,14 @@ partial class WorldRenderer
     readonly Dictionary<View, Box2> viewBoxes = new();
     Vector2 MeasureView(View view)
     {
-        Vector2 size = default;
+        if (view.Visible is not null && !view.Visible()) return new();
+
+        Vector2 size = new(view.Padding.Left + view.Padding.Right, view.Padding.Top + view.Padding.Bottom);
         switch (view)
         {
             case LabelView labelView:
                 if (labelView.Text is not null)
-                    size = fontRenderer.Measure(labelView.Text(), new FontDescription { Size = labelView.FontSize });
+                    size += fontRenderer.Measure(labelView.Text(), new FontDescription { Size = labelView.FontSize });
                 break;
 
             case StackView stackView:
@@ -83,8 +85,11 @@ partial class WorldRenderer
 
     void LayoutView(View view, Vector2 offset, Vector2 multiplier)
     {
+        if (view.Visible is not null && !view.Visible()) return;
+
         var boxSize = viewBoxes[view].Size;
-        var boxStart = offset + new Vector2(Math.Min(multiplier.X, 0), Math.Min(multiplier.Y, 0)) * boxSize;
+        var boxStart = offset + new Vector2(Math.Min(multiplier.X, 0), Math.Min(multiplier.Y, 0)) * boxSize
+            + new Vector2(view.Padding.Left, view.Padding.Top);
         viewBoxes[view] = Box2.FromCornerSize(boxStart, boxSize);
 
         switch (view)
@@ -109,9 +114,11 @@ partial class WorldRenderer
 
     void RenderView(View view)
     {
+        if (view.Visible is not null && !view.Visible()) return;
+
         var box = viewBoxes[view];
         if (view.BackgroundColor.W > 0)
-            ScreenFillQuad(box, view.BackgroundColor, atlas[GrowableTextureAtlas3D.BlankName], false);
+            ScreenFillQuad(box.WithExpand(view.Padding), view.BackgroundColor, atlas[GrowableTextureAtlas3D.BlankName], false);
 
         switch (view)
         {
@@ -136,11 +143,13 @@ partial class WorldRenderer
             LayoutView(rootViewDescription.View,
                 rootViewDescription.Anchor switch
                 {
+                    Anchor.TopLeft => new(),
                     Anchor.BottomLeft => new(0, windowUbo.Data.WindowSize.Y),
                     _ => throw new NotImplementedException()
                 },
                 rootViewDescription.Anchor switch
                 {
+                    Anchor.TopLeft => new(1, 1),
                     Anchor.BottomLeft => new(1, -1),
                     _ => throw new NotImplementedException()
                 });

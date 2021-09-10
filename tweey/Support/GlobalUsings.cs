@@ -31,3 +31,6 @@ global using static MoreLinq.Extensions.ForEachExtension;
 
 global using Vector2i = OpenTK.Mathematics.Vector2i;
 global using Configuration = Tweey.Loaders.Configuration;
+global using InputAction = OpenTK.Windowing.GraphicsLibraryFramework.InputAction;
+global using MouseButton = OpenTK.Windowing.GraphicsLibraryFramework.MouseButton;
+global using KeyModifiers = OpenTK.Windowing.GraphicsLibraryFramework.KeyModifiers;

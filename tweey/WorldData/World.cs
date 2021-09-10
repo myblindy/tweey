@@ -1,4 +1,6 @@
-﻿namespace Tweey.WorldData;
+﻿using System.Linq;
+
+namespace Tweey.WorldData;
 
 public class World
 {
@@ -73,9 +75,25 @@ public class World
         }
     }
 
-    public bool RemoveEntity(PlaceableEntity entity) => PlacedEntities.Remove(entity);
-    public void RemoveEntitiesWhere(Predicate<PlaceableEntity> entitiesMatch) => PlacedEntities.RemoveAll(entitiesMatch);
-    public void RemoveEntitiesWhere<T>(Predicate<T> entitiesMatch) where T : PlaceableEntity => PlacedEntities.RemoveAll(w => w is T t && entitiesMatch(t));
+    public bool RemoveEntity(PlaceableEntity entity)
+    {
+        if (SelectedEntity == entity) SelectedEntity = null;
+        return PlacedEntities.Remove(entity);
+    }
+    //public void RemoveEntitiesWhere(Predicate<PlaceableEntity> entitiesMatch) => PlacedEntities.RemoveAll(entitiesMatch);
+    //public void RemoveEntitiesWhere<T>(Predicate<T> entitiesMatch) where T : PlaceableEntity => PlacedEntities.RemoveAll(w => w is T t && entitiesMatch(t));
+
+    public void MouseEvent(Vector2i worldLocation, InputAction inputAction, MouseButton mouseButton, bool isPressed, KeyModifiers keyModifiers)
+    {
+        if (inputAction == InputAction.Press && mouseButton == MouseButton.Button1)
+        {
+            if (SelectedEntity is not null && SelectedEntity.Location.ToVector2i() == worldLocation)
+                SelectedEntity = PlacedEntities.SkipWhile(e => e != SelectedEntity).Skip(1).FirstOrDefault(e => e.Box.Contains(worldLocation));
+            else
+                SelectedEntity = null;
+            SelectedEntity ??= PlacedEntities.FirstOrDefault(e => e.Box.Contains(worldLocation));
+        }
+    }
 
     public void Update(double deltaSec) => AIManager.Update(deltaSec);
 

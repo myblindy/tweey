@@ -21,6 +21,9 @@ public struct Box2
         new() { TopLeft = topLeft, BottomRight = topLeft + new Vector2(width - 1, height - 1) };
 
     public Box2 WithExpand(Vector2 offset) => new() { TopLeft = TopLeft - offset, BottomRight = BottomRight + offset };
+    public Box2 WithExpand(Thickness offset) => new() { TopLeft = TopLeft - new Vector2(offset.Left, offset.Top), BottomRight = BottomRight + new Vector2(offset.Right, offset.Bottom) };
 
     public bool Intersects(Box2 other) => Left <= other.Right && Right >= other.Left && Top <= other.Bottom && Bottom >= other.Top;
+    public bool Contains(Vector2 location) => Left <= location.X && Right >= location.X && Top <= location.Y && Bottom >= location.Y;
+    public bool Contains(Vector2i location) => Left <= location.X && Right >= location.X && Top <= location.Y && Bottom >= location.Y;
 }

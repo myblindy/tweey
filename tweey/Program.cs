@@ -74,6 +74,14 @@ class Program : GameWindow
         worldRenderer?.Resize(e.Width, e.Height);
     }
 
+    protected override void OnMouseDown(MouseButtonEventArgs e) =>
+        world.MouseEvent(worldRenderer!.GetLocationFromScreenPoint(MousePosition.ToVector2i()),
+            e.Action, e.Button, e.IsPressed, e.Modifiers);
+
+    protected override void OnMouseUp(MouseButtonEventArgs e) =>
+        world.MouseEvent(worldRenderer!.GetLocationFromScreenPoint(MousePosition.ToVector2i()),
+            e.Action, e.Button, e.IsPressed, e.Modifiers);
+
     protected override void OnUpdateFrame(FrameEventArgs args)
     {
         world.Update(args.Time);
