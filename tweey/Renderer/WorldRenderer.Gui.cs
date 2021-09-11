@@ -46,6 +46,26 @@ partial class WorldRenderer
     }
 
     readonly Dictionary<View, Box2> viewBoxes = new();
+    readonly Dictionary<View, View> viewTemplates = new();
+    View GetRealView(View view) =>
+        viewTemplates.TryGetValue(view, out var templateView) ? templateView : view;
+
+    void TemplateView(View view)
+    {
+        if (view.Visible is not null && !view.Visible()) return;
+
+        switch (view)
+        {
+            case IRepeaterView repeaterView:
+                TemplateView(viewTemplates[view] = repeaterView.CreateView());
+                break;
+
+            case ContainerView containerView:
+                containerView.Children.ForEach(TemplateView);
+                break;
+        }
+    }
+
     Vector2 MeasureView(View view)
     {
         if (view.Visible is not null && !view.Visible()) return new();
@@ -59,7 +79,7 @@ partial class WorldRenderer
                 break;
 
             case StackView stackView:
-                foreach (var child in stackView.Children)
+                foreach (var child in stackView.Children.Select(GetRealView))
                 {
                     var childSize = MeasureView(child);
 
@@ -86,6 +106,7 @@ partial class WorldRenderer
     void LayoutView(View view, Vector2 offset, Vector2 multiplier)
     {
         if (view.Visible is not null && !view.Visible()) return;
+        view = viewTemplates.TryGetValue(view, out var templateView) ? templateView : view;
 
         var boxSize = viewBoxes[view].Size;
         var boxStart = offset + new Vector2(Math.Min(multiplier.X, 0), Math.Min(multiplier.Y, 0)) * boxSize
@@ -96,7 +117,7 @@ partial class WorldRenderer
         {
             case StackView stackView:
                 var start = boxStart;
-                foreach (var child in stackView.Children)
+                foreach (var child in stackView.Children.Select(GetRealView))
                 {
                     LayoutView(child, start, new(1, 1));
                     start = stackView.Type == StackType.Horizontal
@@ -115,6 +136,7 @@ partial class WorldRenderer
     void RenderView(View view)
     {
         if (view.Visible is not null && !view.Visible()) return;
+        view = viewTemplates.TryGetValue(view, out var templateView) ? templateView : view;
 
         var box = viewBoxes[view];
         if (view.BackgroundColor.W > 0)
@@ -123,7 +145,7 @@ partial class WorldRenderer
         switch (view)
         {
             case ContainerView containerView:
-                foreach (var child in containerView.Children)
+                foreach (var child in containerView.Children.Select(GetRealView))
                     RenderView(child);
                 break;
             case LabelView labelView:
@@ -139,8 +161,10 @@ partial class WorldRenderer
 
         foreach (var rootViewDescription in gui.RootViewDescriptions)
         {
-            MeasureView(rootViewDescription.View);
-            LayoutView(rootViewDescription.View,
+            var view = GetRealView(rootViewDescription.View);
+            TemplateView(view);
+            MeasureView(view);
+            LayoutView(view,
                 rootViewDescription.Anchor switch
                 {
                     Anchor.TopLeft => new(),
@@ -153,7 +177,7 @@ partial class WorldRenderer
                     Anchor.BottomLeft => new(1, -1),
                     _ => throw new NotImplementedException()
                 });
-            RenderView(rootViewDescription.View);
+            RenderView(view);
         }
     }
 }

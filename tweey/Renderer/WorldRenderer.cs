@@ -26,7 +26,7 @@ partial class WorldRenderer
             (Location, Color, Tex0) = (location, color, tex0);
     }
 
-    readonly VertexArrayObject<GuiVertex, Nothing> vaoGui = new(false, 1024, 0);
+    readonly VertexArrayObject<GuiVertex, Nothing> vaoGui = new(false, 10240, 0);
     readonly ShaderProgram shaderProgram = new("gui");
     readonly GuiSpace gui = new();
 
@@ -71,14 +71,35 @@ partial class WorldRenderer
                     },
                     new LabelView
                     {
-                        Text = () => world.SelectedEntity switch
+                        Text = () => "Inventory:",
+                        FontSize = 18,
+                    },
+                    new RepeaterView<ResourceQuantity>
+                    {
+                        Source = () => world.SelectedEntity switch
                         {
-                            Villager villager => $"Inventory: {villager.Inventory}.",
-                            Building building => $"Inventory: {building.Inventory}.",
-                            ResourceBucket resourceBucket => $"Inventory: {resourceBucket}.",
+                            Villager villager => villager.Inventory.ResourceQuantities,
+                            Building building => building.Inventory.ResourceQuantities,
+                            ResourceBucket resourceBucket => resourceBucket.ResourceQuantities,
                             _ => null
                         },
-                        FontSize = 18,
+                        ContainerView = new StackView(StackType.Vertical),
+                        ItemView = rq => new StackView(StackType.Horizontal)
+                        {
+                            Children =
+                            {
+                                new LabelView
+                                {
+                                    Text = () => $"{rq.Quantity}x {rq.Resource.Name}",
+                                    FontSize = 18,
+                                }
+                            }
+                        },
+                        EmptyView = new LabelView
+                        {
+                            Text = () => "Nothing",
+                            FontSize = 18,
+                        }
                     }
                 }
             }, Anchor.BottomLeft));
