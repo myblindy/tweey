@@ -51,6 +51,11 @@ partial class WorldRenderer
                     {
                         Children =
                         {
+                            new ImageView
+                            {
+                                Source = () => GetImagePath(world.SelectedEntity!),
+                                InheritParentSize = true,
+                            },
                             new LabelView
                             {
                                 Text = () => $"{world.SelectedEntity!.GetType().Name}: ",
@@ -116,13 +121,23 @@ partial class WorldRenderer
 
     public void Resize(int width, int height)
     {
-        windowUbo.Data.WindowSize = new Vector2(width, height);
+        windowUbo.Data.WindowSize = new(width, height);
         windowUbo.Update();
     }
 
-    float pixelZoom = 45;
+    float pixelZoom = 35;
 
     FrameData frameData;
+    static string GetImagePath(Building building) => $"Data/Buildings/{building.FileName}.png";
+    static string GetImagePath(Resource resource) => $"Data/Resources/{resource.FileName}.png";
+    static string GetImagePath(Villager _) => $"Data/Misc/villager.png";
+    static string GetImagePath(PlaceableEntity entity) => entity switch
+    {
+        Building building => GetImagePath(building),
+        ResourceBucket resource => GetImagePath(resource.ResourceQuantities.First(rq => rq.Quantity > 0).Resource),
+        Villager villager => GetImagePath(villager),
+        _ => throw new NotImplementedException()
+    };
 
     public void Render(double deltaSec, double deltaUpdateTimeSec, double deltaRenderTimeSec)
     {
@@ -133,14 +148,14 @@ partial class WorldRenderer
             switch (entity)
             {
                 case Building building:
-                    ScreenFillQuad(Box2.FromCornerSize(building.Location, building.Width, building.Height), building.Color, atlas[$"Data/Buildings/{building.FileName}.png"]);
+                    ScreenFillQuad(Box2.FromCornerSize(building.Location, building.Width, building.Height), building.Color, atlas[GetImagePath(building)]);
                     break;
                 case ResourceBucket resourceBucket:
                     var resQ = resourceBucket.ResourceQuantities.Single(r => r.Quantity > 0);
-                    ScreenFillQuad(Box2.FromCornerSize(resourceBucket.Location, 1, 1), Colors.White, atlas[$"Data/Resources/{resQ.Resource.FileName}.png"]);
+                    ScreenFillQuad(Box2.FromCornerSize(resourceBucket.Location, 1, 1), Colors.White, atlas[GetImagePath(resQ.Resource)]);
                     break;
                 case Villager villager:
-                    ScreenFillQuad(Box2.FromCornerSize(villager.Location, 1, 1), Colors.White, atlas["Data/Misc/villager.png"]);
+                    ScreenFillQuad(Box2.FromCornerSize(villager.Location, 1, 1), Colors.White, atlas[GetImagePath(villager)]);
                     break;
             }
 

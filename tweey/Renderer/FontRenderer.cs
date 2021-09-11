@@ -76,7 +76,7 @@ public class FontRenderer
             var s = ch.ToString();
             var renderOptions = new RendererOptions(font) { ApplyKerning = true, ColorFontSupport = ColorFontSupport.MicrosoftColrFormat };
             var fontRect = TextMeasurer.Measure(s, renderOptions);
-            var (width, height) = ((int)MathF.Ceiling(fontRect.Width), (int)MathF.Ceiling(fontRect.Height));
+            var (width, height) = ((int)MathF.Ceiling(fontRect.Right), (int)MathF.Ceiling(fontRect.Bottom) + 3);
 
             // draw the character
             EnsureTempImage(width + (int)MathF.Floor(fontRect.Left), height + (int)MathF.Floor(fontRect.Top));

@@ -74,8 +74,16 @@ partial class WorldRenderer
         switch (view)
         {
             case LabelView labelView:
-                if (labelView.Text is not null)
-                    size += fontRenderer.Measure(labelView.Text(), new FontDescription { Size = labelView.FontSize });
+                if (labelView.Text is not null && labelView.Text() is var text && !string.IsNullOrWhiteSpace(text))
+                    size += fontRenderer.Measure(text, new FontDescription { Size = labelView.FontSize });
+                break;
+
+            case ImageView imageView:
+                if (!imageView.InheritParentSize && imageView.Source is not null && imageView.Source() is var src && !string.IsNullOrWhiteSpace(src))
+                {
+                    var entry = atlas[src];
+                    size = entry.PixelSize.ToNumericsVector2();
+                }
                 break;
 
             case StackView stackView:
@@ -116,6 +124,21 @@ partial class WorldRenderer
         switch (view)
         {
             case StackView stackView:
+                // finish the layout for views that inherit their size from us
+                foreach (var child in stackView.Children)
+                    switch (child)
+                    {
+                        case ImageView { InheritParentSize: true } imageView when imageView.Source is not null && imageView.Source() is var src && !string.IsNullOrWhiteSpace(src):
+                            // need the aspect ratio
+                            var entry = atlas[src];
+                            var aspect = (float)entry.PixelSize.X / entry.PixelSize.Y;
+                            Vector2 newSize = stackView.Type != StackType.Horizontal
+                                ? new(boxSize.X, boxSize.X / aspect)
+                                : new(boxSize.Y * aspect, boxSize.Y);
+                            viewBoxes[child] = Box2.FromCornerSize(new(), newSize);
+                            break;
+                    }
+
                 var start = boxStart;
                 foreach (var child in stackView.Children.Select(GetRealView))
                 {
@@ -124,7 +147,6 @@ partial class WorldRenderer
                         ? new(start.X + viewBoxes[child].Size.X, start.Y)
                         : new(start.X, start.Y + viewBoxes[child].Size.Y);
                 }
-
                 break;
 
             default:
@@ -151,6 +173,10 @@ partial class WorldRenderer
             case LabelView labelView:
                 if (labelView.Text is not null && labelView.Text() is { } text && !string.IsNullOrWhiteSpace(text))
                     ScreenString(text, new() { Size = labelView.FontSize }, box.TopLeft, labelView.ForegroundColor);
+                break;
+            case ImageView imageView:
+                if (imageView.Source is not null && imageView.Source() is { } src && !string.IsNullOrWhiteSpace(src))
+                    ScreenFillQuad(box, imageView.ForegroundColor, atlas[src], false);
                 break;
         }
     }
