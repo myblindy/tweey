@@ -18,8 +18,9 @@ partial class WorldRenderer
         vaoGui.Vertices.Add(new(box.TopLeft * zoom, color, entry.TextureCoordinate0));
     }
 
-    void ScreenString(string s, FontDescription fontDescription, Vector2 location, Vector4 color) =>
-        fontRenderer.Render(s, fontDescription, location.ToVector2i(), (box, atlasEntry) => ScreenFillQuad(box, color, atlasEntry, false));
+    void ScreenString(string s, FontDescription fontDescription, Vector2 location, Vector4 color, HorizontalAlignment horizontalAlignment = HorizontalAlignment.Left) =>
+        fontRenderer.Render(s, fontDescription, location.ToVector2i(), (box, atlasEntry) => ScreenFillQuad(box, color, atlasEntry, false),
+            horizontalAlignment);
 
     void ScreenLine(Box2 box1, Box2 box2, Vector4 color)
     {
@@ -70,7 +71,8 @@ partial class WorldRenderer
     {
         if (view.Visible is not null && !view.Visible()) return new();
 
-        Vector2 size = new(view.Padding.Left + view.Padding.Right, view.Padding.Top + view.Padding.Bottom);
+        Vector2 size = new(view.Padding.Left + view.Padding.Right + view.Margin.Left + view.Margin.Right,
+            view.Padding.Top + view.Padding.Bottom + view.Margin.Top + view.Margin.Bottom);
         switch (view)
         {
             case LabelView labelView:
@@ -118,7 +120,7 @@ partial class WorldRenderer
 
         var boxSize = viewBoxes[view].Size;
         var boxStart = offset + new Vector2(Math.Min(multiplier.X, 0), Math.Min(multiplier.Y, 0)) * boxSize
-            + new Vector2(view.Padding.Left, view.Padding.Top);
+            + new Vector2(view.Padding.Left + view.Margin.Left, view.Padding.Top + view.Margin.Top);
         viewBoxes[view] = Box2.FromCornerSize(boxStart, boxSize);
 
         switch (view)
@@ -140,7 +142,7 @@ partial class WorldRenderer
                     }
 
                 var start = boxStart;
-                foreach (var child in stackView.Children.Select(GetRealView))
+                foreach (var child in stackView.Children.Where(v => v.Visible is null || v.Visible()).Select(GetRealView))
                 {
                     LayoutView(child, start, new(1, 1));
                     start = stackView.Type == StackType.Horizontal
@@ -172,11 +174,16 @@ partial class WorldRenderer
                 break;
             case LabelView labelView:
                 if (labelView.Text is not null && labelView.Text() is { } text && !string.IsNullOrWhiteSpace(text))
-                    ScreenString(text, new() { Size = labelView.FontSize }, box.TopLeft, labelView.ForegroundColor);
+                    ScreenString(text, new() { Size = labelView.FontSize }, labelView.HorizontalTextAlignment switch
+                    {
+                        HorizontalAlignment.Left => box.TopLeft + new Vector2(view.Margin.Left, view.Margin.Top),
+                        HorizontalAlignment.Right => new(box.Right - view.Margin.Right, box.Top - view.Margin.Top),
+                        _ => throw new NotImplementedException()
+                    }, labelView.ForegroundColor, labelView.HorizontalTextAlignment);
                 break;
             case ImageView imageView:
                 if (imageView.Source is not null && imageView.Source() is { } src && !string.IsNullOrWhiteSpace(src))
-                    ScreenFillQuad(box, imageView.ForegroundColor, atlas[src], false);
+                    ScreenFillQuad(box.WithExpand(-view.Margin), imageView.ForegroundColor, atlas[src], false);
                 break;
         }
     }

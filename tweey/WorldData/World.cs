@@ -12,6 +12,8 @@ public class World
     List<PlaceableEntity> PlacedEntities { get; } = new();
     public PlaceableEntity? SelectedEntity { get; set; }
 
+    public bool Paused { get; private set; }
+
     public World(ILoader loader) =>
         (Resources, BuildingTemplates, Configuration, AIManager) = (new(loader), new(loader), new(loader), new(this));
 
@@ -83,7 +85,7 @@ public class World
     //public void RemoveEntitiesWhere(Predicate<PlaceableEntity> entitiesMatch) => PlacedEntities.RemoveAll(entitiesMatch);
     //public void RemoveEntitiesWhere<T>(Predicate<T> entitiesMatch) where T : PlaceableEntity => PlacedEntities.RemoveAll(w => w is T t && entitiesMatch(t));
 
-    public void MouseEvent(Vector2i worldLocation, InputAction inputAction, MouseButton mouseButton, bool isPressed, KeyModifiers keyModifiers)
+    public void MouseEvent(Vector2i worldLocation, InputAction inputAction, MouseButton mouseButton, KeyModifiers keyModifiers)
     {
         if (inputAction == InputAction.Press && mouseButton == MouseButton.Button1)
         {
@@ -95,7 +97,17 @@ public class World
         }
     }
 
-    public void Update(double deltaSec) => AIManager.Update(deltaSec);
+    public void KeyEvent(InputAction inputAction, Keys key, int scanCode, KeyModifiers keyModifiers)
+    {
+        if (inputAction == InputAction.Press && key == Keys.Space)
+            Paused = !Paused;
+    }
+
+    public void Update(double deltaSec)
+    {
+        if (!Paused)
+            AIManager.Update(deltaSec);
+    }
 
     public IEnumerable<T> GetEntities<T>() where T : PlaceableEntity => PlacedEntities.OfType<T>();
 

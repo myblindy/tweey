@@ -37,6 +37,8 @@ partial class WorldRenderer
         shaderProgram.UniformBlockBind("ubo_window", windowUboBindingPoint);
         shaderProgram.Uniform("atlasSampler", 0);
 
+        var descriptionColor = new Vector4(.8f, .8f, .8f, 1);
+        var highlightColor = Colors.Aqua;
         gui.RootViewDescriptions.Add(new(
             new StackView(StackType.Vertical)
             {
@@ -58,34 +60,39 @@ partial class WorldRenderer
                             },
                             new LabelView
                             {
-                                Text = () => $"{world.SelectedEntity!.GetType().Name}: ",
+                                Text = () => $"{world.SelectedEntity!.GetType().Name} ",
                                 FontSize = 30,
+                                ForegroundColor = descriptionColor
                             },
                             new LabelView
                             {
                                 Text = () => world.SelectedEntity!.Name,
                                 FontSize = 30,
-                                ForegroundColor = Colors.Aqua
+                                ForegroundColor = highlightColor
                             },
                         }
                     },
                     new LabelView
                     {
-                        Text = () => world.SelectedEntity is Villager villager ? villager.AIPlan is { } aiPlan ? aiPlan.Description : "Idle." : null,
+                        Text = () => world.SelectedEntity is Villager villager ? villager.AIPlan is { } aiPlan ? aiPlan.Description : "Idle."
+                            : $"This is a {(world.SelectedEntity is Building ? "building" : "resource")}, it's just existing.",
                         FontSize = 18,
+                        MinHeight = () => 35,
+                        ForegroundColor = descriptionColor
                     },
                     new LabelView
                     {
                         Text = () => "Inventory:",
                         FontSize = 18,
+                        ForegroundColor = descriptionColor
                     },
                     new RepeaterView<ResourceQuantity>
                     {
                         Source = () => world.SelectedEntity switch
                         {
-                            Villager villager => villager.Inventory.ResourceQuantities,
-                            Building building => building.Inventory.ResourceQuantities,
-                            ResourceBucket resourceBucket => resourceBucket.ResourceQuantities,
+                            Villager villager => villager.Inventory.ResourceQuantities.Where(rq => rq.Quantity > 0),
+                            Building building => building.Inventory.ResourceQuantities.Where(rq => rq.Quantity > 0),
+                            ResourceBucket resourceBucket => resourceBucket.ResourceQuantities.Where(rq => rq.Quantity > 0),
                             _ => null
                         },
                         ContainerView = new StackView(StackType.Vertical),
@@ -95,8 +102,23 @@ partial class WorldRenderer
                             {
                                 new LabelView
                                 {
-                                    Text = () => $"{rq.Quantity}x {rq.Resource.Name}",
+                                    Text = () => rq.Quantity.ToString(),
                                     FontSize = 18,
+                                    MinWidth = () => 50,
+                                    Margin = new(0,0,10,0),
+                                    HorizontalTextAlignment = HorizontalAlignment.Right,
+                                    ForegroundColor = highlightColor
+                                },
+                                new ImageView
+                                {
+                                    Source = () => GetImagePath(rq.Resource),
+                                    InheritParentSize = true
+                                },
+                                new LabelView
+                                {
+                                    Text = () => $" {rq.Resource.Name}",
+                                    FontSize = 18,
+                                    ForegroundColor = descriptionColor
                                 }
                             }
                         },
@@ -104,18 +126,33 @@ partial class WorldRenderer
                         {
                             Text = () => "Nothing",
                             FontSize = 18,
+                            ForegroundColor = descriptionColor
                         }
                     }
                 }
             }, Anchor.BottomLeft));
 
         gui.RootViewDescriptions.Add(new(
-            new LabelView
+            new StackView(StackType.Vertical)
             {
-                Text = () => $"FPS: {Math.Round(frameData.Rate, 1, MidpointRounding.ToPositiveInfinity):0.0}, update: {frameData.UpdateTimePercentage * 100:0.00}%, render: {frameData.RenderTimePercentage * 100:0.00}%",
-                FontSize = 22,
-                Padding = new(2),
-                ForegroundColor = Colors.Lime
+                Children =
+                {
+                    new LabelView
+                    {
+                        Text = () => $"FPS: {Math.Round(frameData.Rate, 1, MidpointRounding.ToPositiveInfinity):0.0}, update: {frameData.UpdateTimePercentage * 100:0.00}%, render: {frameData.RenderTimePercentage * 100:0.00}%",
+                        FontSize = 22,
+                        Padding = new(2),
+                        ForegroundColor = Colors.Lime
+                    },
+                    new LabelView
+                    {
+                        Text = () => "PAUSED",
+                        Visible = () => world.Paused,
+                        FontSize = 22,
+                        Padding = new(2, 0),
+                        ForegroundColor = Colors.Red,
+                    },
+                }
             }));
     }
 

@@ -1,9 +1,4 @@
-﻿using SixLabors.Fonts;
-using SixLabors.ImageSharp.Drawing.Processing;
-using SixLabors.ImageSharp.Processing;
-using System.Diagnostics.CodeAnalysis;
-
-namespace Tweey.Renderer;
+﻿namespace Tweey.Renderer;
 
 public struct FontDescription
 {
@@ -57,8 +52,13 @@ public class FontRenderer
     public void Render(char ch, FontDescription fontDescription, Vector2i position, Action<Box2, AtlasEntry> write,
         HorizontalAlignment horizontalAlignment = HorizontalAlignment.Center, VerticalAlignment verticalAlignment = VerticalAlignment.Center)
     {
-        var fullAtlasEntry = GetFullAtlasEntry(ch, fontDescription);
-        write(Box2.FromCornerSize(position.ToNumericsVector2(), fullAtlasEntry.pixelSize.ToNumericsVector2()), fullAtlasEntry.entry);
+        var (entry, pixelSize) = GetFullAtlasEntry(ch, fontDescription);
+        write(horizontalAlignment switch
+        {
+            HorizontalAlignment.Left => Box2.FromCornerSize(position.ToNumericsVector2(), pixelSize.ToNumericsVector2()),
+            HorizontalAlignment.Right => Box2.FromCornerSize(new(position.X - pixelSize.X, position.Y), pixelSize.ToNumericsVector2()),
+            _ => throw new NotImplementedException()
+        }, entry);
     }
 
     private (AtlasEntry entry, Vector2i pixelSize) GetFullAtlasEntry(char ch, FontDescription fontDescription)
@@ -104,11 +104,24 @@ public class FontRenderer
     public void Render(ReadOnlySpan<char> s, FontDescription fontDescription, Vector2i position, Action<Box2, AtlasEntry> write,
         HorizontalAlignment horizontalAlignment = HorizontalAlignment.Center, VerticalAlignment verticalAlignment = VerticalAlignment.Center)
     {
-        foreach (var ch in s)
-            Render(ch, fontDescription, position, (box, atlasEntry) =>
-            {
-                write(box, atlasEntry);
-                position += new Vector2i((int)MathF.Ceiling(box.Size.X), 0);
-            }, horizontalAlignment, verticalAlignment);
+        switch (horizontalAlignment)
+        {
+            case HorizontalAlignment.Left:
+                foreach (var ch in s)
+                    Render(ch, fontDescription, position, (box, atlasEntry) =>
+                    {
+                        write(box, atlasEntry);
+                        position += new Vector2i((int)MathF.Ceiling(box.Size.X), 0);
+                    }, horizontalAlignment, verticalAlignment);
+                break;
+            case HorizontalAlignment.Right:
+                for (int idx = s.Length - 1; idx >= 0; --idx)
+                    Render(s[idx], fontDescription, position, (box, atlasEntry) =>
+                    {
+                        write(box, atlasEntry);
+                        position -= new Vector2i((int)MathF.Ceiling(box.Size.X), 0);
+                    }, horizontalAlignment, verticalAlignment);
+                break;
+        }
     }
 }

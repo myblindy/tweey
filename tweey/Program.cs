@@ -57,6 +57,7 @@ class Program : GameWindow
         world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 3)) { Location = new(4, 5) });
         world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["iron"], 4)) { Location = new(5, 5) });
         world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 4)) { Location = new(6, 5) });
+        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["firewood"], 55)) { Location = new(7, 7) });
 
         world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 24)) { Location = new(17, 20) });
         world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 83)) { Location = new(19, 19) });
@@ -76,11 +77,23 @@ class Program : GameWindow
 
     protected override void OnMouseDown(MouseButtonEventArgs e) =>
         world.MouseEvent(worldRenderer!.GetLocationFromScreenPoint(MousePosition.ToVector2i()),
-            e.Action, e.Button, e.IsPressed, e.Modifiers);
+            e.Action, e.Button, e.Modifiers);
 
     protected override void OnMouseUp(MouseButtonEventArgs e) =>
         world.MouseEvent(worldRenderer!.GetLocationFromScreenPoint(MousePosition.ToVector2i()),
-            e.Action, e.Button, e.IsPressed, e.Modifiers);
+            e.Action, e.Button, e.Modifiers);
+
+    protected override void OnKeyDown(KeyboardKeyEventArgs e) =>
+        world.KeyEvent(e.IsRepeat ? InputAction.Repeat : InputAction.Press, e.Key, e.ScanCode,
+            (e.Control ? KeyModifiers.Control : 0)
+            | (e.Shift ? KeyModifiers.Shift : 0)
+            | (e.Shift ? KeyModifiers.Alt : 0));
+
+    protected override void OnKeyUp(KeyboardKeyEventArgs e) =>
+        world.KeyEvent(InputAction.Release, e.Key, e.ScanCode,
+            (e.Control ? KeyModifiers.Control : 0)
+            | (e.Shift ? KeyModifiers.Shift : 0)
+            | (e.Shift ? KeyModifiers.Alt : 0));
 
     protected override void OnUpdateFrame(FrameEventArgs args)
     {
