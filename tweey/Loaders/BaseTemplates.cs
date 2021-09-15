@@ -9,7 +9,7 @@ public abstract class BaseTemplates<TIn, TVal> : IEnumerable<string> where TVal 
 {
     readonly ImmutableDictionary<string, TVal> resources;
 
-    public BaseTemplates(ILoader loader, string subFolder, Func<TVal, string> keySelector)
+    public BaseTemplates(ILoader loader, string subFolder, Func<TVal, string> keySelector, object mapperParameter = null)
     {
         var options = Loader.BuildJsonOptions();
         resources = loader.GetAllJsonData($@"Data/{subFolder}").Values
@@ -18,7 +18,7 @@ public abstract class BaseTemplates<TIn, TVal> : IEnumerable<string> where TVal 
                 var (stream, fileName) = sgen();
                 using var streamReader = new StreamReader(stream);
                 var @in = JsonSerializer.Deserialize<TIn>(streamReader.ReadToEnd(), options)!;
-                var result = GlobalMapper.Mapper.Map<TVal>(@in) ?? (TVal)(object)@in;
+                var result = GlobalMapper.Mapper.Map<TVal>(@in, mapperParameter) ?? (TVal)(object)@in;
                 result.FileName = Path.GetFileNameWithoutExtension(fileName);
                 return result;
             })

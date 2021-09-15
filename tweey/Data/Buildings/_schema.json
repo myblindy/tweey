@@ -4,6 +4,21 @@
 
   "type": "object",
 
+  "definitions": {
+    "resourceQuantity": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  },
+
   "properties": {
     "name": {
       "type": "string",
@@ -37,39 +52,29 @@
         "properties": {
           "inputs": {
             "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "resource": {
-                  "type": "string"
-                },
-                "quantity": {
-                  "type": "integer",
-                  "minimum": 1
-                }
-              }
-            }
+            "items": { "$ref": "#/definitions/resourceQuantity" }
           },
           "outputs": {
             "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "resource": {
-                  "type": "string"
-                },
-                "quantity": {
-                  "type": "integer",
-                  "minimum": 1
-                }
-              }
-            }
+            "items": { "$ref": "#/definitions/resourceQuantity" }
           }
         },
         "required": [ "inputs", "outputs" ]
       }
+    },
+    "buildCost": {
+      "type": "object",
+      "properties": {
+        "workTicks": {
+          "type": "number",
+          "minimum": 0
+        },
+        "resources": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/resourceQuantity" }
+        }
+      }
     }
   },
-
-  "required": [ "name", "type", "width", "height", "color" ]
+  "required": [ "name", "type", "width", "height", "color", "buildCost" ]
 }

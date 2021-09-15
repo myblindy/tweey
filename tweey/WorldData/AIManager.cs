@@ -9,6 +9,7 @@ public abstract class AIPlan
     public AIPlan? NextPlan { get; set; }
 
     public bool Done { get; protected set; }
+    public Action? DoneAction { get; set; }
 
     public abstract void Update(double deltaSec);
 
@@ -109,8 +110,7 @@ public class StoreInventoryAIPlan : AIPlan
                 StepToPlaceable(FirstTarget!, deltaSec, () =>
                 {
                     state = State.StoreResources;
-                    villager.PickupActionTime.Reset(
-                        villager.PickupActionsPerSecond / villager.Inventory.PickupSpeedMultiplier);
+                    villager.PickupActionTime.Reset(villager.PickupActionsPerSecond / villager.Inventory.PickupSpeedMultiplier);
                 });
                 break;
             case State.StoreResources:
@@ -125,33 +125,107 @@ public class StoreInventoryAIPlan : AIPlan
     }
 }
 
+public class BuildAIPlan : AIPlan
+{
+    readonly Building building;
+
+    public BuildAIPlan(World world, Villager villager, Building building) : base(world, villager) => this.building = building;
+
+    public override PlaceableEntity? FirstTarget => building;
+    public override string Description => $"Building {building.Name}.";
+
+    enum State { MoveToBuilding, Build }
+    State state = State.MoveToBuilding;
+
+    public override void Update(double deltaSec)
+    {
+        switch (state)
+        {
+            case State.MoveToBuilding:
+                StepToPlaceable(FirstTarget!, deltaSec, () =>
+                {
+                    state = State.Build;
+                    villager.WorkActionTime.Reset(villager.WorkActionsPerSecond);
+                });
+                break;
+            case State.Build:
+                villager.WorkActionTime.AdvanceTime(deltaSec);
+                if (villager.WorkActionTime.ConsumeActions() > 0 && --building.BuildWorkTicks <= 0)
+                {
+                    (building.IsBuilt, Done) = (true, true);
+                    building.Inventory.Clear();
+                }
+                break;
+        }
+    }
+}
+
 class AIManager
 {
     private readonly World world;
 
     public AIManager(World world) => this.world = world;
 
-    bool TryToBuildHaulingPlan(Villager villager)
+    bool TryBuildingPlan(Villager villager)
     {
-        bool anyRB = false, anyStorage = false;
-        world.GetEntities().ForEach(e => { anyRB = anyRB || e is ResourceBucket; anyStorage = anyStorage || (e is Building building && building.Type == BuildingType.Storage); });
+        var availableBuildingSite = world.GetEntities<Building>().OrderBy(b => (b.Center - villager.Center).LengthSquared())
+            .FirstOrDefault(b => !b.IsBuilt && b.BuildCost.IsAllEmpty && b.AssignedWorkers[0] is null);
+        if (availableBuildingSite == null)
+            return false;
+
+        availableBuildingSite.AssignedWorkers[0] = villager;
+        availableBuildingSite.AssignedWorkersWorking[0] = false;
+
+        villager.AIPlan = new BuildAIPlan(world, villager, availableBuildingSite);
+        return true;
+    }
+
+    bool TryBuildingSiteHaulingPlan(Villager villager)
+    {
+        var pickupPlan = new ResourcePickupAIPlan(world, villager);
+        var availableCarryWeight = world.Configuration.Data.BaseCarryWeight - villager.Inventory.AvailableWeight;
+
+        foreach (var buildingSite in world.GetEntities<Building>().Where(b => !b.IsBuilt && !b.BuildCost.IsAvailableEmpty).OrderBy(b => (b.Center - villager.Center).LengthSquared()))
+        {
+            var storePlan = new StoreInventoryAIPlan(world, villager, buildingSite);
+            foreach (var rb in world.GetEntities<ResourceBucket>().Where(rb => !rb.IsAvailableEmpty).OrderBy(rb => (rb.Center - villager.Center).LengthSquared()))
+                if (rb.PlanResouces(pickupPlan, ref availableCarryWeight, buildingSite.BuildCost))
+                    pickupPlan.WorldBuckets.Add(rb);
+
+            if (pickupPlan.WorldBuckets.Any())
+            {
+                // plan the storage
+                pickupPlan.NextPlan = storePlan;
+                storePlan.DoneAction = () => buildingSite.BuildCost.RemovePlannedResources(pickupPlan);
+                villager.AIPlan = pickupPlan;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    bool TryHaulingPlan(Villager villager)
+    {
+        bool anyRB = false, anyStorage = false, ok = false;
+        world.GetEntities().ForEach(e => { anyRB = anyRB || e is ResourceBucket; anyStorage = anyStorage || (e is Building building && building.IsBuilt && building.Type == BuildingType.Storage); });
         if (!world.GetEntities<ResourceBucket>().Any()) return false;
 
-        var plan = new ResourcePickupAIPlan(world, villager);
-
-        // plan the resource acquisition
-        var availableCarryWeight = world.Configuration.Data.BaseCarryWeight - villager.Inventory.AvailableWeight;
-        foreach (var rb in world.GetEntities<ResourceBucket>().OrderBy(rb => (rb.Center - villager.Center).LengthSquared()))
-            if (availableCarryWeight > 0 && rb.PlanResouces(plan, ref availableCarryWeight))
-                plan.WorldBuckets.Add(rb);
-
-        var ok = plan.WorldBuckets.Any();
-        if (ok)
+        var closestAvailableStorage = world.GetEntities<Building>().OrderBy(rb => (rb.Center - villager.Center).LengthSquared()).FirstOrDefault(b => b.Type == BuildingType.Storage);
+        if (closestAvailableStorage is not null)
         {
-            // plan the storage
-            var closestAvailableStorage = world.GetEntities<Building>().FirstOrDefault(b => b.Type == BuildingType.Storage);
-            if (closestAvailableStorage is not null)
+            var plan = new ResourcePickupAIPlan(world, villager);
+
+            // plan the resource acquisition
+            var availableCarryWeight = world.Configuration.Data.BaseCarryWeight - villager.Inventory.AvailableWeight;
+            foreach (var rb in world.GetEntities<ResourceBucket>().OrderBy(rb => (rb.Center - closestAvailableStorage.Center).LengthSquared()))
+                if (availableCarryWeight > 0 && rb.PlanResouces(plan, ref availableCarryWeight))
+                    plan.WorldBuckets.Add(rb);
+
+            ok = plan.WorldBuckets.Any();
+            if (ok)
             {
+                // plan the storage
                 var storePlan = new StoreInventoryAIPlan(world, villager, closestAvailableStorage);
                 plan.NextPlan = storePlan;
 
@@ -169,10 +243,10 @@ class AIManager
         foreach (var villager in updateVillagersList)
         {
             if (villager.AIPlan is null)
-                TryToBuildHaulingPlan(villager);
+                _ = TryBuildingPlan(villager) || TryBuildingSiteHaulingPlan(villager) || TryHaulingPlan(villager);
             villager.AIPlan?.Update(deltaSec);
         }
 
-        world.GetEntities<Villager>().Where(v => v.AIPlan?.Done == true).ForEach(v => v.AIPlan = v.AIPlan?.NextPlan);
+        world.GetEntities<Villager>().Where(v => v.AIPlan?.Done == true).ForEach(v => { v.AIPlan!.DoneAction?.Invoke(); v.AIPlan = v.AIPlan?.NextPlan; });
     }
 }

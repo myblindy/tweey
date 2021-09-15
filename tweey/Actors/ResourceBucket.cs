@@ -2,7 +2,8 @@
 
 public class ResourceBucket : PlaceableEntity
 {
-    public ResourceBucket(params ResourceQuantity[] rq)
+    public ResourceBucket(params ResourceQuantity[] rq) : this(rq.AsEnumerable()) { }
+    public ResourceBucket(IEnumerable<ResourceQuantity> rq)
     {
         (ResourceQuantities, AvailableResourceQuantities) = (new(resourceQuantities), new(availableResourceQuantities));
         (Width, Height) = (1, 1);
@@ -17,20 +18,34 @@ public class ResourceBucket : PlaceableEntity
     public ReadOnlyCollection<ResourceQuantity> AvailableResourceQuantities { get; }
     readonly Dictionary<ResourcePickupAIPlan, ResourceBucket> PlannedResourceBucket = new();
 
-    public bool PlanResouces(ResourcePickupAIPlan plan, ref double availableCarryWeight)
+    public bool PlanResouces(ResourcePickupAIPlan plan, ref double availableCarryWeight, ResourceBucket? costs = null)
     {
         ResourceBucket? plannedRB = null;
 
         foreach (var rq in AvailableResourceQuantities.Where(rq => rq.Weight > 0))
-            if (rq.Resource.Weight <= availableCarryWeight)
+            if (Math.Min(rq.Quantity, Math.Floor(availableCarryWeight / rq.Resource.Weight)) is { } usedQuantity)
             {
-                var usedQuantity = Math.Min(rq.Quantity, Math.Floor(availableCarryWeight / rq.Resource.Weight));
+                if (costs is not null)
+                {
+                    var maxCostQuantity = costs.AvailableResourceQuantities.FirstOrDefault(arq => arq.Resource == rq.Resource)?.Quantity ?? 0;
+                    usedQuantity = Math.Min(usedQuantity, maxCostQuantity);
+                }
+                if (usedQuantity <= 0) continue;
+
                 var usedRQ = new ResourceQuantity(rq.Resource, usedQuantity);
                 InternalAdd(usedRQ, availableResourceQuantities, negative: true);
 
                 if (plannedRB is null && !PlannedResourceBucket.TryGetValue(plan, out plannedRB))
                     PlannedResourceBucket[plan] = plannedRB = new();
                 plannedRB.Add(usedRQ);
+
+                if (costs is not null)
+                {
+                    if (!costs.PlannedResourceBucket.TryGetValue(plan, out var plannedCostRB))
+                        costs.PlannedResourceBucket[plan] = plannedCostRB = new();
+                    plannedCostRB.Add(usedRQ);
+                    InternalAdd(usedRQ, costs.availableResourceQuantities, negative: true);
+                }
 
                 availableCarryWeight -= usedRQ.Weight;
             }
@@ -107,6 +122,6 @@ public class ResourceBucket : PlaceableEntity
     public double FullWeight => ResourceQuantities.Sum(rq => rq.Weight);
     public double PickupSpeedMultiplier => AvailableResourceQuantities.Sum(rq => rq.PickupSpeedMultiplier / rq.Quantity);
 
-    public override string ToString() => 
+    public override string ToString() =>
         ResourceQuantities.Any(rq => rq.Quantity > 0) ? string.Join(", ", ResourceQuantities.Where(rq => rq.Quantity > 0).Select(rq => $"{rq.Quantity}x {rq.Resource.Name}")) : "nothing";
 }

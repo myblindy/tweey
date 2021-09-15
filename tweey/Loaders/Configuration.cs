@@ -7,6 +7,7 @@ public class ConfigurationData
     public int MaximumGroundDropSpillOverRange { get; set; }
     public double BaseMovementSpeed { get; set; }
     public double BasePickupSpeed { get; set; }
+    public double BaseWorkSpeed { get; set; }
 }
 
 public class Configuration

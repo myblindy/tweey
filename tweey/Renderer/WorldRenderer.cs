@@ -60,7 +60,10 @@ partial class WorldRenderer
                             },
                             new LabelView
                             {
-                                Text = () => $"{world.SelectedEntity!.GetType().Name} ",
+                                Text = () => world.SelectedEntity is Building building ? building.IsBuilt ? "Building " : "Building Site "
+                                    : world.SelectedEntity is ResourceBucket ? "Resources"
+                                    : world.SelectedEntity is Villager ? "Villager"
+                                    : throw new InvalidOperationException(),
                                 FontSize = 30,
                                 ForegroundColor = descriptionColor
                             },
@@ -75,6 +78,7 @@ partial class WorldRenderer
                     new LabelView
                     {
                         Text = () => world.SelectedEntity is Villager villager ? villager.AIPlan is { } aiPlan ? aiPlan.Description : "Idle."
+                            : world.SelectedEntity is Building { IsBuilt: false} buildingSite ? $"This is a building site, waiting for {buildingSite.BuildCost} and {buildingSite.BuildWorkTicks} work ticks."
                             : $"This is a {(world.SelectedEntity is Building ? "building" : "resource")}, it's just existing.",
                         FontSize = 18,
                         MinHeight = () => 35,
@@ -185,7 +189,9 @@ partial class WorldRenderer
             switch (entity)
             {
                 case Building building:
-                    ScreenFillQuad(Box2.FromCornerSize(building.Location, building.Width, building.Height), building.Color, atlas[GetImagePath(building)]);
+                    var color = building.Color;
+                    if (!building.IsBuilt) color *= new Vector4(1f, .4f, .4f, .4f);
+                    ScreenFillQuad(Box2.FromCornerSize(building.Location, building.Width, building.Height), color, atlas[GetImagePath(building)]);
                     break;
                 case ResourceBucket resourceBucket:
                     var resQ = resourceBucket.ResourceQuantities.Single(r => r.Quantity > 0);

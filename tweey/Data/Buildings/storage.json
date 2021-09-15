@@ -2,6 +2,19 @@
   "$schema": "./_schema.json",
   "name": "Jumbo Storage",
   "type": "storage",
+  "buildCost": {
+    "workTicks": 60,
+    "resources": [
+      {
+        "resource": "wood",
+        "quantity": 45
+      },
+      {
+        "resource": "iron",
+        "quantity": 5
+      }
+    ]
+  },
   "width": 3,
   "height": 3,
   "color": [ 0.5, 0.5, 0.5 ]

@@ -63,7 +63,9 @@ class Program : GameWindow
         world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 83)) { Location = new(19, 19) });
         world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 67)) { Location = new(20, 19) });
         world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 67), new ResourceQuantity(world.Resources["iron"], 125)) { Location = new(20, 20) });
-        world.PlaceEntity(Building.FromTemplate(world.BuildingTemplates["jumbo storage"], new(3, 20), new[] { world.Resources["wood"] }));
+
+        world.PlaceEntity(Building.FromTemplate(world.BuildingTemplates["jumbo storage"], new(3, 20), true, new[] { world.Resources["wood"] }));
+        world.PlaceEntity(Building.FromTemplate(world.BuildingTemplates["jumbo storage"], new(20, 3), false, new[] { world.Resources["wood"] }));
 
         worldRenderer = new(world);
         worldRenderer.Resize(Size.X, Size.Y);
@@ -85,15 +87,10 @@ class Program : GameWindow
 
     protected override void OnKeyDown(KeyboardKeyEventArgs e) =>
         world.KeyEvent(e.IsRepeat ? InputAction.Repeat : InputAction.Press, e.Key, e.ScanCode,
-            (e.Control ? KeyModifiers.Control : 0)
-            | (e.Shift ? KeyModifiers.Shift : 0)
-            | (e.Shift ? KeyModifiers.Alt : 0));
+            (e.Control ? KeyModifiers.Control : 0) | (e.Shift ? KeyModifiers.Shift : 0) | (e.Shift ? KeyModifiers.Alt : 0));
 
     protected override void OnKeyUp(KeyboardKeyEventArgs e) =>
-        world.KeyEvent(InputAction.Release, e.Key, e.ScanCode,
-            (e.Control ? KeyModifiers.Control : 0)
-            | (e.Shift ? KeyModifiers.Shift : 0)
-            | (e.Shift ? KeyModifiers.Alt : 0));
+        world.KeyEvent(InputAction.Release, e.Key, e.ScanCode, (e.Control ? KeyModifiers.Control : 0) | (e.Shift ? KeyModifiers.Shift : 0) | (e.Shift ? KeyModifiers.Alt : 0));
 
     protected override void OnUpdateFrame(FrameEventArgs args)
     {

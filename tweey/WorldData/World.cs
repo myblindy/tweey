@@ -1,6 +1,4 @@
-﻿using System.Linq;
-
-namespace Tweey.WorldData;
+﻿namespace Tweey.WorldData;
 
 public class World
 {
@@ -14,8 +12,11 @@ public class World
 
     public bool Paused { get; private set; }
 
-    public World(ILoader loader) =>
-        (Resources, BuildingTemplates, Configuration, AIManager) = (new(loader), new(loader), new(loader), new(this));
+    public World(ILoader loader)
+    {
+        (Resources, Configuration, AIManager) = (new(loader), new(loader), new(this));
+        BuildingTemplates = new(loader, Resources);
+    }
 
     public void PlaceEntity(PlaceableEntity entity)
     {

@@ -12,7 +12,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="MB.FastAutoMapper" Version="0.1.7" />
+		<PackageReference Include="MB.FastAutoMapper" Version="0.1.8" />
 		<PackageReference Include="morelinq" Version="3.3.2" />
 		<PackageReference Include="OpenTK.Graphics" Version="5.0.0-pre.6" />
 		<PackageReference Include="OpenTK.Windowing.Desktop" Version="5.0.0-pre.6" />
