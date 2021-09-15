@@ -24,14 +24,14 @@ public abstract class AIPlan
         for (int movements = villager.MovementActionTime.ConsumeActions(); movements > 0; --movements)
         {
             // reached the resource?
-            if (FirstTarget!.Box.Intersects(villager.Box.WithExpand(Vector2.One)))
+            if (entity!.Box.Intersects(villager.Box.WithExpand(Vector2.One)))
             {
                 targetReached();
                 return;
             }
 
             // if not, move towards it
-            villager.Location += (FirstTarget!.Location - villager.Location).Sign();
+            villager.Location += (entity!.Location - villager.Location).Sign();
         }
     }
 }
