@@ -6,25 +6,25 @@ interface IVertexArrayObject { }
 
 class VertexArrayObject<TVertex, TIndex> : IVertexArrayObject where TVertex : unmanaged where TIndex : unmanaged
 {
-    public unsafe VertexArrayObject(bool hasIndexBuffer, int vertexCapacity, int indexCapacity)
+    public unsafe VertexArrayObject(bool hasIndexBuffer, int vertexCapacity, int indexCapacity, int multiBufferCount = 3)
     {
         HasIndexBuffer = hasIndexBuffer;
         VertexCapacity = vertexCapacity;
         IndexCapacity = indexCapacity;
 
         vertexBufferHandle = GL.CreateBuffer();
-        GL.NamedBufferStorage(vertexBufferHandle, Unsafe.SizeOf<TVertex>() * vertexCapacity, IntPtr.Zero,
-            BufferStorageMask.MapWriteBit | BufferStorageMask.MapReadBit | BufferStorageMask.MapPersistentBit | BufferStorageMask.MapCoherentBit | BufferStorageMask.DynamicStorageBit);
-        Vertices = new((TVertex*)GL.MapNamedBufferRange(vertexBufferHandle, IntPtr.Zero, Unsafe.SizeOf<TVertex>() * vertexCapacity,
-            MapBufferAccessMask.MapWriteBit | MapBufferAccessMask.MapReadBit | MapBufferAccessMask.MapPersistentBit | MapBufferAccessMask.MapCoherentBit), vertexCapacity);
+        GL.NamedBufferStorage(vertexBufferHandle, Unsafe.SizeOf<TVertex>() * vertexCapacity * multiBufferCount, IntPtr.Zero,
+            BufferStorageMask.MapWriteBit | BufferStorageMask.MapPersistentBit | BufferStorageMask.MapCoherentBit);
+        Vertices = new((TVertex*)GL.MapNamedBufferRange(vertexBufferHandle, IntPtr.Zero, Unsafe.SizeOf<TVertex>() * vertexCapacity * multiBufferCount,
+            MapBufferAccessMask.MapWriteBit | MapBufferAccessMask.MapPersistentBit | MapBufferAccessMask.MapCoherentBit), vertexCapacity);
 
         if (hasIndexBuffer)
         {
             indexBufferHandle = GL.CreateBuffer();
-            GL.NamedBufferStorage(indexBufferHandle, Unsafe.SizeOf<TIndex>() * indexCapacity, IntPtr.Zero,
-                BufferStorageMask.MapWriteBit | BufferStorageMask.MapReadBit | BufferStorageMask.MapPersistentBit | BufferStorageMask.MapCoherentBit | BufferStorageMask.DynamicStorageBit);
-            Indices = new((TIndex*)GL.MapNamedBufferRange(indexBufferHandle, IntPtr.Zero, Unsafe.SizeOf<TIndex>() * indexCapacity,
-                MapBufferAccessMask.MapWriteBit | MapBufferAccessMask.MapReadBit | MapBufferAccessMask.MapPersistentBit | MapBufferAccessMask.MapCoherentBit), indexCapacity);
+            GL.NamedBufferStorage(indexBufferHandle, Unsafe.SizeOf<TIndex>() * indexCapacity * multiBufferCount, IntPtr.Zero,
+                BufferStorageMask.MapWriteBit | BufferStorageMask.MapPersistentBit | BufferStorageMask.MapCoherentBit);
+            Indices = new((TIndex*)GL.MapNamedBufferRange(indexBufferHandle, IntPtr.Zero, Unsafe.SizeOf<TIndex>() * indexCapacity * multiBufferCount,
+                MapBufferAccessMask.MapWriteBit | MapBufferAccessMask.MapPersistentBit | MapBufferAccessMask.MapCoherentBit), indexCapacity);
 
             drawElementsType =
                 typeof(TIndex) == typeof(byte) ? DrawElementsType.UnsignedByte :
@@ -48,6 +48,8 @@ class VertexArrayObject<TVertex, TIndex> : IVertexArrayObject where TVertex : un
             GL.VertexArrayAttribBinding(vertexArrayHandle, idx, 0);
             ++idx;
         }
+
+        syncObjects = new GLSync[multiBufferCount];
     }
 
     static readonly Dictionary<Type, int> fieldCounts = new()
@@ -74,6 +76,44 @@ class VertexArrayObject<TVertex, TIndex> : IVertexArrayObject where TVertex : un
         [typeof(Vector4)] = (uint)Unsafe.SizeOf<Vector4>(),
     };
 
+    int currentMultiBuffer;
+    readonly GLSync[] syncObjects;
+    void LockBuffer(int idx)
+    {
+        ref var sync = ref syncObjects[idx];
+        if (sync.Value != IntPtr.Zero)
+            GL.DeleteSync(sync);
+        sync = GL.FenceSync(SyncCondition.SyncGpuCommandsComplete, SyncBehaviorFlags.None);
+    }
+    void WaitBuffer(int idx)
+    {
+        ref var sync = ref syncObjects[idx];
+        if (sync.Value != IntPtr.Zero)
+            while (true)
+                if (GL.ClientWaitSync(sync, SyncObjectMask.SyncFlushCommandsBit, 1) is SyncStatus.AlreadySignaled or SyncStatus.ConditionSatisfied)
+                    return;
+    }
+
+    /// <summary>
+    /// Call at the beginning of a new frame, as close to the beginning of the draw calls as possible.
+    /// </summary>
+    public void BeginDraws() =>
+        WaitBuffer(currentMultiBuffer);
+
+    /// <summary>
+    /// Call at the end of a new frame, as close to the end of the draw calls as possible.
+    /// </summary>
+    public void EndDraws()
+    {
+        LockBuffer(currentMultiBuffer);
+
+        currentMultiBuffer = (currentMultiBuffer + 1) % syncObjects.Length;
+        vertices.Offset = vertices.Length * currentMultiBuffer;
+        vertices.Clear();
+        indices.Offset = indices.Length * currentMultiBuffer;
+        indices.Clear();
+    }
+
     static IVertexArrayObject? lastBoundVertexArray;
 
     /// <summary>
@@ -92,9 +132,9 @@ class VertexArrayObject<TVertex, TIndex> : IVertexArrayObject where TVertex : un
 
         if (HasIndexBuffer)
             GL.DrawElements(primitiveType, vertexOrIndexCount >= 0 ? vertexOrIndexCount : Indices.Length - vertexOrIndexOffset,
-                drawElementsType, vertexOrIndexOffset * Unsafe.SizeOf<TVertex>());
+                drawElementsType, (vertexOrIndexOffset + indices.Length * currentMultiBuffer) * Unsafe.SizeOf<TIndex>());
         else
-            GL.DrawArrays(primitiveType, vertexOrIndexOffset,
+            GL.DrawArrays(primitiveType, vertexOrIndexOffset + vertices.Length * currentMultiBuffer,
                 vertexOrIndexCount >= 0 ? vertexOrIndexCount : Vertices.Length - vertexOrIndexOffset);
     }
 

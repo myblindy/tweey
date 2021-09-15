@@ -182,8 +182,6 @@ partial class WorldRenderer
 
     public void Render(double deltaSec, double deltaUpdateTimeSec, double deltaRenderTimeSec)
     {
-        vaoGui.Vertices.Clear();
-
         // store the actual entities' vertices
         foreach (var entity in world.GetEntities())
             switch (entity)
@@ -223,8 +221,11 @@ partial class WorldRenderer
         shaderProgram.Use();
         atlas.Bind();
         windowUbo.Bind(windowUboBindingPoint);
+
+        vaoGui.BeginDraws();
         vaoGui.Draw(PrimitiveType.Triangles, vertexOrIndexCount: triVertexCount);
         vaoGui.Draw(PrimitiveType.Lines, triVertexCount, lineVertexCount);
+        vaoGui.EndDraws();
     }
 
     public Vector2i GetLocationFromScreenPoint(Vector2i screenPoint) => screenPoint / (int)pixelZoom;
