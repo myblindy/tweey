@@ -15,7 +15,7 @@ partial class WorldRenderer
     readonly UniformBufferObject<WindowUbo> windowUbo = new();
     const int windowUboBindingPoint = 1;
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    [VertexDefinition, StructLayout(LayoutKind.Sequential, Pack = 1)]
     struct GuiVertex
     {
         public Vector2 Location;
@@ -222,11 +222,8 @@ partial class WorldRenderer
         shaderProgram.Use();
         atlas.Bind();
         windowUbo.Bind(windowUboBindingPoint);
-
-        vaoGui.BeginDraws();
         vaoGui.Draw(PrimitiveType.Triangles, vertexOrIndexCount: triVertexCount);
         vaoGui.Draw(PrimitiveType.Lines, triVertexCount, lineVertexCount);
-        vaoGui.EndDraws();
     }
 
     public Vector2i GetLocationFromScreenPoint(Vector2i screenPoint) => screenPoint / (int)pixelZoom;
