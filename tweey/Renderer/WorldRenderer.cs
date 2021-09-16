@@ -222,8 +222,11 @@ partial class WorldRenderer
         shaderProgram.Use();
         atlas.Bind();
         windowUbo.Bind(windowUboBindingPoint);
+
+        vaoGui.BeginDraws();
         vaoGui.Draw(PrimitiveType.Triangles, vertexOrIndexCount: triVertexCount);
         vaoGui.Draw(PrimitiveType.Lines, triVertexCount, lineVertexCount);
+        vaoGui.EndDraws();
     }
 
     public Vector2i GetLocationFromScreenPoint(Vector2i screenPoint) => screenPoint / (int)pixelZoom;
