@@ -5,7 +5,7 @@ class Program : GameWindow
     public Program() : base(
         new()
         {
-            RenderFrequency = 60,
+            RenderFrequency = 0,
             UpdateFrequency = 60,
             IsMultiThreaded = false,
         }, new()
@@ -30,6 +30,7 @@ class Program : GameWindow
     {
         VSync = VSyncMode.Off;
 
+#if DEBUG
         // enable debug messages
         GL.Enable(EnableCap.DebugOutput);
         GL.Enable(EnableCap.DebugOutputSynchronous);
@@ -39,6 +40,7 @@ class Program : GameWindow
             if (severity > DebugSeverity.DebugSeverityNotification)
                 Console.WriteLine($"GL ERROR {Encoding.ASCII.GetString((byte*)msg, len)}, type: {type}, severity: {severity}, source: {src}");
         }, IntPtr.Zero);
+#endif
 
         GL.ClipControl(ClipControlOrigin.UpperLeft, ClipControlDepth.ZeroToOne);
         GL.Disable(EnableCap.DepthTest);

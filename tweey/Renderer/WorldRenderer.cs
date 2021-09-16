@@ -26,7 +26,7 @@ partial class WorldRenderer
             (Location, Color, Tex0) = (location, color, tex0);
     }
 
-    readonly VertexArrayObject<GuiVertex, Nothing> vaoGui = new(false, 10240, 0);
+    readonly StreamingVertexArrayObject<GuiVertex> vaoGui = new();
     readonly ShaderProgram shaderProgram = new("gui");
     readonly GuiSpace gui = new();
 
@@ -182,8 +182,6 @@ partial class WorldRenderer
 
     public void Render(double deltaSec, double deltaUpdateTimeSec, double deltaRenderTimeSec)
     {
-        vaoGui.Vertices.Clear();
-
         // store the actual entities' vertices
         foreach (var entity in world.GetEntities())
             switch (entity)
@@ -219,6 +217,7 @@ partial class WorldRenderer
         if (world.SelectedEntity is not null)
             ScreenLineQuad(world.SelectedEntity.Box, Colors.White);
         var lineVertexCount = vaoGui.Vertices.Length - triVertexCount;
+        vaoGui.UploadNewData();
 
         shaderProgram.Use();
         atlas.Bind();

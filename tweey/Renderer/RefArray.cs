@@ -19,6 +19,4 @@ unsafe struct RefArray<T> where T : unmanaged
     public void Clear() => Length = 0;
 
     public void Add(T value) => memory[Length++] = value;
-
-    public void Add(ref T value) => memory[Length++] = value;
 }
