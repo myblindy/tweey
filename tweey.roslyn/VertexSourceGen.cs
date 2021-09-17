@@ -203,7 +203,7 @@ public class VertexCodeFixProvider : CodeFixProvider
         {
             const string packingFixTitle = "Set vertex definition type packing";
             if (diagnostic.Id == VertexSourceGen.NoPackingDiagnosticDescriptor.Id)
-                context.RegisterCodeFix(CodeAction.Create(packingFixTitle, createChangedSolution: async ct =>
+                context.RegisterCodeFix(CodeAction.Create(packingFixTitle, createChangedDocument: async ct =>
                 {
                     var structNode = (StructDeclarationSyntax)root.FindNode(diagnostic.Location.SourceSpan);
 
@@ -227,7 +227,7 @@ public class VertexCodeFixProvider : CodeFixProvider
                     else
                         throw new InvalidOperationException();  // it should have at least [VertexDefinition] to get in this code fix in the first place
 
-                    return context.Document.Project.Solution.WithDocumentSyntaxRoot(newDocument.Id, await newDocument.GetSyntaxRootAsync(ct).ConfigureAwait(false));
+                    return newDocument;
                 }, packingFixTitle), diagnostic);
         }
     }
