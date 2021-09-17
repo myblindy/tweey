@@ -16,7 +16,7 @@ partial class WorldRenderer
     const int windowUboBindingPoint = 1;
 
     [VertexDefinition, StructLayout(LayoutKind.Sequential, Pack = 1)]
-    struct GuiVertex
+    public struct GuiVertex
     {
         public Vector2 Location;
         public Vector4 Color;

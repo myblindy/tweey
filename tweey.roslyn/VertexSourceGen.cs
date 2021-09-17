@@ -1,19 +1,117 @@
 ﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CodeActions;
+using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Editing;
+using Microsoft.CodeAnalysis.Formatting;
+using Microsoft.CodeAnalysis.Simplification;
 using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Composition;
 using System.Diagnostics;
+using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
+
+using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
 namespace tweey.roslyn;
 
 [Generator]
 public class VertexSourceGen : IIncrementalGenerator
 {
+    public static readonly DiagnosticDescriptor InvalidFieldTypeDiagnosticDescriptor =
+        new("MBVS001", "InvalidField", "Invalid field type for vertex definition type {0}", "Functionality", DiagnosticSeverity.Error, true);
+    public static readonly DiagnosticDescriptor NoPackingDiagnosticDescriptor =
+        new("MBVS002", "NoPacking", "No packing defined for vertex definition", "Functionality", DiagnosticSeverity.Error, true);
+
+    public static string GetFullName(TypeDeclarationSyntax source)
+    {
+        var items = new List<string>();
+        var parent = source.Parent;
+        while (parent.IsKind(SyntaxKind.ClassDeclaration) || parent.IsKind(SyntaxKind.StructDeclaration))
+        {
+            var parentClass = parent as TypeDeclarationSyntax;
+            items.Add(parentClass.Identifier.Text);
+            parent = parent.Parent;
+        }
+
+        var sb = new StringBuilder();
+        if (parent is NamespaceDeclarationSyntax namespaceDeclarationSyntax)
+            sb.Append(namespaceDeclarationSyntax.Name).Append('.');
+        else if (parent is FileScopedNamespaceDeclarationSyntax fileScopedNamespaceDeclaration)
+            sb.Append(fileScopedNamespaceDeclaration.Name).Append('.');
+
+        items.Reverse();
+        items.ForEach(i => sb.Append(i).Append('.'));
+        sb.Append(source.Identifier.Text);
+
+        return sb.ToString();
+    }
+
+    static bool GetTypeDetails(string typeName, out int fieldCount, out string fieldType, out int byteSize)
+    {
+        switch (typeName)
+        {
+            case "System.Single":
+                (fieldCount, fieldType, byteSize) = (1, "VertexAttribType.Float", sizeof(float));
+                return true;
+            case "System.Numerics.Vector2":
+                (fieldCount, fieldType, byteSize) = (2, "VertexAttribType.Float", 2 * sizeof(float));
+                return true;
+            case "System.Numerics.Vector3":
+                (fieldCount, fieldType, byteSize) = (3, "VertexAttribType.Float", 3 * sizeof(float));
+                return true;
+            case "System.Numerics.Vector4":
+                (fieldCount, fieldType, byteSize) = (4, "VertexAttribType.Float", 4 * sizeof(float));
+                return true;
+        };
+
+        (fieldCount, fieldType, byteSize) = (default, default, default);
+        return false;
+    }
+
+    public class VertexStructure
+    {
+        public StructDeclarationSyntax StructDeclarationSyntax { get; internal set; }
+        public bool PackingAttributeCorrect { get; internal set; }
+        public List<(int fieldCount, string fieldType, int byteSize, bool error, Location location)> Fields { get; } = new();
+    }
+
+    public static IEnumerable<VertexStructure> EnumerateVertexStructures(SyntaxNode rootNode, SemanticModel semanticModel)
+    {
+        foreach (var sd in rootNode.DescendantNodes().OfType<StructDeclarationSyntax>())
+            if (sd.AttributeLists.SelectMany(a => a.Attributes).Any(a => a.Name is IdentifierNameSyntax ins && ins.Identifier.Text is "VertexDefinition" or "VertexDefinitionAttribute"))
+            {
+                var result = new VertexStructure { StructDeclarationSyntax = sd };
+
+                // ensure this structure is packed
+                result.PackingAttributeCorrect = sd.AttributeLists.SelectMany(a => a.Attributes)
+                    .Any(a => a.Name is NameSyntax ns
+                        && semanticModel.GetSymbolInfo(ns).Symbol is IMethodSymbol methodSymbol && methodSymbol.ReceiverType.ToDisplayString() == "System.Runtime.InteropServices.StructLayoutAttribute"
+                        && a.ArgumentList.Arguments.Count >= 2
+                        && a.ArgumentList.Arguments[0].Expression is MemberAccessExpressionSyntax mes0 && semanticModel.GetSymbolInfo(mes0.Expression).Symbol is ITypeSymbol mes0TypeSymbol && mes0TypeSymbol.ToDisplayString() == "System.Runtime.InteropServices.LayoutKind" && mes0.Name is IdentifierNameSyntax mes0ins && mes0ins.Identifier.Text == "Sequential"
+                        && a.ArgumentList.Arguments.Any(w => w.NameEquals?.Name.Identifier.Text == "Pack" && semanticModel.GetConstantValue(w.Expression).Value is 1));
+
+                foreach (var field in sd.Members.OfType<FieldDeclarationSyntax>())
+                    if (semanticModel.GetSymbolInfo(field.Declaration.Type).Symbol is INamedTypeSymbol namedTypeSymbol)
+                    {
+                        var fullTypeName = namedTypeSymbol.ToDisplayString();
+                        var error = !GetTypeDetails(fullTypeName, out var fieldCount, out var fieldType, out var byteSize);
+                        result.Fields.Add((fieldCount, fieldType, byteSize, error, field.Declaration.Type.GetLocation()));
+                    }
+
+                yield return result;
+            }
+    }
+
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        Debugger.Launch();
+        //Debugger.Launch();
 
         var inputs = context.CompilationProvider;
         context.RegisterSourceOutput(inputs, static (context, compilationProvider) =>
@@ -34,43 +132,103 @@ public static class VertexDefinitionSetup
                 if (tree.TryGetRoot(out var rootNode))
                 {
                     var semanticModel = compilationProvider.GetSemanticModel(tree);
-                    foreach (var sd in rootNode.DescendantNodes().OfType<StructDeclarationSyntax>())
-                        if (sd.AttributeLists.SelectMany(a => a.Attributes).Any(a => a.Name is IdentifierNameSyntax ins && ins.Identifier.Text is "VertexDefinition" or "VertexDefinitionAttribute"))
-                        {
-                            sb.AppendLine($"if(t == typeof({sd.Identifier})) {{");
-                            int idx = 0;
-                            var offset = 0;
-                            foreach (var field in sd.Members.OfType<FieldDeclarationSyntax>())
-                                if (semanticModel.GetSymbolInfo(field.Declaration.Type).Symbol is INamedTypeSymbol namedTypeSymbol)
-                                {
-                                    var fullTypeName = namedTypeSymbol.ToDisplayString();
-                                    var fieldCounts = fullTypeName switch
-                                    {
-                                        "System.Single" => 1,
-                                        "System.Numerics.Vector2" => 2,
-                                        "System.Numerics.Vector3" => 3,
-                                        "System.Numerics.Vector4" => 4,
-                                        _ => throw new NotImplementedException()
-                                    };
-                                    var fieldTypes = fullTypeName switch
-                                    {
-                                        "System.Single" => "VertexAttribType.Float",
-                                        "System.Numerics.Vector2" => "VertexAttribType.Float",
-                                        "System.Numerics.Vector3" => "VertexAttribType.Float",
-                                        "System.Numerics.Vector4" => "VertexAttribType.Float",
-                                        _ => throw new NotImplementedException()
-                                    };
-                                    sb.AppendLine($"GL.EnableVertexArrayAttrib(va, {idx});");
-                                    sb.AppendLine($"GL.VertexArrayAttribFormat(va, {idx}, {fieldCounts}, {fieldTypes}, false, {offset});");
 
-                                    ++idx;
-                                }
-                            sb.AppendLine("}");
-                        }
+                    foreach (var vertexStructure in EnumerateVertexStructures(rootNode, semanticModel))
+                    {
+                        var fullName = GetFullName(vertexStructure.StructDeclarationSyntax);
+                        sb.AppendLine($"if(t == typeof({fullName})) {{");
+                        int idx = 0;
+                        var offset = 0;
+                        foreach (var (fieldCount, fieldType, byteSize, error, location) in vertexStructure.Fields)
+                            if (!error)
+                            {
+                                sb.AppendLine($"GL.EnableVertexArrayAttrib(va, {idx});");
+                                sb.AppendLine($"GL.VertexArrayAttribFormat(va, {idx}, {fieldCount}, {fieldType}, false, {offset});");
+                                offset += byteSize;
+                                sb.AppendLine($"GL.VertexArrayAttribBinding(va, {idx}, 0);");
+
+                                ++idx;
+                            }
+                        sb.AppendLine("}");
+                    }
                 }
 
             sb.AppendLine("}}");
             context.AddSource("VertexSourceGen.cs", sb.ToString());
         });
+    }
+}
+
+[DiagnosticAnalyzer(LanguageNames.CSharp)]
+public class VertexAnalyzer : DiagnosticAnalyzer
+{
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = ImmutableArray.Create(VertexSourceGen.NoPackingDiagnosticDescriptor, VertexSourceGen.InvalidFieldTypeDiagnosticDescriptor);
+
+    public override void Initialize(AnalysisContext context)
+    {
+        //Debugger.Launch();
+
+        context.EnableConcurrentExecution();
+        context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
+
+        context.RegisterSemanticModelAction(semanticModelAnalysisContext =>
+        {
+            foreach (var vertexStructure in VertexSourceGen.EnumerateVertexStructures(semanticModelAnalysisContext.SemanticModel.SyntaxTree.GetRoot(), semanticModelAnalysisContext.SemanticModel))
+            {
+                if (!vertexStructure.PackingAttributeCorrect)
+                    semanticModelAnalysisContext.ReportDiagnostic(Diagnostic.Create(VertexSourceGen.NoPackingDiagnosticDescriptor, vertexStructure.StructDeclarationSyntax.Identifier.GetLocation()));
+                foreach (var (fieldCount, fieldType, byteSize, error, location) in vertexStructure.Fields)
+                    if (error)
+                        semanticModelAnalysisContext.ReportDiagnostic(Diagnostic.Create(VertexSourceGen.InvalidFieldTypeDiagnosticDescriptor, location, vertexStructure.StructDeclarationSyntax.Identifier.Text));
+            }
+        });
+    }
+}
+
+[ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(VertexCodeFixProvider)), Shared]
+public class VertexCodeFixProvider : CodeFixProvider
+{
+    public override ImmutableArray<string> FixableDiagnosticIds { get; } = ImmutableArray.Create(VertexSourceGen.NoPackingDiagnosticDescriptor.Id);
+
+    public sealed override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
+
+    public override async Task RegisterCodeFixesAsync(CodeFixContext context)
+    {
+        //Debugger.Launch();
+
+        var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
+        var semanticModel = await context.Document.GetSemanticModelAsync(context.CancellationToken).ConfigureAwait(false);
+
+        foreach (Diagnostic diagnostic in context.Diagnostics)
+        {
+            const string packingFixTitle = "Set vertex definition type packing";
+            if (diagnostic.Id == VertexSourceGen.NoPackingDiagnosticDescriptor.Id)
+                context.RegisterCodeFix(CodeAction.Create(packingFixTitle, createChangedSolution: async ct =>
+                {
+                    var structNode = (StructDeclarationSyntax)root.FindNode(diagnostic.Location.SourceSpan);
+
+                    var correctAttribute = Attribute(ParseName("System.Runtime.InteropServices.StructLayoutAttribute"),
+                        AttributeArgumentList(SeparatedList<AttributeArgumentSyntax>(new SyntaxNodeOrToken[]
+                        {
+                            AttributeArgument(MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, ParseName("System.Runtime.InteropServices.LayoutKind"), IdentifierName("Sequential"))),
+                            Token(SyntaxKind.CommaToken),
+                            AttributeArgument(NameEquals("Pack"), null, LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal(1)))
+                        }))).WithAdditionalAnnotations(Simplifier.Annotation, Simplifier.AddImportsAnnotation);
+
+                    // find the StructLayout attribute, if it's there
+                    Document newDocument;
+                    if (structNode.AttributeLists.SelectMany(a => a.Attributes).FirstOrDefault(a => a.Name is NameSyntax ns
+                         && semanticModel.GetSymbolInfo(ns).Symbol is IMethodSymbol methodSymbol && methodSymbol.ReceiverType.ToDisplayString() == "System.Runtime.InteropServices.StructLayoutAttribute") is { } attributeSyntax)
+                    {
+                        newDocument = context.Document.WithSyntaxRoot(root.ReplaceNode(attributeSyntax, correctAttribute));
+                    }
+                    else if (structNode.AttributeLists.SelectMany(a => a.Attributes).LastOrDefault() is { } lastAttribute)
+                        newDocument = context.Document.WithSyntaxRoot(root.InsertNodesAfter(lastAttribute, new[] { correctAttribute }));
+                    else
+                        throw new InvalidOperationException();  // it should have at least [VertexDefinition] to get in this code fix in the first place
+
+                    return context.Document.Project.Solution.WithDocumentSyntaxRoot(newDocument.Id, await newDocument.GetSyntaxRootAsync(ct).ConfigureAwait(false));
+                }, packingFixTitle), diagnostic);
+        }
     }
 }

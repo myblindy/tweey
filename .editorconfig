@@ -235,3 +235,6 @@ dotnet_diagnostic.CA1310.severity = none
 
 # CA5394: Do not use insecure randomness
 dotnet_diagnostic.CA5394.severity = none
+
+[*.{cs,vb}]
+dotnet_diagnostic.RS2008.severity=silent
