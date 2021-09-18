@@ -14,42 +14,10 @@ class StreamingVertexArrayObject<TVertex> : IVertexArrayObject where TVertex : u
         vertexArrayHandle = GL.CreateVertexArray();
         GL.VertexArrayVertexBuffer(vertexArrayHandle, 0, vertexBufferHandle, IntPtr.Zero, Unsafe.SizeOf<TVertex>());
 
-        uint idx = 0, offset = 0;
-        foreach (var fi in typeof(TVertex).GetFields())
-        {
-            GL.EnableVertexArrayAttrib(vertexArrayHandle, idx);
-            GL.VertexArrayAttribFormat(vertexArrayHandle, idx, fieldCounts[fi.FieldType], fieldTypes[fi.FieldType], false, offset);
-            offset += fieldSizes[fi.FieldType];
-            GL.VertexArrayAttribBinding(vertexArrayHandle, idx, 0);
-            ++idx;
-        }
+        VertexDefinitionSetup.Setup(typeof(TVertex), vertexArrayHandle);
 
         tempVertices = new(initialVertexCapacity);
     }
-
-    static readonly Dictionary<Type, int> fieldCounts = new()
-    {
-        [typeof(float)] = 1,
-        [typeof(Vector2)] = 2,
-        [typeof(Vector3)] = 3,
-        [typeof(Vector4)] = 4,
-    };
-
-    static readonly Dictionary<Type, VertexAttribType> fieldTypes = new()
-    {
-        [typeof(float)] = VertexAttribType.Float,
-        [typeof(Vector2)] = VertexAttribType.Float,
-        [typeof(Vector3)] = VertexAttribType.Float,
-        [typeof(Vector4)] = VertexAttribType.Float,
-    };
-
-    static readonly Dictionary<Type, uint> fieldSizes = new()
-    {
-        [typeof(float)] = (uint)Unsafe.SizeOf<float>(),
-        [typeof(Vector2)] = (uint)Unsafe.SizeOf<Vector2>(),
-        [typeof(Vector3)] = (uint)Unsafe.SizeOf<Vector3>(),
-        [typeof(Vector4)] = (uint)Unsafe.SizeOf<Vector4>(),
-    };
 
     static IVertexArrayObject? lastBoundVertexArray;
 
