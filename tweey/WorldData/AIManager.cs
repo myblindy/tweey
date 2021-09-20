@@ -187,14 +187,18 @@ class AIManager
 
         foreach (var buildingSite in world.GetEntities<Building>().Where(b => !b.IsBuilt && !b.BuildCost.IsAvailableEmpty).OrderBy(b => (b.Center - villager.Center).LengthSquared()))
         {
-            var storePlan = new StoreInventoryAIPlan(world, villager, buildingSite);
-            foreach (var rb in world.GetEntities<ResourceBucket>().Where(rb => !rb.IsAvailableEmpty).OrderBy(rb => (rb.Center - villager.Center).LengthSquared()))
+            foreach (var rb in world.GetEntities().Where(e => (e is ResourceBucket rb && !rb.IsAvailableEmpty) || (e is Building { Type: BuildingType.Storage } building && !building.Inventory.IsAvailableEmpty))
+                .Select(e => e is ResourceBucket rb ? rb : ((Building)e).Inventory)
+                .OrderBy(rb => (rb.Center - villager.Center).LengthSquared()))
+            {
                 if (rb.PlanResouces(pickupPlan, ref availableCarryWeight, buildingSite.BuildCost))
                     pickupPlan.WorldBuckets.Add(rb);
+            }
 
             if (pickupPlan.WorldBuckets.Any())
             {
                 // plan the storage
+                var storePlan = new StoreInventoryAIPlan(world, villager, buildingSite);
                 pickupPlan.NextPlan = storePlan;
                 storePlan.DoneAction = () => buildingSite.BuildCost.RemovePlannedResources(pickupPlan);
                 villager.AIPlan = pickupPlan;

@@ -5,7 +5,7 @@ class Program : GameWindow
     public Program() : base(
         new()
         {
-            RenderFrequency = 0,
+            RenderFrequency = 60,
             UpdateFrequency = 60,
             IsMultiThreaded = false,
         }, new()

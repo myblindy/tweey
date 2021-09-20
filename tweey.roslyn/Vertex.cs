@@ -4,15 +4,11 @@ using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
-using Microsoft.CodeAnalysis.Editing;
-using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Simplification;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Composition;
-using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -24,9 +20,9 @@ namespace tweey.roslyn;
 [Generator]
 public class VertexSourceGen : IIncrementalGenerator
 {
-    public static readonly DiagnosticDescriptor InvalidFieldTypeDiagnosticDescriptor =
+    internal static readonly DiagnosticDescriptor InvalidFieldTypeDiagnosticDescriptor =
         new("MBVS001", "InvalidField", "Invalid field type for vertex definition type {0}", "Functionality", DiagnosticSeverity.Error, true);
-    public static readonly DiagnosticDescriptor NoPackingDiagnosticDescriptor =
+    internal static readonly DiagnosticDescriptor NoPackingDiagnosticDescriptor =
         new("MBVS002", "NoPacking", "No packing defined for vertex definition", "Functionality", DiagnosticSeverity.Error, true);
 
     public static string GetFullName(TypeDeclarationSyntax source)

@@ -7,10 +7,13 @@ interface IRepeaterView
 
 public class RepeaterView<T> : View, IRepeaterView
 {
-    public /*required*/ Func<IEnumerable<T>?>? Source { get; set; }
+    [RequiredProperty]
+    public Func<IEnumerable<T>?>? Source { get; set; }
     public ContainerView? ContainerView { get; set; }
-    public /*required*/ Func<T, View>? ItemView { get; set; }
-    public /*required*/ View? EmptyView { get; set; }
+    [RequiredProperty]
+    public Func<T, View>? ItemView { get; set; }
+    [RequiredProperty]
+    public View? EmptyView { get; set; }
 
     public View CreateView()
     {
