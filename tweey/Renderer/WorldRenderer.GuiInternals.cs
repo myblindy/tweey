@@ -162,9 +162,9 @@ partial class WorldRenderer
         return (viewBoxes[view] = Box2.FromCornerSize(new(), size)).Size;
     }
 
-    void LayoutView(View view, Vector2 offset, Vector2 multiplier)
+    Vector2 LayoutView(View view, Vector2 offset, Vector2 multiplier)
     {
-        if (view.Visible is not null && !view.Visible()) return;
+        if (view.Visible is not null && !view.Visible()) return default;
         view = viewTemplates.TryGetValue(view, out var templateView) ? templateView : view;
 
         var boxSize = viewBoxes[view].Size;
@@ -190,14 +190,6 @@ partial class WorldRenderer
                             viewBoxes[view] = Box2.FromCornerSize(new(), boxSize = stackView.Type != StackType.Horizontal ? new(boxSize.X, boxSize.Y + newSize.Y) : new(boxSize.X + newSize.X, boxSize.Y));
                             viewBoxes[child] = Box2.FromCornerSize(new(), newSize);
                             break;
-                    }
-
-                // update all parents
-                if (extraSize > 0)
-                    for (var parentView = view.Parent; parentView is not null; parentView = parentView.Parent)
-                    {
-                        var parentBox = viewBoxes[parentView];
-                        viewBoxes[parentView] = Box2.FromCornerSize(parentBox.TopLeft, parentBox.Size + (stackView.Type == StackType.Vertical ? new Vector2(0, extraSize) : new(extraSize, 0)));
                     }
 
                 var start = boxStart;
