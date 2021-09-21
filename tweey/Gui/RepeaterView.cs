@@ -9,15 +9,14 @@ public class RepeaterView<T> : View, IRepeaterView
 {
     [RequiredProperty]
     public Func<IEnumerable<T>?>? Source { get; set; }
-    public ContainerView? ContainerView { get; set; }
+    public IContainerView? ContainerView { get; set; }
     [RequiredProperty]
     public Func<T, View>? ItemView { get; set; }
-    [RequiredProperty]
     public View? EmptyView { get; set; }
 
     public View CreateView()
     {
-        ContainerView? result = null;
+        IContainerView? result = null;
 
         if (Source is not null && Source() is { } items)
             foreach (var item in items)
@@ -31,6 +30,6 @@ public class RepeaterView<T> : View, IRepeaterView
                 result.Children.Add(ItemView!(item));
             }
 
-        return result ?? EmptyView!;
+        return ((View?)result) ?? EmptyView ?? Gui.EmptyView.Default;
     }
 }

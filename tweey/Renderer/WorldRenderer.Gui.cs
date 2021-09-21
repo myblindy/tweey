@@ -106,11 +106,30 @@ partial class WorldRenderer
                             }
                         }
                     },
-                    new RepeaterView<BuildingTemplate>
+                    new RepeaterView<string>
                     {
-                        Source = default,
-                        ItemView = default,
-                        EmptyView = default
+                        Visible = () => world.SelectedEntity is null,
+                        Source = () => world.BuildingTemplates,
+                        ContainerView = new StackView(StackType.Horizontal),
+                        ItemView = key => new ButtonView
+                        {
+                            Clicked = () => {},
+                            Child = new StackView(StackType.Vertical)
+                            {
+                                Children =
+                                {
+                                    new ImageView
+                                    {
+                                        Source = () => GetImagePath(world.BuildingTemplates[key]),
+                                        InheritParentSize = true,
+                                    },
+                                    new LabelView
+                                    {
+                                        Text = () => world.BuildingTemplates[key].Name,
+                                    },
+                                }
+                            }
+                        }
                     }
                 }
             }, Anchor.BottomLeft));

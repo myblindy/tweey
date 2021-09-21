@@ -47,9 +47,46 @@ partial class WorldRenderer
     }
 
     readonly Dictionary<View, Box2> viewBoxes = new();
+
     readonly Dictionary<View, View> viewTemplates = new();
     View GetRealView(View view) =>
         viewTemplates.TryGetValue(view, out var templateView) ? templateView : view;
+
+    bool MouseEvent(View view, Vector2i position, InputAction inputAction, MouseButton mouseButton, KeyModifiers keyModifiers)
+    {
+        if ((view.Visible?.Invoke() ?? true) && GetRealView(view) is { } realView && viewBoxes.TryGetValue(realView, out var box) && box.Contains(position))
+            switch (realView)
+            {
+                case IClickable clickable:
+                    if (inputAction == InputAction.Press && mouseButton == MouseButton.Left)
+                    {
+                        clickable.Clicked?.Invoke();
+                        return true;
+                    }
+                    break;
+                case IContainerView containerView:
+                    foreach (var childView in containerView.Children)
+                        if (MouseEvent(childView, position, inputAction, mouseButton, keyModifiers))
+                            return true;
+                    break;
+                case ISingleChildContainerView singleChildContainerView:
+                    if (singleChildContainerView.Child is not null && MouseEvent(singleChildContainerView.Child, position, inputAction, mouseButton, keyModifiers))
+                        return true;
+                    break;
+            }
+
+        return false;
+    }
+
+    public bool MouseEvent(Vector2i position, InputAction inputAction, MouseButton mouseButton, KeyModifiers keyModifiers)
+    {
+        // use the old view boxes to calculate hit testing
+        foreach (var rootViewDescription in gui.RootViewDescriptions)
+            if (MouseEvent(rootViewDescription.View, position, inputAction, mouseButton, keyModifiers))
+                return true;
+
+        return false;
+    }
 
     void TemplateView(View view)
     {
@@ -61,8 +98,12 @@ partial class WorldRenderer
                 TemplateView(viewTemplates[view] = repeaterView.CreateView());
                 break;
 
-            case ContainerView containerView:
+            case IContainerView containerView:
                 containerView.Children.ForEach(TemplateView);
+                break;
+
+            case ISingleChildContainerView { Child: not null } singleChildContainerView:
+                TemplateView(singleChildContainerView.Child);
                 break;
         }
     }
@@ -76,15 +117,23 @@ partial class WorldRenderer
         switch (view)
         {
             case LabelView labelView:
-                if (labelView.Text is not null && labelView.Text() is var text && !string.IsNullOrWhiteSpace(text))
+                if (labelView.Text?.Invoke() is var text && !string.IsNullOrWhiteSpace(text))
                     size += fontRenderer.Measure(text, new FontDescription { Size = labelView.FontSize });
                 break;
 
             case ImageView imageView:
-                if (!imageView.InheritParentSize && imageView.Source is not null && imageView.Source() is var src && !string.IsNullOrWhiteSpace(src))
+                if (!imageView.InheritParentSize && imageView.Source?.Invoke() is var src && !string.IsNullOrWhiteSpace(src))
                 {
                     var entry = atlas[src];
                     size = entry.PixelSize.ToNumericsVector2();
+                }
+                break;
+
+            case ButtonView buttonView:
+                if (buttonView.Child is not null)
+                {
+                    var childSize = MeasureView(buttonView.Child);
+                    size += childSize;
                 }
                 break;
 
@@ -130,7 +179,7 @@ partial class WorldRenderer
                 foreach (var child in stackView.Children)
                     switch (child)
                     {
-                        case ImageView { InheritParentSize: true } imageView when imageView.Source is not null && imageView.Source() is var src && !string.IsNullOrWhiteSpace(src):
+                        case ImageView { InheritParentSize: true } imageView when imageView.Source?.Invoke() is var src && !string.IsNullOrWhiteSpace(src):
                             // need the aspect ratio
                             var entry = atlas[src];
                             var aspect = (float)entry.PixelSize.X / entry.PixelSize.Y;
@@ -142,7 +191,7 @@ partial class WorldRenderer
                     }
 
                 var start = boxStart;
-                foreach (var child in stackView.Children.Where(v => v.Visible is null || v.Visible()).Select(GetRealView))
+                foreach (var child in stackView.Children.Where(v => v.Visible?.Invoke() ?? true).Select(GetRealView))
                 {
                     LayoutView(child, start, new(1, 1));
                     start = stackView.Type == StackType.Horizontal
@@ -151,8 +200,12 @@ partial class WorldRenderer
                 }
                 break;
 
+            case ISingleChildContainerView { Child: not null } singleChildContainerView:
+                LayoutView(singleChildContainerView.Child, boxStart, new(1, 1));
+                break;
+
             default:
-                if (view is ContainerView) throw new NotImplementedException();
+                if (view is IContainerView) throw new NotImplementedException();
                 break;
         }
     }
@@ -168,7 +221,7 @@ partial class WorldRenderer
 
         switch (view)
         {
-            case ContainerView containerView:
+            case IContainerView containerView:
                 foreach (var child in containerView.Children.Select(GetRealView))
                     RenderView(child);
                 break;
@@ -184,6 +237,10 @@ partial class WorldRenderer
             case ImageView imageView:
                 if (imageView.Source is not null && imageView.Source() is { } src && !string.IsNullOrWhiteSpace(src))
                     ScreenFillQuad(box.WithExpand(-view.Margin), imageView.ForegroundColor, atlas[src], false);
+                break;
+            case ButtonView buttonView:
+                if (buttonView.Child is not null)
+                    RenderView(buttonView.Child);
                 break;
         }
     }

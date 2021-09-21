@@ -79,13 +79,19 @@ class Program : GameWindow
         worldRenderer?.Resize(e.Width, e.Height);
     }
 
-    protected override void OnMouseDown(MouseButtonEventArgs e) =>
-        world.MouseEvent(worldRenderer!.GetLocationFromScreenPoint(MousePosition.ToVector2i()),
-            e.Action, e.Button, e.Modifiers);
+    protected override void OnMouseDown(MouseButtonEventArgs e)
+    {
+        var position = MousePosition.ToVector2i();
+        if (!worldRenderer!.MouseEvent(position, e.Action, e.Button, e.Modifiers))
+            world.MouseEvent(worldRenderer!.GetLocationFromScreenPoint(position), e.Action, e.Button, e.Modifiers);
+    }
 
-    protected override void OnMouseUp(MouseButtonEventArgs e) =>
-        world.MouseEvent(worldRenderer!.GetLocationFromScreenPoint(MousePosition.ToVector2i()),
-            e.Action, e.Button, e.Modifiers);
+    protected override void OnMouseUp(MouseButtonEventArgs e)
+    {
+        var position = MousePosition.ToVector2i();
+        if (!worldRenderer!.MouseEvent(position, e.Action, e.Button, e.Modifiers))
+            world.MouseEvent(worldRenderer!.GetLocationFromScreenPoint(position), e.Action, e.Button, e.Modifiers);
+    }
 
     protected override void OnKeyDown(KeyboardKeyEventArgs e) =>
         world.KeyEvent(e.IsRepeat ? InputAction.Repeat : InputAction.Press, e.Key, e.ScanCode,

@@ -1,4 +1,4 @@
-﻿namespace Tweey.Gui;
+﻿namespace Tweey.Gui.Base;
 
 public class ViewsCollection : Collection<View>
 {
@@ -30,9 +30,7 @@ public class ViewsCollection : Collection<View>
     }
 }
 
-public abstract class ContainerView : View
+public interface IContainerView
 {
-    public ContainerView() => Children = new(this);
-
     public ViewsCollection Children { get; }
 }

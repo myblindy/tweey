@@ -49,12 +49,12 @@ partial class WorldRenderer
     float pixelZoom = 35;
 
     FrameData frameData;
-    static string GetImagePath(Building building) => $"Data/Buildings/{building.FileName}.png";
+    static string GetImagePath(BuildingTemplate building) => $"Data/Buildings/{building.FileName}.png";
     static string GetImagePath(Resource resource) => $"Data/Resources/{resource.FileName}.png";
     static string GetImagePath(Villager _) => $"Data/Misc/villager.png";
     static string GetImagePath(PlaceableEntity entity) => entity switch
     {
-        Building building => GetImagePath(building),
+        BuildingTemplate buildingTemplate => GetImagePath(buildingTemplate),
         ResourceBucket resource => GetImagePath(resource.ResourceQuantities.First(rq => rq.Quantity > 0).Resource),
         Villager villager => GetImagePath(villager),
         _ => throw new NotImplementedException()

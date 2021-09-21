@@ -1,4 +1,4 @@
-﻿namespace Tweey.Gui;
+﻿namespace Tweey.Gui.Base;
 
 public record struct Thickness(int Left, int Top, int Right, int Bottom)
 {

@@ -83,8 +83,6 @@ public class World
         if (SelectedEntity == entity) SelectedEntity = null;
         return PlacedEntities.Remove(entity);
     }
-    //public void RemoveEntitiesWhere(Predicate<PlaceableEntity> entitiesMatch) => PlacedEntities.RemoveAll(entitiesMatch);
-    //public void RemoveEntitiesWhere<T>(Predicate<T> entitiesMatch) where T : PlaceableEntity => PlacedEntities.RemoveAll(w => w is T t && entitiesMatch(t));
 
     public void MouseEvent(Vector2i worldLocation, InputAction inputAction, MouseButton mouseButton, KeyModifiers keyModifiers)
     {
