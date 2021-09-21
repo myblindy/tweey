@@ -175,6 +175,8 @@ partial class WorldRenderer
         switch (view)
         {
             case StackView stackView:
+                float extraSize = 0;
+
                 // finish the layout for views that inherit their size from us
                 foreach (var child in stackView.Children)
                     switch (child)
@@ -183,11 +185,19 @@ partial class WorldRenderer
                             // need the aspect ratio
                             var entry = atlas[src];
                             var aspect = (float)entry.PixelSize.X / entry.PixelSize.Y;
-                            Vector2 newSize = stackView.Type != StackType.Horizontal
-                                ? new(boxSize.X, boxSize.X / aspect)
-                                : new(boxSize.Y * aspect, boxSize.Y);
+                            Vector2 newSize = stackView.Type != StackType.Horizontal ? new(boxSize.X, boxSize.X / aspect) : new(boxSize.Y * aspect, boxSize.Y);
+                            extraSize += stackView.Type != StackType.Horizontal ? newSize.Y : newSize.X;
+                            viewBoxes[view] = Box2.FromCornerSize(new(), boxSize = stackView.Type != StackType.Horizontal ? new(boxSize.X, boxSize.Y + newSize.Y) : new(boxSize.X + newSize.X, boxSize.Y));
                             viewBoxes[child] = Box2.FromCornerSize(new(), newSize);
                             break;
+                    }
+
+                // update all parents
+                if (extraSize > 0)
+                    for (var parentView = view.Parent; parentView is not null; parentView = parentView.Parent)
+                    {
+                        var parentBox = viewBoxes[parentView];
+                        viewBoxes[parentView] = Box2.FromCornerSize(parentBox.TopLeft, parentBox.Size + (stackView.Type == StackType.Vertical ? new Vector2(0, extraSize) : new(extraSize, 0)));
                     }
 
                 var start = boxStart;
