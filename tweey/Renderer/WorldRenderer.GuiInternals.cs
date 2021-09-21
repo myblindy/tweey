@@ -46,7 +46,16 @@ partial class WorldRenderer
         vaoGui.Vertices.Add(new(br * zoom, color, blankEntry.TextureCoordinate1));
     }
 
-    readonly Dictionary<View, Box2> viewBoxes = new();
+    struct ViewBoxData
+    {
+        public Box2 Box, BaseBox;
+
+        public ViewBoxData(Box2 box, Box2 baseBox) => (Box, BaseBox) = (box, baseBox);
+
+        public ViewBoxData(Box2 box) => (Box, BaseBox) = (box, box);
+    }
+
+    readonly Dictionary<View, ViewBoxData> viewBoxes = new();
 
     readonly Dictionary<View, View> viewTemplates = new();
     View GetRealView(View view) =>
@@ -54,7 +63,7 @@ partial class WorldRenderer
 
     bool MouseEvent(View view, Vector2i position, InputAction inputAction, MouseButton mouseButton, KeyModifiers keyModifiers)
     {
-        if ((view.Visible?.Invoke() ?? true) && GetRealView(view) is { } realView && viewBoxes.TryGetValue(realView, out var box) && box.Contains(position))
+        if ((view.Visible?.Invoke() ?? true) && GetRealView(view) is { } realView && viewBoxes.TryGetValue(realView, out var boxData) && boxData.Box.Contains(position))
             switch (realView)
             {
                 case IClickable clickable:
@@ -108,6 +117,17 @@ partial class WorldRenderer
         }
     }
 
+    static Vector2 ConstrainSize(View view, Vector2 size)
+    {
+        if (view.MinWidth is not null && view.MinWidth() is var minWidth && minWidth > size.X)
+            size = new(minWidth, size.Y);
+        if (view.MinHeight is not null && view.MinHeight() is var minHeight && minHeight > size.Y)
+            size = new(size.X, minHeight);
+        return size;
+    }
+
+    static Box2 ConstrainSize(View view, Box2 box) => Box2.FromCornerSize(box.TopLeft, ConstrainSize(view, box.Size));
+
     Vector2 MeasureView(View view)
     {
         if (view.Visible is not null && !view.Visible()) return new();
@@ -155,11 +175,7 @@ partial class WorldRenderer
                 throw new NotImplementedException();
         }
 
-        if (view.MinWidth is not null && view.MinWidth() is var minWidth && minWidth > size.X)
-            size = new(minWidth, size.Y);
-        if (view.MinHeight is not null && view.MinHeight() is var minHeight && minHeight > size.Y)
-            size = new(size.X, minHeight);
-        return (viewBoxes[view] = Box2.FromCornerSize(new(), size)).Size;
+        return (viewBoxes[view] = new(Box2.FromCornerSize(new(), ConstrainSize(view, size)), Box2.FromCornerSize(new(), size))).Box.Size;
     }
 
     Vector2 LayoutView(View view, Vector2 offset, Vector2 multiplier)
@@ -167,15 +183,15 @@ partial class WorldRenderer
         if (view.Visible is not null && !view.Visible()) return default;
         view = viewTemplates.TryGetValue(view, out var templateView) ? templateView : view;
 
-        var boxSize = viewBoxes[view].Size;
+        var boxSize = viewBoxes[view].Box.Size;
         var boxStart = offset + new Vector2(Math.Min(multiplier.X, 0), Math.Min(multiplier.Y, 0)) * boxSize
             + new Vector2(view.Padding.Left + view.Margin.Left, view.Padding.Top + view.Margin.Top);
-        viewBoxes[view] = Box2.FromCornerSize(boxStart, boxSize);
+        viewBoxes[view] = new(Box2.FromCornerSize(boxStart, boxSize), Box2.FromCornerSize(boxStart, viewBoxes[view].BaseBox.Size));
 
         switch (view)
         {
             case StackView stackView:
-                float extraSize = 0;
+                Vector2 extraSize = default;
 
                 // finish the layout for views that inherit their size from us
                 foreach (var child in stackView.Children)
@@ -186,9 +202,14 @@ partial class WorldRenderer
                             var entry = atlas[src];
                             var aspect = (float)entry.PixelSize.X / entry.PixelSize.Y;
                             Vector2 newSize = stackView.Type != StackType.Horizontal ? new(boxSize.X, boxSize.X / aspect) : new(boxSize.Y * aspect, boxSize.Y);
-                            extraSize += stackView.Type != StackType.Horizontal ? newSize.Y : newSize.X;
-                            viewBoxes[view] = Box2.FromCornerSize(new(), boxSize = stackView.Type != StackType.Horizontal ? new(boxSize.X, boxSize.Y + newSize.Y) : new(boxSize.X + newSize.X, boxSize.Y));
-                            viewBoxes[child] = Box2.FromCornerSize(new(), newSize);
+
+                            var newChildBaseBox = Box2.FromCornerSize(new(), newSize);
+                            var newChildBox = ConstrainSize(child, newChildBaseBox);
+                            viewBoxes[child] = new(newChildBox, newChildBaseBox);
+                            extraSize += stackView.Type != StackType.Horizontal ? new Vector2(0, newChildBox.Size.Y) : new Vector2(newChildBox.Size.X, 0);
+
+                            var newViewBaseBox = Box2.FromCornerSize(new(), boxSize = stackView.Type != StackType.Horizontal ? new(boxSize.X, boxSize.Y + newChildBox.Size.Y) : new(boxSize.X + newChildBox.Size.X, boxSize.Y));
+                            viewBoxes[view] = new(ConstrainSize(view, newViewBaseBox), newViewBaseBox);
                             break;
                     }
 
@@ -197,8 +218,8 @@ partial class WorldRenderer
                 {
                     LayoutView(child, start, new(1, 1));
                     start = stackView.Type == StackType.Horizontal
-                        ? new(start.X + viewBoxes[child].Size.X, start.Y)
-                        : new(start.X, start.Y + viewBoxes[child].Size.Y);
+                        ? new(start.X + viewBoxes[child].Box.Size.X, start.Y)
+                        : new(start.X, start.Y + viewBoxes[child].Box.Size.Y);
                 }
                 break;
 
@@ -217,7 +238,7 @@ partial class WorldRenderer
         if (view.Visible is not null && !view.Visible()) return;
         view = viewTemplates.TryGetValue(view, out var templateView) ? templateView : view;
 
-        var box = viewBoxes[view];
+        var box = viewBoxes[view].Box;
         if (view.BackgroundColor.W > 0)
             ScreenFillQuad(box.WithExpand(view.Padding), view.BackgroundColor, atlas[GrowableTextureAtlas3D.BlankName], false);
 
