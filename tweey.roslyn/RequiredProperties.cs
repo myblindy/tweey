@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Operations;
 using Microsoft.CodeAnalysis.Simplification;
 using System.Collections.Generic;
@@ -12,6 +13,8 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+
+using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
 namespace tweey.roslyn;
 
@@ -37,6 +40,9 @@ public class RequiredPropertiesAnalyzer : DiagnosticAnalyzer
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = ImmutableArray.Create(RequiredPropertyMissingDiagnosticDescriptor);
 
+    internal static IEnumerable<ISymbol> EnumerateRequiredTypeProperties(ITypeSymbol typeSymbol) =>
+        typeSymbol.GetMembers().Where(m => m.GetAttributes().Any(a => a.AttributeClass.ToDisplayString() == "RequiredPropertyAttribute"));
+
     public override void Initialize(AnalysisContext context)
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.Analyze | GeneratedCodeAnalysisFlags.ReportDiagnostics);
@@ -47,7 +53,7 @@ public class RequiredPropertiesAnalyzer : DiagnosticAnalyzer
             var op = (IObjectCreationOperation)context.Operation;
             StringBuilder sb = null;
 
-            foreach (var requiredMember in op.Type.GetMembers().Where(m => m.GetAttributes().Any(a => a.AttributeClass.ToDisplayString() == "RequiredPropertyAttribute")))
+            foreach (var requiredMember in EnumerateRequiredTypeProperties(op.Type))
                 if (!(op.Initializer?.Initializers.Any(w =>
                     w is IAssignmentOperation assignmentOperation && assignmentOperation.Target is IPropertyReferenceOperation propertyReferenceOperation && propertyReferenceOperation.Member.Name == requiredMember.Name) ?? false))
                 {
@@ -79,11 +85,26 @@ public class RequiredPropertiesCodeFixProvider : CodeFixProvider
         foreach (Diagnostic diagnostic in context.Diagnostics)
         {
             const string title = "Add missing required properties";
-            context.RegisterCodeFix(CodeAction.Create(title, createChangedDocument: async ct =>
+            context.RegisterCodeFix(CodeAction.Create(title, createChangedDocument: ct =>
             {
-                var node = (ObjectCreationExpressionSyntax)root.FindNode(diagnostic.Location.SourceSpan);
+                var objectCreationExpressionSyntax = (ObjectCreationExpressionSyntax)root.FindNode(diagnostic.Location.SourceSpan);
+                var typeSymbol = semanticModel.GetSymbolInfo(objectCreationExpressionSyntax.Type).Symbol as ITypeSymbol;
 
-                return context.Document;
+                var missingProperties = new List<ISymbol>();
+                foreach (var requiredMember in RequiredPropertiesAnalyzer.EnumerateRequiredTypeProperties(typeSymbol))
+                    if (!(objectCreationExpressionSyntax.Initializer?.Expressions.OfType<AssignmentExpressionSyntax>().Any(aes => aes.Left is IdentifierNameSyntax ins && ins.Identifier.Text == requiredMember.Name) ?? false))
+                        missingProperties.Add(requiredMember);
+                var missingPropertiesInitializerExpressions = missingProperties
+                        .Select(ps => AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, ParseName(ps.Name), LiteralExpression(SyntaxKind.DefaultLiteralExpression)));
+
+                var newObjectCreationExpressionSyntax = objectCreationExpressionSyntax
+                    .WithInitializer(objectCreationExpressionSyntax.Initializer is null
+                        ? InitializerExpression(SyntaxKind.ObjectInitializerExpression, SeparatedList<ExpressionSyntax>(missingPropertiesInitializerExpressions))
+                        : InitializerExpression(SyntaxKind.ObjectInitializerExpression, SeparatedList(
+                            objectCreationExpressionSyntax.Initializer.Expressions.Select(e => e.WithoutTrivia()).Concat(missingPropertiesInitializerExpressions))))
+                    .WithAdditionalAnnotations(Simplifier.Annotation, Formatter.Annotation);
+
+                return Task.FromResult(context.Document.WithSyntaxRoot(root.ReplaceNode(objectCreationExpressionSyntax, newObjectCreationExpressionSyntax)));
             }, title), diagnostic);
         }
     }

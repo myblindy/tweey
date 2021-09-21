@@ -110,6 +110,7 @@ partial class WorldRenderer
                     {
                         Source = default,
                         ItemView = default,
+                        EmptyView = default
                     }
                 }
             }, Anchor.BottomLeft));
