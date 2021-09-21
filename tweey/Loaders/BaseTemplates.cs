@@ -9,7 +9,7 @@ public abstract class BaseTemplates<TIn, TVal> : IEnumerable<string> where TVal 
 {
     readonly ImmutableDictionary<string, TVal> resources;
 
-    public BaseTemplates(ILoader loader, string subFolder, Func<TVal, string> keySelector, object mapperParameter = null)
+    public BaseTemplates(ILoader loader, string subFolder, Func<TVal, string> keySelector, object? mapperParameter = null)
     {
         var options = Loader.BuildJsonOptions();
         resources = loader.GetAllJsonData($@"Data/{subFolder}").Values
