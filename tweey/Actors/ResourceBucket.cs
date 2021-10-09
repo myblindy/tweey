@@ -18,6 +18,18 @@ public class ResourceBucket : PlaceableEntity
     public ReadOnlyCollection<ResourceQuantity> AvailableResourceQuantities { get; }
     readonly Dictionary<ResourcePickupAIPlan, ResourceBucket> PlannedResourceBucket = new();
 
+    public ResourceBucket Clone()
+    {
+        var newRb = new ResourceBucket();
+
+        foreach (var rq in resourceQuantities)
+            InternalAdd(rq, newRb.resourceQuantities);
+        foreach (var rq in availableResourceQuantities)
+            InternalAdd(rq, newRb.availableResourceQuantities);
+
+        return newRb;
+    }
+
     public bool PlanResouces(ResourcePickupAIPlan plan, ref double availableCarryWeight, ResourceBucket? costs = null)
     {
         ResourceBucket? plannedRB = null;

@@ -5,7 +5,7 @@ class Program : GameWindow
     public Program() : base(
         new()
         {
-            RenderFrequency = 60,
+            RenderFrequency = 144,
             UpdateFrequency = 60,
             IsMultiThreaded = false,
         }, new()
@@ -66,8 +66,8 @@ class Program : GameWindow
         world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 67)) { Location = new(20, 19) });
         world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 67), new ResourceQuantity(world.Resources["iron"], 125)) { Location = new(20, 20) });
 
-        world.PlaceEntity(Building.FromTemplate(world.BuildingTemplates["jumbo storage"], new(3, 20), true, new[] { world.Resources["wood"] }));
-        world.PlaceEntity(Building.FromTemplate(world.BuildingTemplates["jumbo storage"], new(20, 3), false, new[] { world.Resources["wood"] }));
+        world.PlaceEntity(Building.FromTemplate(world.BuildingTemplates["jumbo storage"], new(3, 20), true));
+        world.PlaceEntity(Building.FromTemplate(world.BuildingTemplates["jumbo storage"], new(20, 3), false));
 
         worldRenderer = new(world);
         worldRenderer.Resize(Size.X, Size.Y);
@@ -83,14 +83,20 @@ class Program : GameWindow
     {
         var position = MousePosition.ToVector2i();
         if (!worldRenderer!.MouseEvent(position, e.Action, e.Button, e.Modifiers))
-            world.MouseEvent(worldRenderer!.GetLocationFromScreenPoint(position), e.Action, e.Button, e.Modifiers);
+            world.MouseEvent(position, worldRenderer!.GetLocationFromScreenPoint(position), e.Action, e.Button, e.Modifiers);
     }
 
     protected override void OnMouseUp(MouseButtonEventArgs e)
     {
         var position = MousePosition.ToVector2i();
         if (!worldRenderer!.MouseEvent(position, e.Action, e.Button, e.Modifiers))
-            world.MouseEvent(worldRenderer!.GetLocationFromScreenPoint(position), e.Action, e.Button, e.Modifiers);
+            world.MouseEvent(position, worldRenderer!.GetLocationFromScreenPoint(position), e.Action, e.Button, e.Modifiers);
+    }
+
+    protected override void OnMouseMove(MouseMoveEventArgs e)
+    {
+        var position = MousePosition.ToVector2i();
+        world.MouseEvent(position, worldRenderer!.GetLocationFromScreenPoint(position));
     }
 
     protected override void OnKeyDown(KeyboardKeyEventArgs e) =>

@@ -1,4 +1,6 @@
-﻿namespace Tweey.Renderer;
+﻿using Tweey.Gui;
+
+namespace Tweey.Renderer;
 
 partial class WorldRenderer
 {
@@ -191,45 +193,62 @@ partial class WorldRenderer
         switch (view)
         {
             case StackView stackView:
-                Vector2 extraSize = default;
+                {
+                    Vector2 extraSize = default;
 
-                // finish the layout for views that inherit their size from us
-                foreach (var child in stackView.Children)
-                    switch (child)
+                    // finish the layout for views that inherit their size from us
+                    foreach (var child in stackView.Children)
+                        switch (child)
+                        {
+                            case ImageView { InheritParentSize: true } imageView when imageView.Source?.Invoke() is var src && !string.IsNullOrWhiteSpace(src):
+                                // need the aspect ratio
+                                var entry = atlas[src];
+                                var aspect = (float)entry.PixelSize.X / entry.PixelSize.Y;
+                                Vector2 newSize = stackView.Type != StackType.Horizontal ? new(boxSize.X, boxSize.X / aspect) : new(boxSize.Y * aspect, boxSize.Y);
+
+                                var newChildBaseBox = Box2.FromCornerSize(new(), newSize);
+                                var newChildBox = ConstrainSize(child, newChildBaseBox);
+                                viewBoxes[child] = new(newChildBox, newChildBaseBox);
+                                extraSize += stackView.Type != StackType.Horizontal ? new Vector2(0, newChildBox.Size.Y) : new Vector2(newChildBox.Size.X, 0);
+                                break;
+                        }
+
+                    var start = boxStart;
+                    foreach (var child in stackView.Children.Where(v => v.Visible?.Invoke() ?? true).Select(GetRealView))
                     {
-                        case ImageView { InheritParentSize: true } imageView when imageView.Source?.Invoke() is var src && !string.IsNullOrWhiteSpace(src):
-                            // need the aspect ratio
-                            var entry = atlas[src];
-                            var aspect = (float)entry.PixelSize.X / entry.PixelSize.Y;
-                            Vector2 newSize = stackView.Type != StackType.Horizontal ? new(boxSize.X, boxSize.X / aspect) : new(boxSize.Y * aspect, boxSize.Y);
-
-                            var newChildBaseBox = Box2.FromCornerSize(new(), newSize);
-                            var newChildBox = ConstrainSize(child, newChildBaseBox);
-                            viewBoxes[child] = new(newChildBox, newChildBaseBox);
-                            extraSize += stackView.Type != StackType.Horizontal ? new Vector2(0, newChildBox.Size.Y) : new Vector2(newChildBox.Size.X, 0);
-
-                            var newViewBaseBox = Box2.FromCornerSize(new(), boxSize = stackView.Type != StackType.Horizontal ? new(boxSize.X, boxSize.Y + newChildBox.Size.Y) : new(boxSize.X + newChildBox.Size.X, boxSize.Y));
-                            viewBoxes[view] = new(ConstrainSize(view, newViewBaseBox), newViewBaseBox);
-                            break;
+                        var childExtraSize = LayoutView(child, start, new(1, 1));
+                        extraSize = stackView.Type != StackType.Horizontal ? new Vector2(Math.Max(childExtraSize.X, extraSize.X), extraSize.Y + childExtraSize.Y)
+                            : new(extraSize.X + childExtraSize.X, Math.Max(childExtraSize.Y, extraSize.Y));
+                        start = stackView.Type == StackType.Horizontal
+                            ? new(start.X + viewBoxes[child].Box.Size.X, start.Y)
+                            : new(start.X, start.Y + viewBoxes[child].Box.Size.Y);
                     }
 
-                var start = boxStart;
-                foreach (var child in stackView.Children.Where(v => v.Visible?.Invoke() ?? true).Select(GetRealView))
-                {
-                    LayoutView(child, start, new(1, 1));
-                    start = stackView.Type == StackType.Horizontal
-                        ? new(start.X + viewBoxes[child].Box.Size.X, start.Y)
-                        : new(start.X, start.Y + viewBoxes[child].Box.Size.Y);
+                    if (extraSize != default)
+                    {
+                        var newViewBaseBox = Box2.FromCornerSize(boxStart, boxSize + extraSize);
+                        viewBoxes[view] = new(ConstrainSize(view, newViewBaseBox), newViewBaseBox);
+                    }
+
+                    return extraSize;
                 }
-                break;
 
             case ISingleChildContainerView { Child: not null } singleChildContainerView:
-                LayoutView(singleChildContainerView.Child, boxStart, new(1, 1));
-                break;
+                {
+                    var extraSize = LayoutView(singleChildContainerView.Child, boxStart, new(1, 1));
+
+                    if (extraSize != default)
+                    {
+                        var newViewBaseBox = Box2.FromCornerSize(boxStart, boxSize + extraSize);
+                        viewBoxes[view] = new(ConstrainSize(view, newViewBaseBox), newViewBaseBox);
+                    }
+
+                    return extraSize;
+                }
 
             default:
                 if (view is IContainerView) throw new NotImplementedException();
-                break;
+                return default;
         }
     }
 

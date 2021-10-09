@@ -8,7 +8,8 @@ internal static class GlobalMapper
 
     static GlobalMapper()
     {
-        Mapper.CreateMap<BuildingTemplate, Building>();
+        Mapper.CreateMap<BuildingTemplate, Building>()
+            .ForMember(x => x.BuildCost, src => src.BuildCost.Clone());
         Mapper.CreateMap<BuildingTemplateIn, BuildingTemplate>()
             .ForMember(x => x.Color, src => src.Color!.Length == 3 ? new Vector4(src.Color[0], src.Color[1], src.Color[2], 1) : new(src.Color))
             .ForMember(x => x.BuildWorkTicks, src => src.BuildCost!.WorkTicks)

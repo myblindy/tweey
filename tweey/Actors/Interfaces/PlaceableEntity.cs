@@ -8,6 +8,7 @@ public abstract class PlaceableEntity
     public abstract string? Name { get; set; }
 
     public Box2 Box => Box2.FromCornerSize(Location, Width, Height);
+    public Box2 GetBoxAtLocation(Vector2 location) => Box2.FromCornerSize(location, Width, Height);
     public Vector2 Center => Location + new Vector2((Width - 1) / 2, (Height - 1) / 2);
 
     public bool Contains(Vector2i location) =>

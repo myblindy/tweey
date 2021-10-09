@@ -1,4 +1,6 @@
-﻿namespace Tweey.Renderer;
+﻿using Tweey.Actors;
+
+namespace Tweey.Renderer;
 
 partial class WorldRenderer
 {
@@ -63,14 +65,24 @@ partial class WorldRenderer
     public void Render(double deltaSec, double deltaUpdateTimeSec, double deltaRenderTimeSec)
     {
         // store the actual entities' vertices
-        foreach (var entity in world.GetEntities())
+        foreach (var entity in world.GetEntities().Append(world.CurrentBuildingTemplate))
             switch (entity)
             {
                 case Building building:
-                    var color = building.Color;
-                    if (!building.IsBuilt) color *= new Vector4(1f, .4f, .4f, .4f);
-                    ScreenFillQuad(Box2.FromCornerSize(building.Location, building.Width, building.Height), color, atlas[GetImagePath(building)]);
-                    break;
+                    {
+                        var color = building.Color;
+                        if (!building.IsBuilt) color *= new Vector4(1f, .4f, .4f, .4f);
+                        ScreenFillQuad(Box2.FromCornerSize(building.Location, building.Width, building.Height), color, atlas[GetImagePath(building)]);
+                        break;
+                    }
+                case BuildingTemplate buildingTemplate:
+                    {
+                        // template for building to build
+                        var box = buildingTemplate.GetBoxAtLocation(world.MouseWorldPosition.ToNumericsVector2());
+                        var valid = !world.GetEntities<Building>().Any(b => b.Box.Intersects(box));
+                        ScreenFillQuad(box, valid ? Colors.Lime : Colors.Red, atlas[GetImagePath(buildingTemplate)]);
+                        break;
+                    }
                 case ResourceBucket resourceBucket:
                     var resQ = resourceBucket.ResourceQuantities.Single(r => r.Quantity > 0);
                     ScreenFillQuad(Box2.FromCornerSize(resourceBucket.Location, 1, 1), Colors.White, atlas[GetImagePath(resQ.Resource)]);

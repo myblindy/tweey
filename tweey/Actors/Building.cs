@@ -1,6 +1,6 @@
 ﻿namespace Tweey.Actors;
 
-public class Building : BuildingTemplate, IResourceNeed
+public class Building : BuildingTemplate
 {
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     public Villager[] AssignedWorkers { get; set; }
@@ -9,14 +9,11 @@ public class Building : BuildingTemplate, IResourceNeed
     public bool IsBuilt { get; set; }
     public ResourceBucket Inventory { get; } = new();
 
-    public ImmutableArray<Resource> StorageResourceNeeds { get; set; }
-
-    public static Building FromTemplate(BuildingTemplate template, Vector2 location, bool built, IEnumerable<Resource> storageResourceNeeds)
+    public static Building FromTemplate(BuildingTemplate template, Vector2 location, bool built)
     {
         var b = GlobalMapper.Mapper.Map(template);
         b.Location = location;
         b.IsBuilt = built;
-        b.StorageResourceNeeds = storageResourceNeeds is ImmutableArray<Resource> immutableResourceArray ? immutableResourceArray : storageResourceNeeds.ToImmutableArray();
 
         if (!built)
         {

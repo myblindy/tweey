@@ -9,8 +9,12 @@ public class World
     AIManager AIManager { get; }
     List<PlaceableEntity> PlacedEntities { get; } = new();
     public PlaceableEntity? SelectedEntity { get; set; }
+    public BuildingTemplate? CurrentBuildingTemplate { get; set; }
 
     public bool Paused { get; private set; }
+
+    public Vector2i MouseScreenPosition { get; private set; }
+    public Vector2i MouseWorldPosition { get; private set; }
 
     public World(ILoader loader)
     {
@@ -84,16 +88,26 @@ public class World
         return PlacedEntities.Remove(entity);
     }
 
-    public void MouseEvent(Vector2i worldLocation, InputAction inputAction, MouseButton mouseButton, KeyModifiers keyModifiers)
+    public void MouseEvent(Vector2i screenPosition, Vector2i worldLocation, InputAction? inputAction = null, MouseButton? mouseButton = null, KeyModifiers? keyModifiers = null)
     {
         if (inputAction == InputAction.Press && mouseButton == MouseButton.Button1)
         {
-            if (SelectedEntity is not null && SelectedEntity.Location.ToVector2i() == worldLocation)
-                SelectedEntity = PlacedEntities.SkipWhile(e => e != SelectedEntity).Skip(1).FirstOrDefault(e => e.Box.Contains(worldLocation));
+            if (CurrentBuildingTemplate is not null && !GetEntities<Building>().Any(b => b.Box.Intersects(Box2.FromCornerSize(worldLocation.ToNumericsVector2(), new(CurrentBuildingTemplate.Width, CurrentBuildingTemplate.Height)))))
+            {
+                PlaceEntity(Building.FromTemplate(CurrentBuildingTemplate, worldLocation.ToNumericsVector2(), false));
+                CurrentBuildingTemplate = null;
+            }
             else
-                SelectedEntity = null;
-            SelectedEntity ??= PlacedEntities.FirstOrDefault(e => e.Box.Contains(worldLocation));
+            {
+                if (SelectedEntity is not null && SelectedEntity.Location.ToVector2i() == worldLocation)
+                    SelectedEntity = PlacedEntities.SkipWhile(e => e != SelectedEntity).Skip(1).FirstOrDefault(e => e.Box.Contains(worldLocation));
+                else
+                    SelectedEntity = null;
+                SelectedEntity ??= PlacedEntities.FirstOrDefault(e => e.Box.Contains(worldLocation));
+            }
         }
+
+        (MouseScreenPosition, MouseWorldPosition) = (screenPosition, worldLocation);
     }
 
     public void KeyEvent(InputAction inputAction, Keys key, int scanCode, KeyModifiers keyModifiers)
