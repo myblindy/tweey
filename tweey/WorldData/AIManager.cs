@@ -152,7 +152,7 @@ public class BuildAIPlan : AIPlan
                 villager.WorkActionTime.AdvanceTime(deltaSec);
                 if (villager.WorkActionTime.ConsumeActions() > 0 && --building.BuildWorkTicks <= 0)
                 {
-                    (building.IsBuilt, Done) = (true, true);
+                    (building.IsBuilt, Done, building.AssignedWorkersWorking[0]) = (true, true, false);
                     building.Inventory.Clear();
                 }
                 break;
@@ -174,7 +174,7 @@ class AIManager
             return false;
 
         availableBuildingSite.AssignedWorkers[0] = villager;
-        availableBuildingSite.AssignedWorkersWorking[0] = false;
+        availableBuildingSite.AssignedWorkersWorking[0] = true;
 
         villager.AIPlan = new BuildAIPlan(world, villager, availableBuildingSite);
         return true;

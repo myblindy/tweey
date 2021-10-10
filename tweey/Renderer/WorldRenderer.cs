@@ -5,7 +5,7 @@ namespace Tweey.Renderer;
 partial class WorldRenderer
 {
     readonly World world;
-    readonly GrowableTextureAtlas3D atlas = new(2048, 2048, 5);
+    readonly GrowableTextureAtlas3D atlas = new(2048, 2048, 1);
     readonly FontRenderer fontRenderer;
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
