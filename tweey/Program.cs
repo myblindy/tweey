@@ -25,7 +25,6 @@ class Program : GameWindow
 
     readonly World world = new(DiskLoader.Instance);
     WorldRenderer? worldRenderer;
-    WorldAudio? worldAudio;
 
     protected override unsafe void OnLoad()
     {
@@ -69,15 +68,6 @@ class Program : GameWindow
 
         worldRenderer = new(world);
         worldRenderer.Resize(Size.X, Size.Y);
-
-        var audioDevice = ALC.OpenDevice(null);
-        if (audioDevice.Handle != IntPtr.Zero)
-        {
-            var audioContext = ALC.CreateContext(audioDevice, new ALContextAttributes());
-            ALC.MakeContextCurrent(audioContext);
-        }
-
-        worldAudio = new(world);
     }
 
     protected override void OnResize(ResizeEventArgs e)
@@ -116,7 +106,6 @@ class Program : GameWindow
     protected override void OnUpdateFrame(FrameEventArgs args)
     {
         world.Update(args.Time);
-        worldAudio!.Process(args.Time);
     }
 
     protected override void OnRenderFrame(FrameEventArgs args)

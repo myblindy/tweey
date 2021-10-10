@@ -146,15 +146,19 @@ public class BuildAIPlan : AIPlan
                 {
                     state = State.Build;
                     villager.WorkActionTime.Reset(villager.WorkActionsPerSecond);
+
+                    world.StartWork(building, villager);
                 });
                 break;
             case State.Build:
                 villager.WorkActionTime.AdvanceTime(deltaSec);
                 if (villager.WorkActionTime.ConsumeActions() > 0 && --building.BuildWorkTicks <= 0)
                 {
-                    (building.IsBuilt, Done, building.AssignedWorkersWorking[0]) = (true, true, false);
+                    (building.IsBuilt, Done) = (true, true);
+                    world.EndWork(building, villager);
                     building.Inventory.Clear();
                 }
+
                 break;
         }
     }
@@ -174,7 +178,7 @@ class AIManager
             return false;
 
         availableBuildingSite.AssignedWorkers[0] = villager;
-        availableBuildingSite.AssignedWorkersWorking[0] = true;
+        availableBuildingSite.AssignedWorkersWorking[0] = false;
 
         villager.AIPlan = new BuildAIPlan(world, villager, availableBuildingSite);
         return true;

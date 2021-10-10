@@ -19,4 +19,16 @@ public static class Extensions
             arr[i++] = element;
         return arr;
     }
+
+    public static int FindIndex<T>(this IEnumerable<T> src, Func<T, bool> test)
+    {
+        int i = 0;
+        foreach (var element in src)
+            if (test(element))
+                return i;
+            else
+                ++i;
+
+        return -1;
+    }
 }

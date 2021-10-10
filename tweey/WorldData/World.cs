@@ -6,7 +6,9 @@ public class World
     public BuildingTemplates BuildingTemplates { get; }
     public Configuration Configuration { get; }
 
-    AIManager AIManager { get; }
+    readonly AIManager aiManager;
+    readonly SoundManager soundManager;
+
     List<PlaceableEntity> PlacedEntities { get; } = new();
     public PlaceableEntity? SelectedEntity { get; set; }
     public BuildingTemplate? CurrentBuildingTemplate { get; set; }
@@ -18,8 +20,11 @@ public class World
 
     public World(ILoader loader)
     {
-        (Resources, Configuration, AIManager) = (new(loader), new(loader), new(this));
+        (Resources, Configuration, aiManager, soundManager) = (new(loader), new(loader), new(this), new(this));
         BuildingTemplates = new(loader, Resources);
+
+        StartedBuildingJob += soundManager.OnStartedBuildingJob;
+        EndedBuildingJob += soundManager.OnEndedBuildingJob;
     }
 
     public void PlaceEntity(PlaceableEntity entity)
@@ -113,6 +118,20 @@ public class World
         (MouseScreenPosition, MouseWorldPosition) = (screenPosition, worldLocation);
     }
 
+    public event Action<Building, Villager>? StartedBuildingJob;
+    public void StartWork(Building building, Villager villager)
+    {
+        StartedBuildingJob?.Invoke(building, villager);
+        building.AssignedWorkersWorking[building.AssignedWorkers.FindIndex(v => v == villager)] = true;
+    }
+
+    public event Action<Building, Villager>? EndedBuildingJob;
+    public void EndWork(Building building, Villager villager)
+    {
+        EndedBuildingJob?.Invoke(building, villager);
+        building.AssignedWorkersWorking[building.AssignedWorkers.FindIndex(v => v == villager)] = false;
+    }
+
     public void KeyEvent(InputAction inputAction, Keys key, int scanCode, KeyModifiers keyModifiers)
     {
         if (inputAction == InputAction.Press && key == Keys.Space)
@@ -122,7 +141,8 @@ public class World
     public void Update(double deltaSec)
     {
         if (!Paused)
-            AIManager.Update(deltaSec);
+            aiManager.Update(deltaSec);
+        soundManager.Update(deltaSec);
     }
 
     public IEnumerable<T> GetEntities<T>() where T : PlaceableEntity => PlacedEntities.OfType<T>();
