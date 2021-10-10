@@ -18,9 +18,11 @@ public class ResourceBucket : PlaceableEntity
     public ReadOnlyCollection<ResourceQuantity> AvailableResourceQuantities { get; }
     readonly Dictionary<ResourcePickupAIPlan, ResourceBucket> PlannedResourceBucket = new();
 
+    public Building? Building;
+
     public ResourceBucket Clone()
     {
-        var newRb = new ResourceBucket();
+        var newRb = new ResourceBucket { Building = Building };
 
         foreach (var rq in resourceQuantities)
             InternalAdd(rq, newRb.resourceQuantities);

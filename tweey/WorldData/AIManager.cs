@@ -41,7 +41,7 @@ public class ResourcePickupAIPlan : AIPlan
     public ResourcePickupAIPlan(World world, Villager villager) : base(world, villager) { }
 
     public List<ResourceBucket> WorldBuckets { get; } = new();
-    public override PlaceableEntity? FirstTarget => WorldBuckets.FirstOrDefault();
+    public override PlaceableEntity? FirstTarget => (PlaceableEntity?)WorldBuckets.FirstOrDefault()?.Building ?? WorldBuckets.FirstOrDefault();
     public override string Description => "Gathering resources to haul.";
 
     enum State { MoveToResource, PickupResources }
@@ -187,7 +187,7 @@ class AIManager
 
         foreach (var buildingSite in world.GetEntities<Building>().Where(b => !b.IsBuilt && !b.BuildCost.IsAvailableEmpty).OrderBy(b => (b.Center - villager.Center).LengthSquared()))
         {
-            foreach (var rb in world.GetEntities().Where(e => (e is ResourceBucket rb && !rb.IsAvailableEmpty) || (e is Building { Type: BuildingType.Storage } building && !building.Inventory.IsAvailableEmpty))
+            foreach (var rb in world.GetEntities().Where(e => (e is ResourceBucket rb && !rb.IsAvailableEmpty) || (e is Building { Type: BuildingType.Storage, IsBuilt: true } building && !building.Inventory.IsAvailableEmpty))
                 .Select(e => e is ResourceBucket rb ? rb : ((Building)e).Inventory)
                 .OrderBy(rb => (rb.Center - villager.Center).LengthSquared()))
             {
@@ -213,9 +213,9 @@ class AIManager
     {
         bool anyRB = false, anyStorage = false, ok = false;
         world.GetEntities().ForEach(e => { anyRB = anyRB || e is ResourceBucket; anyStorage = anyStorage || (e is Building building && building.IsBuilt && building.Type == BuildingType.Storage); });
-        if (!world.GetEntities<ResourceBucket>().Any()) return false;
+        if (!anyRB || !anyStorage) return false;
 
-        var closestAvailableStorage = world.GetEntities<Building>().OrderBy(rb => (rb.Center - villager.Center).LengthSquared()).FirstOrDefault(b => b.Type == BuildingType.Storage);
+        var closestAvailableStorage = world.GetEntities<Building>().Where(b => b.IsBuilt).OrderBy(rb => (rb.Center - villager.Center).LengthSquared()).FirstOrDefault(b => b.Type == BuildingType.Storage);
         if (closestAvailableStorage is not null)
         {
             var plan = new ResourcePickupAIPlan(world, villager);

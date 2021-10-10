@@ -95,7 +95,8 @@ public class World
             if (CurrentBuildingTemplate is not null && !GetEntities<Building>().Any(b => b.Box.Intersects(Box2.FromCornerSize(worldLocation.ToNumericsVector2(), new(CurrentBuildingTemplate.Width, CurrentBuildingTemplate.Height)))))
             {
                 PlaceEntity(Building.FromTemplate(CurrentBuildingTemplate, worldLocation.ToNumericsVector2(), false));
-                CurrentBuildingTemplate = null;
+                if (keyModifiers?.HasFlag(OpenTK.Windowing.GraphicsLibraryFramework.KeyModifiers.Shift) != true)
+                    CurrentBuildingTemplate = null;
             }
             else
             {
@@ -106,6 +107,8 @@ public class World
                 SelectedEntity ??= PlacedEntities.FirstOrDefault(e => e.Box.Contains(worldLocation));
             }
         }
+        else if (inputAction == InputAction.Press && mouseButton == MouseButton.Button2)
+            CurrentBuildingTemplate = null;
 
         (MouseScreenPosition, MouseWorldPosition) = (screenPosition, worldLocation);
     }

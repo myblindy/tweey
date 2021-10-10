@@ -5,9 +5,12 @@ public class Building : BuildingTemplate
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     public Villager[] AssignedWorkers { get; set; }
     public BitArray AssignedWorkersWorking { get; set; }
+    public Building() => Inventory = new() { Building = this };
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+
     public bool IsBuilt { get; set; }
-    public ResourceBucket Inventory { get; } = new();
+    public ResourceBucket Inventory { get; }
+
 
     public static Building FromTemplate(BuildingTemplate template, Vector2 location, bool built)
     {

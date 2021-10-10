@@ -264,7 +264,7 @@ partial class WorldRenderer
         switch (view)
         {
             case IContainerView containerView:
-                foreach (var child in containerView.Children.Select(GetRealView))
+                foreach (var child in containerView.Children)
                     RenderView(child);
                 break;
             case LabelView labelView:
@@ -291,7 +291,7 @@ partial class WorldRenderer
     {
         viewBoxes.Clear();
 
-        foreach (var rootViewDescription in gui.RootViewDescriptions)
+        foreach (var rootViewDescription in gui.RootViewDescriptions.Where(rvd => rvd.View.Visible?.Invoke() != false))
         {
             var view = GetRealView(rootViewDescription.View);
             TemplateView(view);
