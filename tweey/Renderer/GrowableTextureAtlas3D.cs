@@ -93,7 +93,6 @@ public class GrowableTextureAtlas3D
                 return entry;
 
             int width, height;
-
             int x, y, page;
             if (path is BlankName)
             {

@@ -1,4 +1,7 @@
-﻿namespace Tweey.Renderer;
+﻿using Tweey.Actors;
+using Tweey.Loaders;
+
+namespace Tweey.Renderer;
 
 partial class WorldRenderer
 {
@@ -52,16 +55,25 @@ partial class WorldRenderer
     static string GetImagePath(BuildingTemplate building) => $"Data/Buildings/{building.FileName}.png";
     static string GetImagePath(Resource resource) => $"Data/Resources/{resource.FileName}.png";
     static string GetImagePath(Villager _) => $"Data/Misc/villager.png";
+    static string GetImagePath(Tree _) => $"Data/Trees/leafy.png";
     static string GetImagePath(PlaceableEntity entity) => entity switch
     {
         BuildingTemplate buildingTemplate => GetImagePath(buildingTemplate),
         ResourceBucket resource => GetImagePath(resource.ResourceQuantities.First(rq => rq.Quantity > 0).Resource),
         Villager villager => GetImagePath(villager),
+        Tree tree => GetImagePath(tree),
         _ => throw new NotImplementedException()
     };
+    const string grassTilePath = "Data/Misc/grass.png";
 
     public void Render(double deltaSec, double deltaUpdateTimeSec, double deltaRenderTimeSec)
     {
+        // render the background
+        var grassTileSize = 6;
+        for (int y = 0; y < windowUbo.Data.WindowSize.Y / pixelZoom; y += grassTileSize)
+            for (int x = 0; x < windowUbo.Data.WindowSize.X / pixelZoom; x += grassTileSize)
+                ScreenFillQuad(Box2.FromCornerSize(new(x, y), new(grassTileSize, grassTileSize)), new(.8f, .8f, .8f, 1), atlas[grassTilePath]);
+
         // store the actual entities' vertices
         foreach (var entity in world.GetEntities().Append(world.CurrentBuildingTemplate))
             switch (entity)
@@ -79,6 +91,11 @@ partial class WorldRenderer
                         var box = buildingTemplate.GetBoxAtLocation(world.MouseWorldPosition.ToNumericsVector2());
                         var valid = !world.GetEntities<Building>().Any(b => b.Box.Intersects(box));
                         ScreenFillQuad(box, valid ? Colors.Lime : Colors.Red, atlas[GetImagePath(buildingTemplate)]);
+                        break;
+                    }
+                case Tree tree:
+                    {
+                        ScreenFillQuad(Box2.FromCornerSize(tree.Location, 1, 1), Colors.White, atlas[GetImagePath(tree)]);
                         break;
                     }
                 case ResourceBucket resourceBucket:

@@ -34,6 +34,7 @@ partial class WorldRenderer
                                         Text = () => world.SelectedEntity is Building building ? building.IsBuilt ? "Building " : "Building Site "
                                             : world.SelectedEntity is ResourceBucket ? "Resources"
                                             : world.SelectedEntity is Villager ? "Villager"
+                                            : world.SelectedEntity is Tree ? "Tree"
                                             : throw new InvalidOperationException(),
                                         FontSize = 30,
                                         ForegroundColor = descriptionColor
@@ -50,7 +51,7 @@ partial class WorldRenderer
                             {
                                 Text = () => world.SelectedEntity is Villager villager ? villager.AIPlan is { } aiPlan ? aiPlan.Description : "Idle."
                                     : world.SelectedEntity is Building { IsBuilt: false} buildingSite ? $"This is a building site, waiting for {buildingSite.BuildCost} and {buildingSite.BuildWorkTicks} work ticks."
-                                    : $"This is a {(world.SelectedEntity is Building ? "building" : "resource")}, it's just existing.",
+                                    : $"This is a {(world.SelectedEntity switch { Building => "building", Tree => "cute tree", _ => "fluffy resource" })}, it's just existing.",
                                 FontSize = 18,
                                 MinHeight = () => 35,
                                 ForegroundColor = descriptionColor
@@ -148,7 +149,8 @@ partial class WorldRenderer
                         Text = () => $"FPS: {Math.Round(frameData.Rate, 1, MidpointRounding.ToPositiveInfinity):0.0}, update: {frameData.UpdateTimePercentage * 100:0.00}%, render: {frameData.RenderTimePercentage * 100:0.00}%",
                         FontSize = 22,
                         Padding = new(2),
-                        ForegroundColor = Colors.Lime
+                        ForegroundColor = Colors.White,
+                        BackgroundColor = new(0,0,0,.4f)
                     },
                     new LabelView
                     {

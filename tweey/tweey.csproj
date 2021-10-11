@@ -18,6 +18,7 @@
     <PackageReference Include="OpenTK.Graphics" Version="5.0.0-pre.6" />
     <PackageReference Include="OpenTK.OpenAL" Version="5.0.0-pre.6" />
     <PackageReference Include="OpenTK.Windowing.Desktop" Version="5.0.0-pre.6" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="1.0.4" />
     <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="1.0.0-beta13" />
   </ItemGroup>
 

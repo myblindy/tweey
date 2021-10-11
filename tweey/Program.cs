@@ -66,6 +66,9 @@ class Program : GameWindow
         world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 67)) { Location = new(20, 19) });
         world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 67), new ResourceQuantity(world.Resources["iron"], 125)) { Location = new(20, 20) });
 
+        world.PlantForest(new(3, 20), 6, .9f, .2f);
+        world.PlantForest(new(40, 12), 12, .8f, .1f);
+
         worldRenderer = new(world);
         worldRenderer.Resize(Size.X, Size.Y);
     }

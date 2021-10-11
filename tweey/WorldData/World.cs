@@ -89,6 +89,18 @@ public class World
         }
     }
 
+    public void PlantForest(Vector2i center, float radius, float chanceCenter, float chanceEdge)
+    {
+        for (int y = (int)MathF.Ceiling(center.Y + radius); y >= MathF.Floor(center.Y - radius); --y)
+            for (int x = (int)MathF.Ceiling(center.X + radius); x >= MathF.Floor(center.X - radius); --x)
+            {
+                var distanceFromCenter = new Vector2i(Math.Abs(y - center.Y), Math.Abs(y - center.Y)).EuclideanLength;
+                var chance = chanceCenter * (radius - distanceFromCenter) / radius + chanceEdge * distanceFromCenter / radius;
+                if (Random.Shared.NextDouble() < chance)
+                    PlaceEntity(new Tree { Location = new(x, y) });
+            }
+    }
+
     public bool RemoveEntity(PlaceableEntity entity)
     {
         if (SelectedEntity == entity) SelectedEntity = null;
