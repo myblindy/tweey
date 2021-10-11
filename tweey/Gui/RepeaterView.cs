@@ -7,6 +7,8 @@ interface IRepeaterView
 
 public class RepeaterView<T> : View, IRepeaterView
 {
+    public RepeaterView() : base(new()) { }
+
     [RequiredProperty]
     public Func<IEnumerable<T>?>? Source { get; set; }
     public IContainerView? ContainerView { get; set; }

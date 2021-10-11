@@ -113,7 +113,11 @@ partial class WorldRenderer
                         ContainerView = new StackView(StackType.Horizontal),
                         ItemView = key => new ButtonView
                         {
-                            Clicked = () => world.CurrentBuildingTemplate = world.BuildingTemplates[key],
+                            Clicked = () =>
+                            {
+                                world.CurrentBuildingTemplate = world.BuildingTemplates[key];
+                                world.FireCurrentBuildingTemplateChanged();
+                            },
                             Child = new StackView(StackType.Vertical)
                             {
                                 Children =

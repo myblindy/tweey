@@ -25,6 +25,8 @@ public class World
 
         StartedBuildingJob += soundManager.OnStartedBuildingJob;
         EndedBuildingJob += soundManager.OnEndedBuildingJob;
+        PlacedBuilding += soundManager.OnPlacedBuilding;
+        CurrentBuildingTemplateChanged += soundManager.OnCurrentBuildingTemplateChanged;
     }
 
     public void PlaceEntity(PlaceableEntity entity)
@@ -93,13 +95,16 @@ public class World
         return PlacedEntities.Remove(entity);
     }
 
+    public event Action<Building>? PlacedBuilding;
     public void MouseEvent(Vector2i screenPosition, Vector2i worldLocation, InputAction? inputAction = null, MouseButton? mouseButton = null, KeyModifiers? keyModifiers = null)
     {
         if (inputAction == InputAction.Press && mouseButton == MouseButton.Button1)
         {
             if (CurrentBuildingTemplate is not null && !GetEntities<Building>().Any(b => b.Box.Intersects(Box2.FromCornerSize(worldLocation.ToNumericsVector2(), new(CurrentBuildingTemplate.Width, CurrentBuildingTemplate.Height)))))
             {
-                PlaceEntity(Building.FromTemplate(CurrentBuildingTemplate, worldLocation.ToNumericsVector2(), false));
+                var building = Building.FromTemplate(CurrentBuildingTemplate, worldLocation.ToNumericsVector2(), false);
+                PlaceEntity(building);
+                PlacedBuilding?.Invoke(building);
                 if (keyModifiers?.HasFlag(OpenTK.Windowing.GraphicsLibraryFramework.KeyModifiers.Shift) != true)
                     CurrentBuildingTemplate = null;
             }
@@ -131,6 +136,10 @@ public class World
         EndedBuildingJob?.Invoke(building, villager);
         building.AssignedWorkersWorking[building.AssignedWorkers.FindIndex(v => v == villager)] = false;
     }
+
+    public event Action<BuildingTemplate?>? CurrentBuildingTemplateChanged;
+    internal void FireCurrentBuildingTemplateChanged() =>
+        CurrentBuildingTemplateChanged?.Invoke(CurrentBuildingTemplate);
 
     public void KeyEvent(InputAction inputAction, Keys key, int scanCode, KeyModifiers keyModifiers)
     {

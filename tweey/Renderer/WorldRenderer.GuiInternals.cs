@@ -46,24 +46,11 @@ partial class WorldRenderer
         vaoGui.Vertices.Add(new(br * zoom, color, blankEntry.TextureCoordinate1));
     }
 
-    struct ViewBoxData
-    {
-        public Box2 Box, BaseBox;
-
-        public ViewBoxData(Box2 box, Box2 baseBox) => (Box, BaseBox) = (box, baseBox);
-
-        public ViewBoxData(Box2 box) => (Box, BaseBox) = (box, box);
-    }
-
-    readonly Dictionary<View, ViewBoxData> viewBoxes = new();
-
-    readonly Dictionary<View, View> viewTemplates = new();
-    View GetRealView(View view) =>
-        viewTemplates.TryGetValue(view, out var templateView) ? templateView : view;
+    View GetTemplatedView(View view) => view.ViewData.TemplatedView ?? view;
 
     bool MouseEvent(View view, Vector2i position, InputAction inputAction, MouseButton mouseButton, KeyModifiers keyModifiers)
     {
-        if ((view.Visible?.Invoke() ?? true) && GetRealView(view) is { } realView && viewBoxes.TryGetValue(realView, out var boxData) && boxData.Box.Contains(position))
+        if ((view.Visible?.Invoke() ?? true) && GetTemplatedView(view) is { } realView && realView.ViewData.Box.Contains(position))
             switch (realView)
             {
                 case IClickable clickable:
@@ -104,7 +91,7 @@ partial class WorldRenderer
         switch (view)
         {
             case IRepeaterView repeaterView:
-                TemplateView(viewTemplates[view] = repeaterView.CreateView());
+                TemplateView(view.ViewData.TemplatedView = repeaterView.CreateView());
                 break;
 
             case IContainerView containerView:
@@ -158,7 +145,7 @@ partial class WorldRenderer
                 break;
 
             case StackView stackView:
-                foreach (var child in stackView.Children.Select(GetRealView))
+                foreach (var child in stackView.Children.Select(GetTemplatedView))
                 {
                     var childSize = MeasureView(child);
 
@@ -175,18 +162,21 @@ partial class WorldRenderer
                 throw new NotImplementedException();
         }
 
-        return (viewBoxes[view] = new(Box2.FromCornerSize(new(), ConstrainSize(view, size)), Box2.FromCornerSize(new(), size))).Box.Size;
+        view.ViewData.Box = Box2.FromCornerSize(new(), ConstrainSize(view, size));
+        view.ViewData.BaseBox = Box2.FromCornerSize(new(), size);
+        return view.ViewData.Box.Size;
     }
 
     Vector2 LayoutView(View view, Vector2 offset, Vector2 multiplier)
     {
         if (view.Visible is not null && !view.Visible()) return default;
-        view = viewTemplates.TryGetValue(view, out var templateView) ? templateView : view;
+        view = GetTemplatedView(view);
 
-        var boxSize = viewBoxes[view].Box.Size;
+        var boxSize = view.ViewData.Box.Size;
         var boxStart = offset + new Vector2(Math.Min(multiplier.X, 0), Math.Min(multiplier.Y, 0)) * boxSize
             + new Vector2(view.Padding.Left + view.Margin.Left, view.Padding.Top + view.Margin.Top);
-        viewBoxes[view] = new(Box2.FromCornerSize(boxStart, boxSize), Box2.FromCornerSize(boxStart, viewBoxes[view].BaseBox.Size));
+        view.ViewData.Box = Box2.FromCornerSize(boxStart, boxSize);
+        view.ViewData.BaseBox = Box2.FromCornerSize(boxStart, view.ViewData.BaseBox.Size);
 
         switch (view)
         {
@@ -204,28 +194,27 @@ partial class WorldRenderer
                                 var aspect = (float)entry.PixelSize.X / entry.PixelSize.Y;
                                 Vector2 newSize = stackView.Type != StackType.Horizontal ? new(boxSize.X, boxSize.X / aspect) : new(boxSize.Y * aspect, boxSize.Y);
 
-                                var newChildBaseBox = Box2.FromCornerSize(new(), newSize);
-                                var newChildBox = ConstrainSize(child, newChildBaseBox);
-                                viewBoxes[child] = new(newChildBox, newChildBaseBox);
-                                extraSize += stackView.Type != StackType.Horizontal ? new Vector2(0, newChildBox.Size.Y) : new Vector2(newChildBox.Size.X, 0);
+                                child.ViewData.BaseBox = Box2.FromCornerSize(new(), newSize);
+                                child.ViewData.Box = ConstrainSize(child, child.ViewData.BaseBox);
+                                extraSize += stackView.Type != StackType.Horizontal ? new Vector2(0, child.ViewData.BaseBox.Size.Y) : new Vector2(child.ViewData.BaseBox.Size.X, 0);
                                 break;
                         }
 
                     var start = boxStart;
-                    foreach (var child in stackView.Children.Where(v => v.Visible?.Invoke() ?? true).Select(GetRealView))
+                    foreach (var child in stackView.Children.Where(v => v.Visible?.Invoke() ?? true).Select(GetTemplatedView))
                     {
                         var childExtraSize = LayoutView(child, start, new(1, 1));
                         extraSize = stackView.Type != StackType.Horizontal ? new Vector2(Math.Max(childExtraSize.X, extraSize.X), extraSize.Y + childExtraSize.Y)
                             : new(extraSize.X + childExtraSize.X, Math.Max(childExtraSize.Y, extraSize.Y));
                         start = stackView.Type == StackType.Horizontal
-                            ? new(start.X + viewBoxes[child].Box.Size.X, start.Y)
-                            : new(start.X, start.Y + viewBoxes[child].Box.Size.Y);
+                            ? new(start.X + child.ViewData.Box.Size.X, start.Y)
+                            : new(start.X, start.Y + child.ViewData.Box.Size.Y);
                     }
 
                     if (extraSize != default)
                     {
-                        var newViewBaseBox = Box2.FromCornerSize(boxStart, boxSize + extraSize);
-                        viewBoxes[view] = new(ConstrainSize(view, newViewBaseBox), newViewBaseBox);
+                        view.ViewData.BaseBox = Box2.FromCornerSize(boxStart, boxSize + extraSize);
+                        view.ViewData.Box = ConstrainSize(view, view.ViewData.BaseBox);
                     }
 
                     return extraSize;
@@ -237,8 +226,8 @@ partial class WorldRenderer
 
                     if (extraSize != default)
                     {
-                        var newViewBaseBox = Box2.FromCornerSize(boxStart, boxSize + extraSize);
-                        viewBoxes[view] = new(ConstrainSize(view, newViewBaseBox), newViewBaseBox);
+                        view.ViewData.BaseBox = Box2.FromCornerSize(boxStart, boxSize + extraSize);
+                        view.ViewData.Box = ConstrainSize(view, view.ViewData.BaseBox);
                     }
 
                     return extraSize;
@@ -253,9 +242,9 @@ partial class WorldRenderer
     void RenderView(View view)
     {
         if (view.Visible is not null && !view.Visible()) return;
-        view = viewTemplates.TryGetValue(view, out var templateView) ? templateView : view;
+        view = GetTemplatedView(view);
 
-        var box = viewBoxes[view].Box;
+        var box = view.ViewData.Box;
         if (view.BackgroundColor.W > 0)
             ScreenFillQuad(box.WithExpand(view.Padding), view.BackgroundColor, atlas[GrowableTextureAtlas3D.BlankName], false);
 
@@ -287,11 +276,9 @@ partial class WorldRenderer
 
     void RenderGui()
     {
-        viewBoxes.Clear();
-
         foreach (var rootViewDescription in gui.RootViewDescriptions.Where(rvd => rvd.View.Visible?.Invoke() != false))
         {
-            var view = GetRealView(rootViewDescription.View);
+            var view = GetTemplatedView(rootViewDescription.View);
             TemplateView(view);
             MeasureView(view);
             LayoutView(view,
