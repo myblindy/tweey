@@ -15,6 +15,8 @@
     <PackageReference Include="MB.FastAutoMapper" Version="0.1.9" />
     <PackageReference Include="morelinq" Version="3.3.2" />
     <PackageReference Include="NVorbis" Version="0.10.4" />
+    <PackageReference Include="OpenAl.Native" Version="0.9.0" />
+    <PackageReference Include="OpenAL.Soft" Version="1.19.1" />
     <PackageReference Include="OpenTK.Graphics" Version="5.0.0-pre.6" />
     <PackageReference Include="OpenTK.OpenAL" Version="5.0.0-pre.6" />
     <PackageReference Include="OpenTK.Windowing.Desktop" Version="5.0.0-pre.6" />

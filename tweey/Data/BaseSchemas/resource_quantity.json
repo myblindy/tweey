@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema",
+  "title": "JSON Schema for resource quantity tuples",
+
+  "definitions": {
+    "resourceQuantity": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

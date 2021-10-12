@@ -69,6 +69,7 @@ partial class WorldRenderer
                                     Villager villager => villager.Inventory.ResourceQuantities.Where(rq => rq.Quantity > 0),
                                     Building building => building.Inventory.ResourceQuantities.Where(rq => rq.Quantity > 0),
                                     ResourceBucket resourceBucket => resourceBucket.ResourceQuantities.Where(rq => rq.Quantity > 0),
+                                    Tree tree => tree.Inventory.ResourceQuantities.Where(rq => rq.Quantity > 0),
                                     _ => null
                                 },
                                 ContainerView = new StackView(StackType.Vertical),

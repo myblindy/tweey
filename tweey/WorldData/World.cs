@@ -3,6 +3,7 @@
 public class World
 {
     public ResourceTemplates Resources { get; }
+    public TreeTemplates TreeTemplates { get; }
     public BuildingTemplates BuildingTemplates { get; }
     public Configuration Configuration { get; }
 
@@ -21,7 +22,7 @@ public class World
     public World(ILoader loader)
     {
         (Resources, Configuration, aiManager, soundManager) = (new(loader), new(loader), new(this), new(this));
-        BuildingTemplates = new(loader, Resources);
+        (BuildingTemplates, TreeTemplates) = (new(loader, Resources), new(loader, Resources));
 
         StartedBuildingJob += soundManager.OnStartedBuildingJob;
         EndedBuildingJob += soundManager.OnEndedBuildingJob;
@@ -97,7 +98,7 @@ public class World
                 var distanceFromCenter = new Vector2i(Math.Abs(y - center.Y), Math.Abs(y - center.Y)).EuclideanLength;
                 var chance = chanceCenter * (radius - distanceFromCenter) / radius + chanceEdge * distanceFromCenter / radius;
                 if (Random.Shared.NextDouble() < chance)
-                    PlaceEntity(new Tree { Location = new(x, y) });
+                    PlaceEntity(Tree.FromTemplate(TreeTemplates["pine"], new(x, y)));
             }
     }
 

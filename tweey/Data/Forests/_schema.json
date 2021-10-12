@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema",
+  "title": "JSON Schema for forests",
+
+  "type": "object",
+
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The name of the tree."
+    },
+    "radius": { "$ref": "../BaseSchemas/range.json#definitions/range" },
+    "chanceCenter": { "$ref": "../BaseSchemas/range.json#definitions/range" },
+    "chanceEdge": { "$ref": "../BaseSchemas/range.json#definitions/range" }
+  },
+  "required": [ "name", "radius", "chanceCenter", "chanceEdge" ]
+}

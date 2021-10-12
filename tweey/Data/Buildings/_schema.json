@@ -4,21 +4,6 @@
 
   "type": "object",
 
-  "definitions": {
-    "resourceQuantity": {
-      "type": "object",
-      "properties": {
-        "resource": {
-          "type": "string"
-        },
-        "quantity": {
-          "type": "integer",
-          "minimum": 1
-        }
-      }
-    }
-  },
-
   "properties": {
     "name": {
       "type": "string",
@@ -52,11 +37,11 @@
         "properties": {
           "inputs": {
             "type": "array",
-            "items": { "$ref": "#/definitions/resourceQuantity" }
+            "items": { "$ref": "../BaseSchemas/resource_quantity.json#/definitions/resourceQuantity" }
           },
           "outputs": {
             "type": "array",
-            "items": { "$ref": "#/definitions/resourceQuantity" }
+            "items": { "$ref": "../BaseSchemas/resource_quantity.json#/definitions/resourceQuantity" }
           }
         },
         "required": [ "inputs", "outputs" ]
@@ -71,7 +56,7 @@
         },
         "resources": {
           "type": "array",
-          "items": { "$ref": "#/definitions/resourceQuantity" }
+          "items": { "$ref": "../BaseSchemas/resource_quantity.json#/definitions/resourceQuantity" }
         }
       }
     }
