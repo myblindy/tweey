@@ -24,8 +24,8 @@ public class World
         (Resources, Configuration, aiManager, soundManager) = (new(loader), new(loader), new(this), new(this));
         (BuildingTemplates, TreeTemplates) = (new(loader, Resources), new(loader, Resources));
 
-        StartedBuildingJob += soundManager.OnStartedBuildingJob;
-        EndedBuildingJob += soundManager.OnEndedBuildingJob;
+        StartedJob += soundManager.OnStartedJob;
+        EndedBuildingJob += soundManager.OnEndedJob;
         PlacedBuilding += soundManager.OnPlacedBuilding;
         CurrentBuildingTemplateChanged += soundManager.OnCurrentBuildingTemplateChanged;
     }
@@ -136,18 +136,33 @@ public class World
         (MouseScreenPosition, MouseWorldPosition) = (screenPosition, worldLocation);
     }
 
-    public event Action<Building, Villager>? StartedBuildingJob;
-    public void StartWork(Building building, Villager villager)
+    public event Action<PlaceableEntity, Villager>? StartedJob;
+    public void StartWork(PlaceableEntity entity, Villager villager)
     {
-        StartedBuildingJob?.Invoke(building, villager);
-        building.AssignedWorkersWorking[building.AssignedWorkers.FindIndex(v => v == villager)] = true;
+        StartedJob?.Invoke(entity, villager);
+        if (entity is Building building)
+            building.AssignedWorkersWorking[building.AssignedWorkers.FindIndex(v => v == villager)] = true;
+        else if (entity is Tree tree)
+            tree.AssignedVillagerWorking = true;
+        else
+            throw new NotImplementedException();
     }
 
-    public event Action<Building, Villager>? EndedBuildingJob;
-    public void EndWork(Building building, Villager villager)
+    public event Action<PlaceableEntity, Villager, bool /* last */>? EndedBuildingJob;
+    public void EndWork(PlaceableEntity entity, Villager villager)
     {
-        EndedBuildingJob?.Invoke(building, villager);
-        building.AssignedWorkersWorking[building.AssignedWorkers.FindIndex(v => v == villager)] = false;
+        if (entity is Building building)
+        {
+            building.AssignedWorkersWorking[building.AssignedWorkers.FindIndex(v => v == villager)] = false;
+            EndedBuildingJob?.Invoke(building, villager, !building.AssignedWorkersWorking.Cast<bool>().Any(b => b));
+        }
+        else if (entity is Tree tree)
+        {
+            tree.AssignedVillagerWorking = false;
+            EndedBuildingJob?.Invoke(tree, villager, true);
+        }
+        else
+            throw new NotImplementedException();
     }
 
     public event Action<BuildingTemplate?>? CurrentBuildingTemplateChanged;

@@ -1,8 +1,9 @@
 ﻿namespace Tweey.Actors;
 
-class Tree : TreeTemplate
+public class Tree : TreeTemplate
 {
-    public override string? Name { get; set; }
+    public Villager? AssignedVillager { get; set; }
+    public bool AssignedVillagerWorking { get; set; }
 
     public static Tree FromTemplate(TreeTemplate template, Vector2 location)
     {

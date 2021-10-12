@@ -1,4 +1,6 @@
-﻿namespace Tweey.WorldData;
+﻿using Tweey.Actors;
+
+namespace Tweey.WorldData;
 
 public abstract class AIPlan
 {
@@ -164,6 +166,47 @@ public class BuildAIPlan : AIPlan
     }
 }
 
+public class ChopTreeAIPlan : AIPlan
+{
+    readonly Tree tree;
+
+    public ChopTreeAIPlan(World world, Villager villager, Tree tree) : base(world, villager) => this.tree = tree;
+
+    public override PlaceableEntity? FirstTarget => tree;
+    public override string Description => $"Chopping {tree.Name} tree.";
+
+    enum State { MoveToTree, Build }
+    State state = State.MoveToTree;
+
+    public override void Update(double deltaSec)
+    {
+        switch (state)
+        {
+            case State.MoveToTree:
+                StepToPlaceable(FirstTarget!, deltaSec, () =>
+                {
+                    state = State.Build;
+                    villager.WorkActionTime.Reset(villager.WorkActionsPerSecond);
+
+                    world.StartWork(tree, villager);
+                });
+                break;
+            case State.Build:
+                villager.WorkActionTime.AdvanceTime(deltaSec);
+                if (villager.WorkActionTime.ConsumeActions() > 0 && --tree.WorkTicks <= 0)
+                {
+                    Done = true;
+                    world.EndWork(tree, villager);
+                    tree.Inventory.Location = tree.Location;
+                    world.RemoveEntity(tree);
+                    world.PlaceEntity(tree.Inventory);
+                }
+
+                break;
+        }
+    }
+}
+
 class AIManager
 {
     private readonly World world;
@@ -172,8 +215,9 @@ class AIManager
 
     bool TryBuildingPlan(Villager villager)
     {
-        var availableBuildingSite = world.GetEntities<Building>().OrderBy(b => (b.Center - villager.Center).LengthSquared())
-            .FirstOrDefault(b => !b.IsBuilt && b.BuildCost.IsAllEmpty && b.AssignedWorkers[0] is null);
+        var availableBuildingSite = world.GetEntities<Building>().Where(b => !b.IsBuilt && b.BuildCost.IsAllEmpty && b.AssignedWorkers[0] is null)
+            .OrderBy(b => (b.Center - villager.Center).LengthSquared())
+            .FirstOrDefault();
         if (availableBuildingSite == null)
             return false;
 
@@ -186,15 +230,15 @@ class AIManager
 
     bool TryCuttingTreesPlan(Villager villager)
     {
-        var availableTrees = world.GetEntities<Tree>().OrderBy(b => (b.Center - villager.Center).LengthSquared())
-            .FirstOrDefault(b => !b.IsBuilt && b.BuildCost.IsAllEmpty && b.AssignedWorkers[0] is null);
-        if (availableBuildingSite == null)
+        var availableTree = world.GetEntities<Tree>().Where(t => t.AssignedVillager is null).OrderBy(t => (t.Center - villager.Center).LengthSquared())
+            .FirstOrDefault();
+        if (availableTree == null)
             return false;
 
-        availableBuildingSite.AssignedWorkers[0] = villager;
-        availableBuildingSite.AssignedWorkersWorking[0] = false;
+        availableTree.AssignedVillager = villager;
+        availableTree.AssignedVillagerWorking = false;
 
-        villager.AIPlan = new BuildAIPlan(world, villager, availableBuildingSite);
+        villager.AIPlan = new ChopTreeAIPlan(world, villager, availableTree);
         return true;
     }
 
@@ -265,7 +309,7 @@ class AIManager
         foreach (var villager in updateVillagersList)
         {
             if (villager.AIPlan is null)
-                _ = TryBuildingPlan(villager) || TryBuildingSiteHaulingPlan(villager) || TryHaulingPlan(villager);
+                _ = TryBuildingPlan(villager) || TryBuildingSiteHaulingPlan(villager) || TryHaulingPlan(villager) || TryCuttingTreesPlan(villager);
             villager.AIPlan?.Update(deltaSec);
         }
 

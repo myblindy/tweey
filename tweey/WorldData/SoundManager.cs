@@ -1,4 +1,6 @@
-﻿namespace Tweey.Renderer;
+﻿using System.Collections.Generic;
+
+namespace Tweey.Renderer;
 
 class SoundManager
 {
@@ -17,11 +19,20 @@ class SoundManager
     }
 
     const string BuildBuildingFile = @"Data/Sounds/build_building.ogg";
+    const string ChopTreeFile = @"Data/Sounds/chop_tree.ogg";
+    const string FallTreeFile = @"Data/Sounds/fall_tree.ogg";
     const string PlacedBuildingFile = @"Data/Sounds/place_building.ogg";
     const string ButtonClickFile = @"Data/Sounds/button_click.ogg";
 
+    static string FileNameForEntity(PlaceableEntity entity) => entity switch
+    {
+        Building => BuildBuildingFile,
+        Tree => ChopTreeFile,
+        _ => throw new NotImplementedException()
+    };
+
     readonly Dictionary<string, int> soundBuffers = new();
-    readonly Dictionary<Building, int> buildingsBeingBuiltSources = new();
+    readonly Dictionary<PlaceableEntity, int> loopingSoundSources = new();
     readonly List<int> nonLoopingSoundSources = new();
 
     int GetSoundBufferHandle(string path) => soundBuffers.TryGetValue(path, out var soundBufferHandle) ? soundBufferHandle : soundBuffers[path] = LoadBufferFromFile(path);
@@ -48,19 +59,26 @@ class SoundManager
         return sourceHandle;
     }
 
-    internal void OnCurrentBuildingTemplateChanged(BuildingTemplate? buildingTemplate) =>
+    public void OnCurrentBuildingTemplateChanged(BuildingTemplate? buildingTemplate) =>
         nonLoopingSoundSources.Add(CreateSource(ButtonClickFile, false));
 
     public void OnPlacedBuilding(Building building) =>
         nonLoopingSoundSources.Add(CreateSource(PlacedBuildingFile, false));
 
-    public void OnStartedBuildingJob(Building building, Villager villager) => 
-        buildingsBeingBuiltSources[building] = CreateSource(BuildBuildingFile, true);
+    public void OnStartedJob(PlaceableEntity entity, Villager villager) =>
+        loopingSoundSources[entity] = CreateSource(FileNameForEntity(entity), true);
 
-    public void OnEndedBuildingJob(Building building, Villager villager)
+    public void OnEndedJob(PlaceableEntity entity, Villager villager, bool last)
     {
-        AL.DeleteSource(buildingsBeingBuiltSources[building]);
-        buildingsBeingBuiltSources.Remove(building);
+        if (last)
+        {
+            AL.DeleteSource(loopingSoundSources[entity]);
+            loopingSoundSources.Remove(entity);
+
+            // if a tree, add the falling sound at the end
+            if (entity is Tree)
+                nonLoopingSoundSources.Add(CreateSource(FallTreeFile, false));
+        }
     }
 
     readonly HashSet<int> tempDoneNonLoopingSoundSources = new();
