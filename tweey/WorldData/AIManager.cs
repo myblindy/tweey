@@ -184,6 +184,20 @@ class AIManager
         return true;
     }
 
+    bool TryCuttingTreesPlan(Villager villager)
+    {
+        var availableTrees = world.GetEntities<Tree>().OrderBy(b => (b.Center - villager.Center).LengthSquared())
+            .FirstOrDefault(b => !b.IsBuilt && b.BuildCost.IsAllEmpty && b.AssignedWorkers[0] is null);
+        if (availableBuildingSite == null)
+            return false;
+
+        availableBuildingSite.AssignedWorkers[0] = villager;
+        availableBuildingSite.AssignedWorkersWorking[0] = false;
+
+        villager.AIPlan = new BuildAIPlan(world, villager, availableBuildingSite);
+        return true;
+    }
+
     bool TryBuildingSiteHaulingPlan(Villager villager)
     {
         var pickupPlan = new ResourcePickupAIPlan(world, villager);
