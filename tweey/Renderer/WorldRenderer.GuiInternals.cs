@@ -213,7 +213,7 @@ partial class WorldRenderer
 
                     if (extraSize != default)
                     {
-                        view.ViewData.BaseBox = Box2.FromCornerSize(boxStart, boxSize + extraSize);
+                        view.ViewData.BaseBox = Box2.FromCornerSize(boxStart, view.ViewData.BaseBox.Size + extraSize);
                         view.ViewData.Box = ConstrainSize(view, view.ViewData.BaseBox);
                     }
 
@@ -226,7 +226,7 @@ partial class WorldRenderer
 
                     if (extraSize != default)
                     {
-                        view.ViewData.BaseBox = Box2.FromCornerSize(boxStart, boxSize + extraSize);
+                        view.ViewData.BaseBox = Box2.FromCornerSize(boxStart, view.ViewData.BaseBox.Size + extraSize);
                         view.ViewData.Box = ConstrainSize(view, view.ViewData.BaseBox);
                     }
 
