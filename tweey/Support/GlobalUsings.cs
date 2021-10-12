@@ -33,6 +33,7 @@ global using OpenTK.Graphics;
 global using OpenTK.Graphics.OpenGL;
 global using OpenTK.Windowing.Common;
 global using OpenTK.Windowing.Desktop;
+global using OpenTK.Windowing.GraphicsLibraryFramework;
 
 global using static MoreLinq.Extensions.ForEachExtension;
 
@@ -42,3 +43,4 @@ global using InputAction = OpenTK.Windowing.GraphicsLibraryFramework.InputAction
 global using MouseButton = OpenTK.Windowing.GraphicsLibraryFramework.MouseButton;
 global using KeyModifiers = OpenTK.Windowing.GraphicsLibraryFramework.KeyModifiers;
 global using Keys = OpenTK.Windowing.GraphicsLibraryFramework.Keys;
+global using Image = SixLabors.ImageSharp.Image;

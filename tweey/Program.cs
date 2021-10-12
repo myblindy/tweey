@@ -2,10 +2,10 @@
 
 class Program : GameWindow
 {
-    public Program() : base(
+    public unsafe Program() : base(
         new()
         {
-            RenderFrequency = 144,
+            RenderFrequency = 60,
             UpdateFrequency = 60,
             IsMultiThreaded = false,
         }, new()
@@ -21,6 +21,11 @@ class Program : GameWindow
             Flags = ContextFlags.ForwardCompatible,
         })
     {
+        // set the default render frequency to the primary monitor's refresh rate
+        var monitor = GLFW.GetPrimaryMonitor();
+        var videoMode = GLFW.GetVideoMode(monitor);
+        if (videoMode != null)
+            this.RenderFrequency = videoMode->RefreshRate;
     }
 
     readonly World world = new(DiskLoader.Instance);
@@ -118,7 +123,7 @@ class Program : GameWindow
         SwapBuffers();
     }
 
-    static void Main()
+    static unsafe void Main()
     {
         using var program = new Program();
         program.Run();
