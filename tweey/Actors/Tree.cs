@@ -1,7 +1,14 @@
 ﻿namespace Tweey.Actors;
 
-class Tree : PlaceableEntity
+class Tree : TreeTemplate
 {
-    public Tree() => (Width, Height) = (1, 1);
     public override string? Name { get; set; }
+
+    public static Tree FromTemplate(TreeTemplate template, Vector2 location)
+    {
+        var t = GlobalMapper.Mapper.Map(template);
+        t.Location = location;
+
+        return t;
+    }
 }

@@ -1,0 +1,11 @@
+{
+  "$schema": "./_schema.json",
+  "name": "Pine",
+  "containingResources": [
+    {
+      "quantity": 15,
+      "resource": "wood"
+    }
+  ],
+  "workTicks": 35
+}

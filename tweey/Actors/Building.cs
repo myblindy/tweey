@@ -11,7 +11,6 @@ public class Building : BuildingTemplate
     public bool IsBuilt { get; set; }
     public ResourceBucket Inventory { get; }
 
-
     public static Building FromTemplate(BuildingTemplate template, Vector2 location, bool built)
     {
         var b = GlobalMapper.Mapper.Map(template);

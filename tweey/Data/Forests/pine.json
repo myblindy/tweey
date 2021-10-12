@@ -1,0 +1,16 @@
+{
+  "$schema": "./_schema.json",
+  "name": "Pine",
+  "radius": {
+    "min": 5,
+    "max": 12
+  },
+  "chanceCenter": {
+    "min": 0.7,
+    "max": 0.9
+  },
+  "chanceEdge": {
+    "min": 0.1,
+    "max": 0.3
+  }
+}
