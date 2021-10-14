@@ -1,7 +1,4 @@
-﻿using Tweey.Actors;
-using Tweey.Loaders;
-
-namespace Tweey.Renderer;
+﻿namespace Tweey.Renderer;
 
 partial class WorldRenderer
 {

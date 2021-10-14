@@ -6,6 +6,8 @@ partial class WorldRenderer
     {
         var descriptionColor = new Vector4(.8f, .8f, .8f, 1);
         var highlightColor = Colors.Aqua;
+        var defaultFontSize = 18;
+
         gui.RootViewDescriptions.Add(new(
             new StackView(StackType.Vertical)
             {
@@ -52,14 +54,45 @@ partial class WorldRenderer
                                 Text = () => world.SelectedEntity is Villager villager ? villager.AIPlan is { } aiPlan ? aiPlan.Description : "Idle."
                                     : world.SelectedEntity is Building { IsBuilt: false} buildingSite ? $"This is a building site, waiting for {buildingSite.BuildCost} and {buildingSite.BuildWorkTicks} work ticks."
                                     : $"This is a {(world.SelectedEntity switch { Building => "building", Tree => "cute tree", _ => "fluffy resource" })}, it's just existing.",
-                                FontSize = 18,
+                                FontSize = defaultFontSize,
                                 MinHeight = () => 35,
                                 ForegroundColor = descriptionColor
                             },
                             new LabelView
                             {
+                                Text = () => "Needs:",
+                                FontSize = defaultFontSize,
+                                ForegroundColor = descriptionColor
+                            },
+                            new StackView(StackType.Horizontal)
+                            {
+                                Visible = () => world.SelectedEntity is Villager,
+                                Children =
+                                {
+                                    // hunger block
+                                    new LabelView
+                                    {
+                                        Text = () => "Hunger",
+                                        ForegroundColor = descriptionColor,
+                                        FontSize = defaultFontSize,
+                                        Padding = new(30, 0, 0, 0)
+                                    },
+                                    new ProgressView
+                                    {
+                                        Value = () => ((Villager)world.SelectedEntity!).Needs.Hunger,
+                                        Maximum = () => ((Villager)world.SelectedEntity!).Needs.HungerMax,
+                                        StringFormat = () => "{0:0.0}%",
+                                        ForegroundColor = Colors.DarkRed,
+                                        TextColor = descriptionColor,
+                                        FontSize = defaultFontSize - 2,
+                                        MinWidth = () => 120
+                                    }
+                                }
+                            },
+                            new LabelView
+                            {
                                 Text = () => "Inventory:",
-                                FontSize = 18,
+                                FontSize = defaultFontSize,
                                 ForegroundColor = descriptionColor
                             },
                             new RepeaterView<ResourceQuantity>
@@ -80,7 +113,7 @@ partial class WorldRenderer
                                         new LabelView
                                         {
                                             Text = () => rq.Quantity.ToString(),
-                                            FontSize = 18,
+                                            FontSize = defaultFontSize,
                                             MinWidth = () => 50,
                                             Margin = new(0,0,10,0),
                                             HorizontalTextAlignment = HorizontalAlignment.Right,
@@ -94,7 +127,7 @@ partial class WorldRenderer
                                         new LabelView
                                         {
                                             Text = () => $" {rq.Resource.Name}",
-                                            FontSize = 18,
+                                            FontSize = defaultFontSize,
                                             ForegroundColor = descriptionColor
                                         }
                                     }
@@ -102,7 +135,7 @@ partial class WorldRenderer
                                 EmptyView = new LabelView
                                 {
                                     Text = () => "Nothing",
-                                    FontSize = 18,
+                                    FontSize = defaultFontSize,
                                     ForegroundColor = descriptionColor
                                 }
                             }

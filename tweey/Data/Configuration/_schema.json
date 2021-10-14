@@ -11,6 +11,11 @@
     "baseCarryWeight": {
       "type": "number"
     },
+    "ticksPerDay": {
+      "type": "number",
+      "minimum": 1,
+      "description": "How many ticks there are in a day"
+    },
     "maximumGroundDropSpillOverRange": {
       "type": "integer",
       "minimum": 1,
@@ -30,8 +35,18 @@
       "type": "number",
       "minimum": 0,
       "description": "How fast a villager will work one tick in units of 1/sec."
+    },
+    "baseHungerMax": {
+      "type": "number",
+      "minimum": 1,
+      "description": "How much hunger can be accumulated until death."
+    },
+    "baseHungerPerRealTimeSecond": {
+      "type": "number",
+      "minimum": 0,
+      "description": "How much hunger is accumulated per real time second."
     }
   },
 
-  "required": [ "groundStackMaximumWeight", "baseCarryWeight", "maximumGroundDropSpillOverRange", "baseMovementSpeed" ]
+  "required": [ "groundStackMaximumWeight", "baseCarryWeight", "ticksPerDay", "maximumGroundDropSpillOverRange", "baseMovementSpeed", "baseHungerMax", "baseHungerPerTick" ]
 }

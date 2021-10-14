@@ -7,6 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Operations;
 using Microsoft.CodeAnalysis.Simplification;
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -74,6 +75,13 @@ public class RequiredPropertiesCodeFixProvider : CodeFixProvider
 
     public sealed override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 
+    ITypeSymbol GetTypeSymbol(SemanticModel semanticModel, BaseObjectCreationExpressionSyntax s) => s switch
+    {
+        ObjectCreationExpressionSyntax oces => semanticModel.GetSymbolInfo(oces.Type).Symbol as ITypeSymbol,
+        ImplicitObjectCreationExpressionSyntax ioces => semanticModel.GetTypeInfo(ioces).Type,
+        _ => throw new NotImplementedException()
+    };
+
     public override async Task RegisterCodeFixesAsync(CodeFixContext context)
     {
         //Debugger.Launch();
@@ -86,8 +94,8 @@ public class RequiredPropertiesCodeFixProvider : CodeFixProvider
             const string title = "Add missing required properties";
             context.RegisterCodeFix(CodeAction.Create(title, createChangedDocument: ct =>
             {
-                var objectCreationExpressionSyntax = (ObjectCreationExpressionSyntax)root.FindNode(diagnostic.Location.SourceSpan);
-                var typeSymbol = semanticModel.GetSymbolInfo(objectCreationExpressionSyntax.Type).Symbol as ITypeSymbol;
+                var objectCreationExpressionSyntax = (BaseObjectCreationExpressionSyntax)root.FindNode(diagnostic.Location.SourceSpan);
+                var typeSymbol = GetTypeSymbol(semanticModel, objectCreationExpressionSyntax);
 
                 var missingProperties = new List<ISymbol>();
                 foreach (var requiredMember in RequiredPropertiesAnalyzer.EnumerateRequiredTypeProperties(typeSymbol))

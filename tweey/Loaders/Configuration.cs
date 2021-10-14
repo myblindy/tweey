@@ -8,6 +8,9 @@ public class ConfigurationData
     public double BaseMovementSpeed { get; set; }
     public double BasePickupSpeed { get; set; }
     public double BaseWorkSpeed { get; set; }
+    public double BaseHungerMax { get; set; }
+    public double BaseHungerPerRealTimeSecond { get; set; }
+    public double TicksPerDay { get; set; }
 }
 
 public class Configuration

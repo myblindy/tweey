@@ -1,4 +1,6 @@
-﻿namespace Tweey.Renderer;
+﻿using Tweey.Gui;
+
+namespace Tweey.Renderer;
 
 partial class WorldRenderer
 {
@@ -144,6 +146,15 @@ partial class WorldRenderer
                 }
                 break;
 
+            case ProgressView progressView:
+                if (progressView.StringFormat?.Invoke() is { } stringFormat && !string.IsNullOrWhiteSpace(stringFormat)
+                    && progressView.Maximum?.Invoke() is var maximum && progressView.Value?.Invoke() is var value)
+                {
+                    size += fontRenderer.Measure(string.Format(stringFormat, value / maximum * 100), new FontDescription { Size = progressView.FontSize });
+                    if (progressView.BorderColor.W != 0) size += new Vector2(2, 2);
+                }
+                break;
+
             case StackView stackView:
                 foreach (var child in stackView.Children.Select(GetTemplatedView))
                 {
@@ -262,6 +273,26 @@ partial class WorldRenderer
                         HorizontalAlignment.Right => new(box.Right - view.Margin.Right, box.Top - view.Margin.Top),
                         _ => throw new NotImplementedException()
                     }, labelView.ForegroundColor, labelView.HorizontalTextAlignment);
+                break;
+            case ProgressView progressView:
+                if (progressView.StringFormat?.Invoke() is { } stringFormat && !string.IsNullOrWhiteSpace(stringFormat)
+                    && progressView.Maximum?.Invoke() is { } maximum && progressView.Value?.Invoke() is { } value)
+                {
+                    var borderOffset = progressView.BorderColor.W > 0;
+                    if (borderOffset)
+                        ScreenFillQuad(box, progressView.BorderColor, atlas[GrowableTextureAtlas3D.BlankName], false);
+
+                    box = box.WithExpand(new Thickness(-1));
+                    if (progressView.BackgroundColor.W > 0)
+                        ScreenFillQuad(box, progressView.BackgroundColor, atlas[GrowableTextureAtlas3D.BlankName], false);
+                    ScreenFillQuad(Box2.FromCornerSize(box.TopLeft, (float)(box.Size.X * value / maximum), box.Size.Y), progressView.ForegroundColor, atlas[GrowableTextureAtlas3D.BlankName], false);
+                    ScreenString(string.Format(stringFormat, value / maximum * 100), new() { Size = progressView.FontSize }, progressView.HorizontalTextAlignment switch
+                    {
+                        HorizontalAlignment.Left => box.TopLeft + new Vector2(view.Margin.Left, view.Margin.Top),
+                        HorizontalAlignment.Right => new(box.Right - view.Margin.Right, box.Top - view.Margin.Top),
+                        _ => throw new NotImplementedException()
+                    }, progressView.TextColor, progressView.HorizontalTextAlignment);
+                }
                 break;
             case ImageView imageView:
                 if (imageView.Source is not null && imageView.Source() is { } src && !string.IsNullOrWhiteSpace(src))

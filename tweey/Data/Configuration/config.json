@@ -3,8 +3,11 @@
 
   "baseCarryWeight": 45,
   "groundStackMaximumWeight": 75,
+  "ticksPerDay": 72000, // 20mins
   "maximumGroundDropSpillOverRange": 2,
   "baseMovementSpeed": 2,
   "basePickupSpeed": 1,
-  "baseWorkSpeed": 5
+  "baseWorkSpeed": 5,
+  "baseHungerMax": 100,
+  "baseHungerPerRealTimeSecond": 1
 }

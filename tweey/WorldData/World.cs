@@ -180,6 +180,7 @@ public class World
         if (!Paused)
             aiManager.Update(deltaSec);
         soundManager.Update(deltaSec);
+        GetEntities<Villager>().ForEach(villager => villager.Update(deltaSec));
     }
 
     public IEnumerable<T> GetEntities<T>() where T : PlaceableEntity => PlacedEntities.OfType<T>();

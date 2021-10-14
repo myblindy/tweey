@@ -238,3 +238,4 @@ dotnet_diagnostic.CA5394.severity = none
 
 [*.{cs,vb}]
 dotnet_diagnostic.RS2008.severity=silent
+dotnet_diagnostic.CA1003.severity=silent

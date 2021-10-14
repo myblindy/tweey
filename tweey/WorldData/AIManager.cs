@@ -1,6 +1,4 @@
-﻿using Tweey.Actors;
-
-namespace Tweey.WorldData;
+﻿namespace Tweey.WorldData;
 
 public abstract class AIPlan
 {

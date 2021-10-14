@@ -36,9 +36,18 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>Colors.tt</DependentUpon>
     </None>
+    <None Include="Support\Needs.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Needs.tt</DependentUpon>
+    </None>
     <None Update="Gui\Colors.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
       <LastGenOutput>Colors.cs</LastGenOutput>
+    </None>
+    <None Update="Support\Needs.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>Needs.cs</LastGenOutput>
     </None>
   </ItemGroup>
 
@@ -48,6 +57,14 @@
 
   <ItemGroup>
     <ProjectReference Include="..\tweey.roslyn\tweey.roslyn.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Support\Needs.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Needs.tt</DependentUpon>
+    </Compile>
   </ItemGroup>
 
 </Project>
