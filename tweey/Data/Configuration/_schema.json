@@ -45,6 +45,11 @@
       "type": "number",
       "minimum": 0,
       "description": "How much hunger is accumulated per real time second."
+    },
+    "baseEatSpeed": {
+      "type": "number",
+      "minimum": 0,
+      "description": "How fast a villager will eat resources in units of 1/sec and multiplied by the individual resource pickup multipliers."
     }
   },
 

@@ -1,12 +1,13 @@
 ﻿namespace Tweey.Renderer;
 
-public struct FontDescription
+public struct FontDescription : IEquatable<FontDescription>
 {
     public float Size { get; init; }
     public bool Bold { get; init; }
     public bool Italic { get; init; }
 
-    public override bool Equals(object? obj) => obj is FontDescription description && Size == description.Size && Bold == description.Bold && Italic == description.Italic;
+    public bool Equals(FontDescription other) => Size == other.Size && Bold == other.Bold && Italic == other.Italic;
+    public override bool Equals(object? obj) => obj is FontDescription description && Equals(description);
     public override int GetHashCode() => HashCode.Combine(Size, Bold, Italic);
 
     public static bool operator ==(FontDescription left, FontDescription right) => left.Equals(right);
@@ -41,7 +42,10 @@ public class FontRenderer
     void EnsureTempImage(int width, int height)
     {
         if (tempImage is null || tempImage.Width < width || tempImage.Height < height)
+        {
+            tempImage?.Dispose();
             tempImage = new Image<Bgra32>(width + 20, height + 20);
+        }
     }
 
     static readonly DrawingOptions drawingOptions = new() { TextOptions = { ApplyKerning = true, RenderColorFonts = true } };

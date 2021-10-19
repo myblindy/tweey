@@ -236,6 +236,11 @@ dotnet_diagnostic.CA1310.severity = none
 # CA5394: Do not use insecure randomness
 dotnet_diagnostic.CA5394.severity = none
 
+# CA2225: Operator overloads have named alternates
+dotnet_diagnostic.CA2225.severity = none
+
 [*.{cs,vb}]
 dotnet_diagnostic.RS2008.severity=silent
 dotnet_diagnostic.CA1003.severity=silent
+dotnet_diagnostic.CA1002.severity=silent
+dotnet_diagnostic.CA1724.severity=suggestion

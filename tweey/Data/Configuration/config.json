@@ -9,5 +9,6 @@
   "basePickupSpeed": 1,
   "baseWorkSpeed": 5,
   "baseHungerMax": 100,
-  "baseHungerPerRealTimeSecond": 1
+  "baseHungerPerRealTimeSecond": 1,
+  "baseEatSpeed": 1
 }

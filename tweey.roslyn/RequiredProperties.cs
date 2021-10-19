@@ -28,7 +28,7 @@ public class RequiredPropertiesSourceGen : IIncrementalGenerator
 using System;
 
 [AttributeUsage(AttributeTargets.Property)]
-public class RequiredPropertyAttribute: Attribute { }");
+public sealed class RequiredPropertyAttribute: Attribute { }");
         });
 }
 

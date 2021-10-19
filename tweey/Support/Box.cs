@@ -1,7 +1,7 @@
 ﻿namespace Tweey.Support;
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-public struct Box2
+public struct Box2 : IEquatable<Box2>
 {
     public Vector2 TopLeft, BottomRight;
 
@@ -26,4 +26,11 @@ public struct Box2
     public bool Intersects(Box2 other) => Left <= other.Right && Right >= other.Left && Top <= other.Bottom && Bottom >= other.Top;
     public bool Contains(Vector2 location) => Left <= location.X && Right >= location.X && Top <= location.Y && Bottom >= location.Y;
     public bool Contains(Vector2i location) => Left <= location.X && Right >= location.X && Top <= location.Y && Bottom >= location.Y;
+
+    public bool Equals(Box2 other) => other.TopLeft == TopLeft && other.BottomRight == BottomRight;
+    public override bool Equals(object? obj) => obj is Box2 box && Equals(box);
+    public override int GetHashCode() => HashCode.Combine(TopLeft, BottomRight);
+
+    public static bool operator ==(Box2 left, Box2 right) => left.Equals(right);
+    public static bool operator !=(Box2 left, Box2 right) => !(left == right);
 }

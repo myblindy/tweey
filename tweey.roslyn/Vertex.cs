@@ -117,7 +117,7 @@ using System;
 using OpenTK.Graphics.OpenGL;
 
 [AttributeUsage(AttributeTargets.Struct)]
-public class VertexDefinitionAttribute: Attribute { }
+public sealed class VertexDefinitionAttribute: Attribute { }
 
 public static class VertexDefinitionSetup
 {

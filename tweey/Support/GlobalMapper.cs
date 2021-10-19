@@ -16,8 +16,7 @@ internal static class GlobalMapper
             .ForMember(x => x.Color, src => src.Color!.Length == 3 ? new Vector4(src.Color[0], src.Color[1], src.Color[2], 1) : new(src.Color))
             .ForMember(x => x.BuildWorkTicks, src => src.BuildCost!.WorkTicks)
             .ForMember(x => x.BuildCost, (src, resources) => new ResourceBucket(src.BuildCost!.Resources!.Select(rq => new ResourceQuantity(((ResourceTemplates)resources)[rq.Resource!], rq.Quantity))));
-        Mapper.CreateMap<ResourceIn, Resource>()
-            .ForMember(x => x.Color, src => src.Color!.Length == 3 ? new Vector4(src.Color[0], src.Color[1], src.Color[2], 1) : new(src.Color));
+        Mapper.CreateMap<ResourceIn, Resource>();
         Mapper.CreateMap<TreeTemplateIn, TreeTemplate>()
             .ForMember(x => x.Inventory, (src, resources) => new ResourceBucket(src.ContainingResources!.Select(rq => new ResourceQuantity(((ResourceTemplates)resources)[rq.Resource!], rq.Quantity))));
     }

@@ -111,7 +111,7 @@ public class GrowableTextureAtlas3D
             {
                 var image = Image.Load<Bgra32>(path);
                 (width, height) = (image.Width, image.Height);
-                if (!image.TryGetSinglePixelSpan(out var imageBytes)) throw new NotImplementedException();
+                if (!image.TryGetSinglePixelSpan(out var imageBytes)) throw new InvalidOperationException();
 
                 (x, y, page) = FindAndMarkSpace(new(width, height));
                 GL.PixelStorei(PixelStoreParameter.UnpackAlignment, 1);
