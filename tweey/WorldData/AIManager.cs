@@ -1,24 +1,49 @@
 ﻿namespace Tweey.WorldData;
 
+public enum AIPlanStepResult { Stay, NextStep, End }
+public record AIPlanStep(Func<double, AIPlanStepResult> Update, Action? DoneAction = null);
+
 public abstract class AIPlan
 {
     protected Villager Villager { get; }
     protected World World { get; }
     public bool IsEmergency { get; }
-    protected AIPlan(World world, Villager villager, bool isEmergency) => (Villager, World, IsEmergency) = (villager, world, isEmergency);
+    protected AIPlan(World world, Villager villager, bool isEmergency, IEnumerable<PlaceableEntity>? targets = null)
+    {
+        (Villager, World, IsEmergency) = (villager, world, isEmergency);
+        if (targets is not null)
+            foreach (var target in targets)
+                Targets.Enqueue(target);
+    }
 
     public AIPlan? NextPlan { get; set; }
 
-    public bool Done { get; protected set; }
+    public Queue<PlaceableEntity> Targets { get; } = new();
+    public virtual PlaceableEntity? FirstTarget => Targets.TryPeek(out var value) ? value : null;
+
+    public bool Done { get; private set; }
     public Action? DoneAction { get; set; }
 
-    public abstract void Update(double deltaSec);
+    protected List<AIPlanStep> Steps { get; } = new();
+    protected int CurrentStep { get; set; }
 
-    public abstract PlaceableEntity? FirstTarget { get; }
+    public void Update(double deltaSec)
+    {
+        if (Targets.Count == 0) { Done = true; return; }
+        var step = Steps[CurrentStep];
+
+        switch (step.Update(deltaSec))
+        {
+            case AIPlanStepResult.NextStep: step.DoneAction?.Invoke(); CurrentStep = (CurrentStep + 1) % Steps.Count; break;
+            case AIPlanStepResult.End: step.DoneAction?.Invoke(); Done = true; break;
+        }
+
+        if (Targets.Count == 0) Done = true;
+    }
 
     public abstract string Description { get; }
 
-    protected void StepToPlaceable(PlaceableEntity entity, double deltaSec, Action targetReached)
+    protected bool StepToPlaceable(PlaceableEntity entity, double deltaSec)
     {
         Villager.MovementActionTime.AdvanceTime(deltaSec);
 
@@ -26,207 +51,152 @@ public abstract class AIPlan
         {
             // reached the resource?
             if (entity!.Box.Intersects(Villager.Box.WithExpand(Vector2.One)))
-            {
-                targetReached();
-                return;
-            }
+                return true;
 
             // if not, move towards it
             Villager.Location += (entity!.Location - Villager.Location).Sign();
         }
+
+        return false;
     }
 
     public virtual void Cancel() { }
+
+    public AIPlanStep CreateMoveToPlaceableAIPlanStep(Action? stepDoneAction) => new(deltaSec =>
+        StepToPlaceable(FirstTarget!, deltaSec) ? AIPlanStepResult.NextStep : AIPlanStepResult.Stay, stepDoneAction);
 }
 
-public class ResourcePickupAIPlan : AIPlan
+public abstract class TypedAIPlan<T> : AIPlan where T : PlaceableEntity
 {
-    public ResourcePickupAIPlan(World world, Villager villager) : base(world, villager, false) { }
+    protected TypedAIPlan(World world, Villager villager, bool isEmergency, IEnumerable<T>? targets = null) : base(world, villager, isEmergency, targets)
+    {
+    }
 
-    public List<ResourceBucket> WorldBuckets { get; } = new();
-    public override PlaceableEntity? FirstTarget => (PlaceableEntity?)WorldBuckets.FirstOrDefault()?.Building ?? WorldBuckets.FirstOrDefault();
+    protected TypedAIPlan(World world, Villager villager, bool isEmergency, T target) : base(world, villager, isEmergency, Enumerable.Repeat(target, 1))
+    {
+    }
+
+    public void EnqueueTarget(T target) => Targets.Enqueue(target);
+    protected T? PeekTarget() => Targets.TryPeek(out var target) ? (T)target : null;
+    protected T DequeueTarget() => (T)Targets.Dequeue();
+}
+
+public class ResourcePickupAIPlan : TypedAIPlan<ResourceBucket>
+{
+    public ResourcePickupAIPlan(World world, Villager villager)
+        : base(world, villager, false)
+    {
+        Steps.Add(CreateMoveToPlaceableAIPlanStep(() => Villager.PickupActionTime.Reset(Villager.PickupActionsPerSecond / PeekTarget()!.GetPlannedResource(this).PickupSpeedMultiplier)));
+        Steps.Add(new(deltaSec =>
+        {
+            if (Villager.PickupActionTime.AdvanceTimeAndConsumeActions(deltaSec) > 0)
+            {
+                // remove the resource from the world and from our list of targets to hit and place it in our inventory
+                var worldRB = DequeueTarget();
+                var plannedRB = worldRB.RemovePlannedResources(this);
+
+                if (worldRB.IsAllEmpty)
+                    World.RemoveEntity(worldRB);
+
+                Villager.Inventory.AddRange(plannedRB.ResourceQuantities);
+
+                return AIPlanStepResult.NextStep;
+            }
+
+            return AIPlanStepResult.Stay;
+        }));
+    }
+
+    public override PlaceableEntity? FirstTarget => (PlaceableEntity?)PeekTarget()?.Building ?? PeekTarget();
     public override string Description => "Gathering resources to haul.";
-
-    enum State { MoveToResource, PickupResources }
-    State state = State.MoveToResource;
-
-    public override void Update(double deltaSec)
-    {
-        switch (state)
-        {
-            case State.MoveToResource:
-                // check for when we're done
-                if (!WorldBuckets.Any()) { Done = true; return; }
-
-                StepToPlaceable(FirstTarget!, deltaSec, () =>
-                {
-                    state = State.PickupResources;
-                    Villager.PickupActionTime.Reset(
-                        Villager.PickupActionsPerSecond / WorldBuckets[0].GetPlannedResource(this).PickupSpeedMultiplier);
-                });
-                break;
-
-            case State.PickupResources:
-                Villager.PickupActionTime.AdvanceTime(deltaSec);
-                if (Villager.PickupActionTime.ConsumeActions() > 0)
-                {
-                    // remove the resource from the world and from our list of targets to hit and place it in our inventory
-                    var worldRB = WorldBuckets[0];
-                    WorldBuckets.Remove(worldRB);
-                    var plannedRB = worldRB.RemovePlannedResources(this);
-
-                    if (worldRB.IsAllEmpty)
-                        World.RemoveEntity(worldRB);
-
-                    Villager.Inventory.AddRange(plannedRB.ResourceQuantities);
-
-                    // sort the events for distance to our new position
-                    WorldBuckets.Sort((a, b) => (a.Center - Villager.Center).LengthSquared().CompareTo((b.Center - Villager.Center).LengthSquared()));
-
-                    state = State.MoveToResource;
-                    return;
-                }
-                break;
-
-            default: throw new NotImplementedException();
-        }
-    }
 }
 
-public class StoreInventoryAIPlan : AIPlan
+public class StoreInventoryAIPlan : TypedAIPlan<Building>
 {
-    readonly Building storage;
-
-    public StoreInventoryAIPlan(World world, Villager villager, Building storage) : base(world, villager, false) => this.storage = storage;
-
-    public override PlaceableEntity? FirstTarget => storage;
-    public override string Description => $"Dropping resources off to {storage.Name}.";
-
-    enum State { MoveToStorage, StoreResources }
-    State state = State.MoveToStorage;
-
-    public override void Update(double deltaSec)
+    public StoreInventoryAIPlan(World world, Villager villager, Building storage) : base(world, villager, false, storage)
     {
-        switch (state)
+        Steps.Add(CreateMoveToPlaceableAIPlanStep(() => Villager.PickupActionTime.Reset(Villager.PickupActionsPerSecond / Villager.Inventory.PickupSpeedMultiplier)));
+        Steps.Add(new(deltaSec =>
         {
-            case State.MoveToStorage:
-                StepToPlaceable(FirstTarget!, deltaSec, () =>
-                {
-                    state = State.StoreResources;
-                    Villager.PickupActionTime.Reset(Villager.PickupActionsPerSecond / Villager.Inventory.PickupSpeedMultiplier);
-                });
-                break;
-            case State.StoreResources:
-                Villager.PickupActionTime.AdvanceTime(deltaSec);
-                if (Villager.PickupActionTime.ConsumeActions() > 0)
-                {
-                    storage.Inventory.Add(Villager.Inventory, true);
-                    Done = true;
-                }
-                break;
-        }
+            if (Villager.PickupActionTime.AdvanceTimeAndConsumeActions(deltaSec) > 0)
+            {
+                PeekTarget()!.Inventory.Add(Villager.Inventory, true);
+                return AIPlanStepResult.NextStep;
+            }
+            return AIPlanStepResult.Stay;
+        }));
     }
+
+    public override string Description => $"Dropping resources off to {PeekTarget()!.Name}.";
 }
 
-public class BuildAIPlan : AIPlan
+public class BuildAIPlan : TypedAIPlan<Building>
 {
-    readonly Building building;
-
-    public BuildAIPlan(World world, Villager villager, Building building) : base(world, villager, false) => this.building = building;
-
-    public override PlaceableEntity? FirstTarget => building;
-    public override string Description => $"Building {building.Name}.";
-
-    enum State { MoveToBuilding, Build }
-    State state = State.MoveToBuilding;
-
-    public override void Update(double deltaSec)
+    public BuildAIPlan(World world, Villager villager, Building building) : base(world, villager, false, building)
     {
-        switch (state)
+        Steps.Add(CreateMoveToPlaceableAIPlanStep(() =>
         {
-            case State.MoveToBuilding:
-                StepToPlaceable(FirstTarget!, deltaSec, () =>
-                {
-                    state = State.Build;
-                    Villager.WorkActionTime.Reset(Villager.WorkActionsPerSecond);
-
-                    World.StartWork(building, Villager);
-                });
-                break;
-            case State.Build:
-                Villager.WorkActionTime.AdvanceTime(deltaSec);
-                if (Villager.WorkActionTime.ConsumeActions() > 0 && --building.BuildWorkTicks <= 0)
-                {
-                    (building.IsBuilt, Done) = (true, true);
-                    World.EndWork(building, Villager);
-                    building.Inventory.Clear();
-                }
-
-                break;
-        }
+            Villager.WorkActionTime.Reset(Villager.WorkActionsPerSecond);
+            World.StartWork(PeekTarget()!, Villager);
+        }));
+        Steps.Add(new(deltaSec =>
+        {
+            var building = PeekTarget()!;
+            if (Villager.WorkActionTime.AdvanceTimeAndConsumeActions(deltaSec) > 0 && --building.BuildWorkTicks <= 0)
+            {
+                building.IsBuilt = true;
+                World.EndWork(building, Villager);
+                building.Inventory.Clear();
+                return AIPlanStepResult.End;
+            }
+            return AIPlanStepResult.Stay;
+        }));
     }
+
+    public override string Description => $"Building {PeekTarget()?.Name}.";
 }
 
-public class ChopTreeAIPlan : AIPlan
+public class ChopTreeAIPlan : TypedAIPlan<Tree>
 {
-    readonly Tree tree;
-
-    public ChopTreeAIPlan(World world, Villager villager, Tree tree) : base(world, villager, false) => this.tree = tree;
-
-    public override PlaceableEntity? FirstTarget => tree;
-    public override string Description => $"Chopping {tree.Name} tree.";
-
-    enum State { MoveToTree, Build }
-    State state = State.MoveToTree;
-
-    public override void Update(double deltaSec)
+    public ChopTreeAIPlan(World world, Villager villager, Tree tree) : base(world, villager, false, tree)
     {
-        switch (state)
+        Steps.Add(CreateMoveToPlaceableAIPlanStep(() =>
         {
-            case State.MoveToTree:
-                StepToPlaceable(FirstTarget!, deltaSec, () =>
-                {
-                    state = State.Build;
-                    Villager.WorkActionTime.Reset(Villager.WorkActionsPerSecond);
-
-                    World.StartWork(tree, Villager);
-                });
-                break;
-            case State.Build:
-                Villager.WorkActionTime.AdvanceTime(deltaSec);
-                if (Villager.WorkActionTime.ConsumeActions() > 0 && --tree.WorkTicks <= 0)
-                {
-                    Done = true;
-                    World.EndWork(tree, Villager);
-                    tree.Inventory.Location = tree.Location;
-                    World.RemoveEntity(tree);
-                    World.PlaceEntity(tree.Inventory);
-                }
-
-                break;
-        }
+            Villager.WorkActionTime.Reset(Villager.WorkActionsPerSecond);
+            World.StartWork(tree, Villager);
+        }));
+        Steps.Add(new(deltaSec =>
+        {
+            if (Villager.WorkActionTime.AdvanceTimeAndConsumeActions(deltaSec) > 0 && --tree.WorkTicks <= 0)
+            {
+                World.EndWork(tree, Villager);
+                tree.Inventory.Location = tree.Location;
+                World.RemoveEntity(tree);
+                World.PlaceEntity(tree.Inventory);
+                return AIPlanStepResult.End;
+            }
+            return AIPlanStepResult.Stay;
+        }));
     }
+
+    public override string Description => $"Chopping {PeekTarget()?.Name} tree.";
 }
 
 public class EatAIPlan : AIPlan
 {
-    public List<ResourceBucket> WorldBuckets { get; } = new();
-
-    public EatAIPlan(World world, Villager villager) : base(world, villager, true) { }
-
-    public override PlaceableEntity? FirstTarget => WorldBuckets.FirstOrDefault();
-    public override string Description => $"Eating.";
-
-    public override void Update(double deltaSec)
-    {
-        Villager.EatActionTime.AdvanceTime(deltaSec);
-        if (Villager.EatActionTime.ConsumeActions() > 0)
+    public EatAIPlan(World world, Villager villager) : base(world, villager, true) =>
+        Steps.Add(new(deltaSec =>
         {
-            Villager.Needs.UpdateWithChanges(new() { Hunger = -Villager.Inventory.AvailableResourceQuantities.Sum(rq => rq.Resource.Nourishment * rq.Quantity) });
-            Villager.Inventory.Clear();
-            Done = true;
-        }
-    }
+            if (Villager.EatActionTime.AdvanceTimeAndConsumeActions(deltaSec) > 0)
+            {
+                Villager.Needs.UpdateWithChanges(new() { Hunger = -Villager.Inventory.AvailableResourceQuantities.Sum(rq => rq.Resource.Nourishment * rq.Quantity) });
+                Villager.Inventory.Clear();
+                return AIPlanStepResult.End;
+            }
+            return AIPlanStepResult.Stay;
+        }));
+
+    public override string Description => $"Eating.";
 }
 
 class AIManager
@@ -280,10 +250,10 @@ class AIManager
                 .OrderBy(rb => (rb.Center - villager.Center).LengthSquared()))
             {
                 if (rb.PlanResouces(pickupPlan, ref availableCarryWeight, buildingSite.BuildCost))
-                    pickupPlan.WorldBuckets.Add(rb);
+                    pickupPlan.EnqueueTarget(rb);
             }
 
-            if (pickupPlan.WorldBuckets.Any())
+            if (pickupPlan.Targets.Any())
             {
                 // plan the storage
                 var storePlan = new StoreInventoryAIPlan(world, villager, buildingSite);
@@ -315,9 +285,9 @@ class AIManager
             var availableCarryWeight = world.Configuration.Data.BaseCarryWeight - villager.Inventory.AvailableWeight;
             foreach (var rb in world.GetEntities<ResourceBucket>().OrderBy(rb => (rb.Center - closestAvailableStorage.Center).LengthSquared()))
                 if (availableCarryWeight > 0 && rb.PlanResouces(plan, ref availableCarryWeight))
-                    plan.WorldBuckets.Add(rb);
+                    plan.EnqueueTarget(rb);
 
-            ok = plan.WorldBuckets.Any();
+            ok = plan.Targets.Any();
             if (ok)
             {
                 // plan the storage
@@ -340,7 +310,7 @@ class AIManager
 
         var pickupPlan = new ResourcePickupAIPlan(world, villager);
         var availableCarryWeight = world.Configuration.Data.BaseCarryWeight - villager.Inventory.AvailableWeight;
-        var neededNourishment = villager.Needs.HungerMax - villager.Needs.Hunger - 0.05 * villager.Needs.HungerMax;
+        var neededNourishment = villager.Needs.Hunger - 0.05 * villager.Needs.HungerMax;
 
         foreach (var rb in world.GetEntities().Where(e => (e is ResourceBucket rb && !rb.IsAvailableEmpty) || (e is Building { Type: BuildingType.Storage, IsBuilt: true } building && !building.Inventory.IsAvailableEmpty))
             .Select(e => e is ResourceBucket rb ? rb : ((Building)e).Inventory)
@@ -348,17 +318,19 @@ class AIManager
         {
             if (rb.PlanResouces(pickupPlan, ref availableCarryWeight, globalFilter: (r, q) => r.Nourishment > 0 ? q : 0,
                 incrementalFilter: (r, q) =>
-                 {
-                     var usefulQuantity = Math.Min(q, Math.Ceiling(neededNourishment / r.Nourishment));
-                     neededNourishment -= usefulQuantity * r.Nourishment;
-                     return usefulQuantity;
-                 }))
+                {
+                    var usefulQuantity = Math.Min(q, Math.Ceiling(neededNourishment / r.Nourishment));
+                    neededNourishment -= usefulQuantity * r.Nourishment;
+                    return usefulQuantity;
+                }))
             {
-                pickupPlan.WorldBuckets.Add(rb);
+                pickupPlan.EnqueueTarget(rb);
+
+                if (neededNourishment <= 0) break;
             }
         }
 
-        if (pickupPlan.WorldBuckets.Any())
+        if (pickupPlan.Targets.Any())
         {
             // plan the eating
             var eatPlan = new EatAIPlan(world, villager);
@@ -374,6 +346,16 @@ class AIManager
         return false;
     }
 
+    static bool IsEmergencyPlan(AIPlan? aIPlan)
+    {
+        while (aIPlan is not null)
+        {
+            if (aIPlan.IsEmergency) return true;
+            aIPlan = aIPlan.NextPlan;
+        }
+        return false;
+    }
+
     readonly List<Villager> updateVillagersList = new();
     public void Update(double deltaSec)
     {
@@ -381,11 +363,18 @@ class AIManager
         updateVillagersList.AddRange(world.GetEntities<Villager>());
         foreach (var villager in updateVillagersList)
         {
-            // emergency plans interrupt other plans
-            if (villager.AIPlan?.IsEmergency != true)
+            // priority, but non-emergency plans
+            if (villager.AIPlan is null)
             {
                 // hungry?
                 _ = villager.Needs.HungerPercentage > .6 && TryEatingPlan(villager);
+            }
+
+            // emergency plans interrupt other plans
+            if (!IsEmergencyPlan(villager.AIPlan))
+            {
+                // hungry?
+                _ = villager.Needs.HungerPercentage > .8 && TryEatingPlan(villager);
             }
 
             if (villager.AIPlan is null)
@@ -394,6 +383,6 @@ class AIManager
             villager.AIPlan?.Update(deltaSec);
         }
 
-        world.GetEntities<Villager>().Where(v => v.AIPlan?.Done == true).ForEach(v => { v.AIPlan!.DoneAction?.Invoke(); v.AIPlan = v.AIPlan?.NextPlan; });
+        world.GetEntities<Villager>().Where(v => v.AIPlan?.Done == true).ForEach(v => { v.AIPlan!.DoneAction?.Invoke(); v.AIPlan = v.AIPlan!.NextPlan; });
     }
 }

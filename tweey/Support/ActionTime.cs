@@ -19,4 +19,10 @@ public class ActionTime
         timerSec -= actionCount / ActionsPerSecond;
         return actionCount;
     }
+
+    public int AdvanceTimeAndConsumeActions(double deltaSec)
+    {
+        AdvanceTime(deltaSec);
+        return ConsumeActions();
+    }
 }

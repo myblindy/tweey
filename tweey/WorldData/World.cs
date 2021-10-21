@@ -24,10 +24,10 @@ public class World
         (Resources, Configuration, aiManager, soundManager) = (new(loader), new(loader), new(this), new(this));
         (BuildingTemplates, TreeTemplates) = (new(loader, Resources), new(loader, Resources));
 
-        StartedJob += soundManager.OnStartedJob;
-        EndedBuildingJob += soundManager.OnEndedJob;
-        PlacedBuilding += soundManager.OnPlacedBuilding;
-        CurrentBuildingTemplateChanged += soundManager.OnCurrentBuildingTemplateChanged;
+        //StartedJob += soundManager.OnStartedJob;
+        //EndedBuildingJob += soundManager.OnEndedJob;
+        //PlacedBuilding += soundManager.OnPlacedBuilding;
+        //CurrentBuildingTemplateChanged += soundManager.OnCurrentBuildingTemplateChanged;
     }
 
     public void PlaceEntity(PlaceableEntity entity)
