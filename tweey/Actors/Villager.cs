@@ -2,10 +2,10 @@
 
 public class Villager : PlaceableEntity
 {
-    public Villager(ConfigurationData configurationData)
+    public Villager(string name, ConfigurationData configurationData)
     {
-        (Width, Height, MovementActionTime, PickupActionsPerSecond, WorkActionsPerSecond, EatActionsPerSecond) =
-            (1, 1, new(configurationData.BaseMovementSpeed), configurationData.BasePickupSpeed, configurationData.BaseWorkSpeed, configurationData.BaseEatSpeed);
+        (Name, Width, Height, MovementActionTime, PickupActionsPerSecond, WorkActionsPerSecond, EatActionsPerSecond) =
+            (name, 1, 1, new(configurationData.BaseMovementSpeed), configurationData.BasePickupSpeed, configurationData.BaseWorkSpeed, configurationData.BaseEatSpeed);
 
         Needs = new()
         {
@@ -16,7 +16,7 @@ public class Villager : PlaceableEntity
 
     public void Update(double deltaSec) => Needs.Update(deltaSec);
 
-    public override string? Name { get; set; }
+    public override string Name { get; set; }
 
     public Needs Needs { get; }
 

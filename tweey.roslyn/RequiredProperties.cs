@@ -23,13 +23,13 @@ public class RequiredPropertiesSourceGen : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context) =>
         context.RegisterPostInitializationOutput(ctx =>
-        {
-            ctx.AddSource("RequiredPropertiesSourceGen.cs", @"
-using System;
+            ctx.AddSource("RequiredPropertiesSourceGen.cs", $$"""
+                using System;
 
-[AttributeUsage(AttributeTargets.Property)]
-public sealed class RequiredPropertyAttribute: Attribute { }");
-        });
+                [AttributeUsage(AttributeTargets.Property)]
+                {{Common.GeneratedCodeAttributeText}}
+                public sealed class RequiredPropertyAttribute: Attribute { }
+                """));
 }
 
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

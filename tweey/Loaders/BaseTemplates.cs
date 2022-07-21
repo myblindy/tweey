@@ -2,7 +2,7 @@
 
 public interface ITemplateFileName
 {
-    string? FileName { get; set; }
+    string FileName { get; set; }
 }
 
 public abstract class BaseTemplates<TIn, TVal> : IEnumerable<string> where TVal : ITemplateFileName

@@ -11,11 +11,11 @@ public class ResourceIn
 
 public class Resource : ITemplateFileName
 {
-    public string? Name { get; set; }
+    public string Name { get; set; } = null!;
     public double Weight { get; set; }
     public double PickupSpeedMultiplier { get; set; }
     public double Nourishment { get; set; }
-    public string? FileName { get; set; }
+    public string FileName { get; set; } = null!;
 }
 
 public record ResourceQuantity(Resource Resource)
