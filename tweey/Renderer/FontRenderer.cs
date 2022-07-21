@@ -20,7 +20,7 @@ public class FontRenderer : IDisposable
     readonly FontCollection fontCollection;
     readonly FontFamily regularFontFamily;
 
-    readonly Dictionary<FontDescription, Font> fonts = new();
+    readonly Dictionary<FontDescription, TextOptions> fonts = new();
     readonly Dictionary<(FontDescription fontDescription, char ch), (AtlasEntry entry, Vector2i pixelSize)> fontAtlasEntries = new();
 
     Image<Bgra32>? tempImage;
@@ -69,15 +69,19 @@ public class FontRenderer : IDisposable
         if (!fontAtlasEntries.TryGetValue((fontDescription, ch), out var fullAtlasEntry))
         {
             // get the font
-            if (!fonts.TryGetValue(fontDescription, out var font))
+            if (!fonts.TryGetValue(fontDescription, out var textOptions))
             {
                 var (fontfamily, fontStyle) = GetFontFamily(fontDescription);
-                fonts[fontDescription] = font = fontfamily.CreateFont(fontDescription.Size, fontStyle);
+                fonts[fontDescription] = textOptions = new(fontfamily.CreateFont(fontDescription.Size, fontStyle))
+                {
+                    HintingMode = HintingMode.None,
+                    KerningMode = KerningMode.Normal,
+                    ColorFontSupport = ColorFontSupport.MicrosoftColrFormat
+                };
             }
 
             // measure the character
             var s = ch.ToString();
-            var textOptions = new TextOptions(font) { ApplyHinting = true, KerningMode = KerningMode.Normal, ColorFontSupport = ColorFontSupport.MicrosoftColrFormat };
             var fontRect = TextMeasurer.Measure(s, textOptions);
             var (width, height) = ((int)MathF.Ceiling(fontRect.Right), (int)MathF.Ceiling(fontRect.Bottom) + 3);
 

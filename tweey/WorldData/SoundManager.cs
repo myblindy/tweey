@@ -89,4 +89,7 @@ class SoundManager
         foreach (var soundSource in tempDoneNonLoopingSoundSources)
             AL.DeleteSource(soundSource);
     }
+
+    float volume = 1f;
+    public float Volume { get => volume; set => AL.Listener(ALListenerf.Gain, volume = value); }
 }

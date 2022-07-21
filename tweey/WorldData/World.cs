@@ -21,13 +21,13 @@ public class World
 
     public World(ILoader loader)
     {
-        (Resources, Configuration, aiManager, soundManager) = (new(loader), new(loader), new(this), new(this));
+        (Resources, Configuration, aiManager, soundManager) = (new(loader), new(loader), new(this), new(this) { Volume = .1f });
         (BuildingTemplates, TreeTemplates) = (new(loader, Resources), new(loader, Resources));
 
-        //StartedJob += soundManager.OnStartedJob;
-        //EndedBuildingJob += soundManager.OnEndedJob;
-        //PlacedBuilding += soundManager.OnPlacedBuilding;
-        //CurrentBuildingTemplateChanged += soundManager.OnCurrentBuildingTemplateChanged;
+        StartedJob += soundManager.OnStartedJob;
+        EndedBuildingJob += soundManager.OnEndedJob;
+        PlacedBuilding += soundManager.OnPlacedBuilding;
+        CurrentBuildingTemplateChanged += soundManager.OnCurrentBuildingTemplateChanged;
     }
 
     public void PlaceEntity(PlaceableEntity entity)
