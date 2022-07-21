@@ -30,7 +30,7 @@ public class FontRenderer : IDisposable
     {
         this.backingTextureAtlas = backingTextureAtlas;
         fontCollection = new();
-        regularFontFamily = fontCollection.Add("Data/Fonts/OpenSans-Regular.ttf");
+        regularFontFamily = fontCollection.Add("Data/Fonts/OpenSans-Regular.woff2");
     }
 
     (FontFamily, FontStyle) GetFontFamily(FontDescription fontDescription) => (fontDescription.Bold, fontDescription.Italic) switch
@@ -77,16 +77,17 @@ public class FontRenderer : IDisposable
 
             // measure the character
             var s = ch.ToString();
-            var renderOptions = new TextOptions(font) { ApplyHinting = true, ColorFontSupport = ColorFontSupport.MicrosoftColrFormat };
-            var fontRect = TextMeasurer.Measure(s, renderOptions);
+            var textOptions = new TextOptions(font) { ApplyHinting = true, KerningMode = KerningMode.Normal, ColorFontSupport = ColorFontSupport.MicrosoftColrFormat };
+            var fontRect = TextMeasurer.Measure(s, textOptions);
             var (width, height) = ((int)MathF.Ceiling(fontRect.Right), (int)MathF.Ceiling(fontRect.Bottom) + 3);
 
             // draw the character
+            textOptions.Origin = new(fontRect.Left, fontRect.Top);
             EnsureTempImage(width + (int)MathF.Floor(fontRect.Left), height + (int)MathF.Floor(fontRect.Top));
             fontAtlasEntries[(fontDescription, ch)] = fullAtlasEntry = (backingTextureAtlas.AddFromImage(tempImage, width, height, atlasPosition =>
                 tempImage.Mutate(ctx => ctx
                     .Clear(Color.Transparent)
-                    .DrawText(s, font, Color.White, new(fontRect.Left, fontRect.Top)))), new(width, height));
+                    .DrawText(textOptions, s, Color.White))), new(width, height));
         }
 
         return fullAtlasEntry;
