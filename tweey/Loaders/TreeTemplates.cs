@@ -20,6 +20,7 @@ public class TreeTemplateIn
 {
     public string Name { get; set; } = null!;
     public int WorkTicks { get; set; }
+    [SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "System.Text.Json doesn't support this")]
     public List<TreeResouceTemplateIn>? ContainingResources { get; set; }
 }
 

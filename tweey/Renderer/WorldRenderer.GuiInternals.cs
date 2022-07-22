@@ -20,32 +20,34 @@ partial class WorldRenderer
         vaoGui.Vertices.Add(new(box.TopLeft * zoom, color, entry.TextureCoordinate0));
     }
 
-    void ScreenString(string s, FontDescription fontDescription, Vector2 location, Vector4 color, HorizontalAlignment horizontalAlignment = HorizontalAlignment.Left) =>
-        fontRenderer.Render(s, fontDescription, location.ToVector2i(), (box, atlasEntry) => ScreenFillQuad(box, color, atlasEntry, false),
-            horizontalAlignment);
+    void ScreenString(string s, FontDescription fontDescription, Vector2 location, Vector4 fgColor, Vector4 bgColor, HorizontalAlignment horizontalAlignment = HorizontalAlignment.Left) =>
+        fontRenderer.Render(s, fontDescription, location.ToVector2i(),
+            box =>
+            {
+                if (bgColor.W > 0)
+                    ScreenFillQuad(box, bgColor, blankAtlasEntry!, false);
+            },
+            (box, atlasEntry) => ScreenFillQuad(box, fgColor, atlasEntry, false), horizontalAlignment);
 
     void ScreenLine(Box2 box1, Box2 box2, Vector4 color)
     {
-        var blankEntry = atlas[GrowableTextureAtlas3D.BlankName];
-
-        vaoGui.Vertices.Add(new((box1.Center + new Vector2(.5f, .5f)) * pixelZoom, color, blankEntry.TextureCoordinate0));
-        vaoGui.Vertices.Add(new((box2.Center + new Vector2(.5f, .5f)) * pixelZoom, color, blankEntry.TextureCoordinate1));
+        vaoGui.Vertices.Add(new((box1.Center + new Vector2(.5f, .5f)) * pixelZoom, color, blankAtlasEntry!.TextureCoordinate0));
+        vaoGui.Vertices.Add(new((box2.Center + new Vector2(.5f, .5f)) * pixelZoom, color, blankAtlasEntry!.TextureCoordinate1));
     }
 
     void ScreenLineQuad(Box2 box, Vector4 color, bool useScale = true)
     {
-        var blankEntry = atlas[GrowableTextureAtlas3D.BlankName];
         var zoom = useScale ? pixelZoom : 1;
         var br = box.BottomRight + Vector2.One;
 
-        vaoGui.Vertices.Add(new(box.TopLeft * zoom, color, blankEntry.TextureCoordinate0));
-        vaoGui.Vertices.Add(new(new((box.Right + 1) * zoom, box.Top * zoom), color, new(blankEntry.TextureCoordinate1.X, blankEntry.TextureCoordinate0.Y, blankEntry.TextureCoordinate0.Z)));
-        vaoGui.Vertices.Add(new(new(box.Left * zoom, (box.Bottom + 1) * zoom), color, new(blankEntry.TextureCoordinate0.X, blankEntry.TextureCoordinate1.Y, blankEntry.TextureCoordinate0.Z)));
-        vaoGui.Vertices.Add(new(br * zoom, color, blankEntry.TextureCoordinate1));
-        vaoGui.Vertices.Add(new(box.TopLeft * zoom, color, blankEntry.TextureCoordinate0));
-        vaoGui.Vertices.Add(new(new(box.Left * zoom, (box.Bottom + 1) * zoom), color, new(blankEntry.TextureCoordinate0.X, blankEntry.TextureCoordinate1.Y, blankEntry.TextureCoordinate0.Z)));
-        vaoGui.Vertices.Add(new(new((box.Right + 1) * zoom, box.Top * zoom), color, new(blankEntry.TextureCoordinate1.X, blankEntry.TextureCoordinate0.Y, blankEntry.TextureCoordinate0.Z)));
-        vaoGui.Vertices.Add(new(br * zoom, color, blankEntry.TextureCoordinate1));
+        vaoGui.Vertices.Add(new(box.TopLeft * zoom, color, blankAtlasEntry!.TextureCoordinate0));
+        vaoGui.Vertices.Add(new(new((box.Right + 1) * zoom, box.Top * zoom), color, new(blankAtlasEntry.TextureCoordinate1.X, blankAtlasEntry.TextureCoordinate0.Y, blankAtlasEntry.TextureCoordinate0.Z)));
+        vaoGui.Vertices.Add(new(new(box.Left * zoom, (box.Bottom + 1) * zoom), color, new(blankAtlasEntry.TextureCoordinate0.X, blankAtlasEntry.TextureCoordinate1.Y, blankAtlasEntry.TextureCoordinate0.Z)));
+        vaoGui.Vertices.Add(new(br * zoom, color, blankAtlasEntry.TextureCoordinate1));
+        vaoGui.Vertices.Add(new(box.TopLeft * zoom, color, blankAtlasEntry.TextureCoordinate0));
+        vaoGui.Vertices.Add(new(new(box.Left * zoom, (box.Bottom + 1) * zoom), color, new(blankAtlasEntry.TextureCoordinate0.X, blankAtlasEntry.TextureCoordinate1.Y, blankAtlasEntry.TextureCoordinate0.Z)));
+        vaoGui.Vertices.Add(new(new((box.Right + 1) * zoom, box.Top * zoom), color, new(blankAtlasEntry.TextureCoordinate1.X, blankAtlasEntry.TextureCoordinate0.Y, blankAtlasEntry.TextureCoordinate0.Z)));
+        vaoGui.Vertices.Add(new(br * zoom, color, blankAtlasEntry.TextureCoordinate1));
     }
 
     View GetTemplatedView(View view) => view.ViewData.TemplatedView ?? view;
@@ -272,7 +274,7 @@ partial class WorldRenderer
                         HorizontalAlignment.Left => box.TopLeft + new Vector2(view.Margin.Left, view.Margin.Top),
                         HorizontalAlignment.Right => new(box.Right - view.Margin.Right, box.Top - view.Margin.Top),
                         _ => throw new NotImplementedException()
-                    }, labelForegroundColor, labelView.HorizontalTextAlignment);
+                    }, labelForegroundColor, Colors.Transparent, labelView.HorizontalTextAlignment);
                 break;
             case ProgressView progressView:
                 if (progressView.StringFormat?.Invoke() is { } stringFormat && !string.IsNullOrEmpty(stringFormat)
@@ -292,11 +294,11 @@ partial class WorldRenderer
                         HorizontalAlignment.Left => box.TopLeft + new Vector2(view.Margin.Left, view.Margin.Top),
                         HorizontalAlignment.Right => new(box.Right - view.Margin.Right, box.Top - view.Margin.Top),
                         _ => throw new NotImplementedException()
-                    }, progressView.TextColor, progressView.HorizontalTextAlignment);
+                    }, progressView.TextColor, Colors.Transparent, progressView.HorizontalTextAlignment);
                 }
                 break;
             case ImageView imageView:
-                if (imageView.Source?.Invoke() is { } src && !string.IsNullOrWhiteSpace(src)  && imageView.ForegroundColor?.Invoke() is { } imageForegroundColor)
+                if (imageView.Source?.Invoke() is { } src && !string.IsNullOrWhiteSpace(src) && imageView.ForegroundColor?.Invoke() is { } imageForegroundColor)
                     ScreenFillQuad(box.WithExpand(-view.Margin), imageForegroundColor, atlas[src], false);
                 break;
             case ButtonView buttonView:

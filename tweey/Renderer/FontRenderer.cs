@@ -52,18 +52,6 @@ public class FontRenderer : IDisposable
     public Vector2 Measure(char ch, FontDescription fontDescription) =>
         GetFullAtlasEntry(ch, fontDescription).pixelSize.ToNumericsVector2();
 
-    public void Render(char ch, FontDescription fontDescription, Vector2i position, Action<Box2, AtlasEntry> write,
-        HorizontalAlignment horizontalAlignment = HorizontalAlignment.Center, VerticalAlignment verticalAlignment = VerticalAlignment.Center)
-    {
-        var (entry, pixelSize) = GetFullAtlasEntry(ch, fontDescription);
-        write(horizontalAlignment switch
-        {
-            HorizontalAlignment.Left => Box2.FromCornerSize(position.ToNumericsVector2(), pixelSize.ToNumericsVector2()),
-            HorizontalAlignment.Right => Box2.FromCornerSize(new(position.X - pixelSize.X, position.Y), pixelSize.ToNumericsVector2()),
-            _ => throw new NotImplementedException()
-        }, entry);
-    }
-
     private (AtlasEntry entry, Vector2i pixelSize) GetFullAtlasEntry(char ch, FontDescription fontDescription)
     {
         if (!fontAtlasEntries.TryGetValue((fontDescription, ch), out var fullAtlasEntry))
@@ -109,27 +97,28 @@ public class FontRenderer : IDisposable
         return result;
     }
 
-    public void Render(ReadOnlySpan<char> s, FontDescription fontDescription, Vector2i position, Action<Box2, AtlasEntry> write,
+    static readonly List<(AtlasEntry entry, Vector2i pixelSize)> renderCache = new();
+    public void Render(ReadOnlySpan<char> s, FontDescription fontDescription, Vector2i position, Action<Box2>? measure, Action<Box2, AtlasEntry> write,
         HorizontalAlignment horizontalAlignment = HorizontalAlignment.Center, VerticalAlignment verticalAlignment = VerticalAlignment.Center)
     {
-        switch (horizontalAlignment)
+        renderCache.Clear();
+
+        foreach (var ch in s)
+            renderCache.Add(GetFullAtlasEntry(ch, fontDescription));
+        var sizeX = renderCache.Sum(w => w.pixelSize.X);
+
+        if (horizontalAlignment is HorizontalAlignment.Right)
+            position = new(position.X - sizeX, position.Y);
+        else if (horizontalAlignment is HorizontalAlignment.Center)
+            position = new(position.X - sizeX / 2, position.Y);
+
+        measure?.Invoke(Box2.FromCornerSize(position.ToNumericsVector2(), new(sizeX, renderCache.Max(w => w.pixelSize.Y))));
+
+        foreach (var (entry, pixelSize) in renderCache)
         {
-            case HorizontalAlignment.Left:
-                foreach (var ch in s)
-                    Render(ch, fontDescription, position, (box, atlasEntry) =>
-                    {
-                        write(box, atlasEntry);
-                        position += new Vector2i((int)MathF.Ceiling(box.Size.X), 0);
-                    }, horizontalAlignment, verticalAlignment);
-                break;
-            case HorizontalAlignment.Right:
-                for (int idx = s.Length - 1; idx >= 0; --idx)
-                    Render(s[idx], fontDescription, position, (box, atlasEntry) =>
-                    {
-                        write(box, atlasEntry);
-                        position -= new Vector2i((int)MathF.Ceiling(box.Size.X), 0);
-                    }, horizontalAlignment, verticalAlignment);
-                break;
+            var chBox = Box2.FromCornerSize(position.ToNumericsVector2(), pixelSize.ToNumericsVector2());
+            write(chBox, entry);
+            position += new Vector2i((int)MathF.Ceiling(chBox.Size.X), 0);
         }
     }
 

@@ -52,7 +52,7 @@ partial class WorldRenderer
     static string GetImagePath(BuildingTemplate building) => $"Data/Buildings/{building.FileName}.png";
     static string GetImagePath(Resource resource) => $"Data/Resources/{resource.FileName}.png";
     static string GetImagePath(Villager _) => $"Data/Misc/villager.png";
-    static string GetImagePath(Tree _) => $"Data/Trees/leafy.png";
+    static string GetImagePath(Tree tree) => $"Data/Trees/{tree.FileName}.png";
     static string GetImagePath(PlaceableEntity entity) => entity switch
     {
         BuildingTemplate buildingTemplate => GetImagePath(buildingTemplate),
@@ -63,44 +63,45 @@ partial class WorldRenderer
     };
     const string grassTilePath = "Data/Misc/grass.png";
 
+    AtlasEntry? grassAtlasEntry, blankAtlasEntry;
+
     public void Render(double deltaSec, double deltaUpdateTimeSec, double deltaRenderTimeSec)
     {
+        grassAtlasEntry ??= atlas[grassTilePath];
+        blankAtlasEntry ??= atlas[GrowableTextureAtlas3D.BlankName];
+
         // render the background
         var grassTileSize = 6;
         for (int y = 0; y < windowUbo.Data.WindowSize.Y / pixelZoom; y += grassTileSize)
             for (int x = 0; x < windowUbo.Data.WindowSize.X / pixelZoom; x += grassTileSize)
-                ScreenFillQuad(Box2.FromCornerSize(new(x, y), new(grassTileSize, grassTileSize)), new(.8f, .8f, .8f, 1), atlas[grassTilePath]);
+                ScreenFillQuad(Box2.FromCornerSize(new(x, y), new(grassTileSize, grassTileSize)), new(.8f, .8f, .8f, 1), grassAtlasEntry);
 
         // store the actual entities' vertices
         foreach (var entity in world.GetEntities().Append(world.CurrentBuildingTemplate))
             switch (entity)
             {
                 case Building building:
-                    {
-                        var color = building.Color;
-                        if (!building.IsBuilt) color *= new Vector4(1f, .4f, .4f, .4f);
-                        ScreenFillQuad(Box2.FromCornerSize(building.Location, building.Width, building.Height), color, atlas[GetImagePath(building)]);
-                        break;
-                    }
+                    var color = building.Color;
+                    if (!building.IsBuilt) color *= new Vector4(1f, .4f, .4f, .4f);
+                    ScreenFillQuad(Box2.FromCornerSize(building.Location, building.Width, building.Height), color, atlas[GetImagePath(building)]);
+                    break;
                 case BuildingTemplate buildingTemplate:
-                    {
-                        // template for building to build
-                        var box = buildingTemplate.GetBoxAtLocation(world.MouseWorldPosition.ToNumericsVector2());
-                        var valid = !world.GetEntities<Building>().Any(b => b.Box.Intersects(box));
-                        ScreenFillQuad(box, valid ? Colors.Lime : Colors.Red, atlas[GetImagePath(buildingTemplate)]);
-                        break;
-                    }
+                    // template for building to build
+                    var box = buildingTemplate.GetBoxAtLocation(world.MouseWorldPosition.ToNumericsVector2());
+                    var valid = !world.GetEntities<Building>().Any(b => b.Box.Intersects(box));
+                    ScreenFillQuad(box, valid ? Colors.Lime : Colors.Red, atlas[GetImagePath(buildingTemplate)]);
+                    break;
                 case Tree tree:
-                    {
-                        ScreenFillQuad(Box2.FromCornerSize(tree.Location, 1, 1), Colors.White, atlas[GetImagePath(tree)]);
-                        break;
-                    }
+                    ScreenFillQuad(Box2.FromCornerSize(tree.Location, 1, 1), Colors.White, atlas[GetImagePath(tree)]);
+                    break;
                 case ResourceBucket resourceBucket:
                     var resQ = resourceBucket.ResourceQuantities.Single(r => r.Quantity > 0);
                     ScreenFillQuad(Box2.FromCornerSize(resourceBucket.Location, 1, 1), Colors.White, atlas[GetImagePath(resQ.Resource)]);
                     break;
                 case Villager villager:
                     ScreenFillQuad(Box2.FromCornerSize(villager.Location, 1, 1), Colors.White, atlas[GetImagePath(villager)]);
+                    ScreenString(villager.Name, new() { Size = 16 }, new((villager.Location.X + .5f) * pixelZoom, villager.Location.Y * pixelZoom - 20),
+                        Colors.White, new(0, 0, 0, .4f), HorizontalAlignment.Center);
                     break;
             }
 
@@ -118,8 +119,8 @@ partial class WorldRenderer
                 ScreenLine(villager.Box, firstAiTarget.Box, Colors.Yellow);
 
         // selection box
-        if (world.SelectedEntity is not null)
-            ScreenLineQuad(world.SelectedEntity.Box, Colors.White);
+        if (world.SelectedEntity is { } selectedEntity)
+            ScreenLineQuad(selectedEntity.Box, Colors.White);
         var lineVertexCount = vaoGui.Vertices.Length - triVertexCount;
         vaoGui.UploadNewData();
 
