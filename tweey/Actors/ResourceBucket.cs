@@ -10,15 +10,15 @@ public class ResourceBucket : PlaceableEntity
         AddRange(rq);
     }
 
-    public override string? Name { get => ResourceQuantities.FirstOrDefault()?.Resource.Name; set => throw new NotImplementedException(); }
+    public override string Name { get => ResourceQuantities.FirstOrDefault()?.Resource.Name ?? "Empty Resource"; set => throw new NotImplementedException(); }
 
     readonly List<ResourceQuantity> resourceQuantities = new(), availableResourceQuantities = new();
 
     public ReadOnlyCollection<ResourceQuantity> ResourceQuantities { get; }
     public ReadOnlyCollection<ResourceQuantity> AvailableResourceQuantities { get; }
-    readonly Dictionary<ResourcePickupAIPlan, ResourceBucket> PlannedResourceBucket = new();
+    readonly Dictionary<AIPlan, ResourceBucket> PlannedResourceBucket = new();
 
-    public Building? Building;
+    public Building? Building { get; set; }
 
     public ResourceBucket Clone()
     {
@@ -32,11 +32,26 @@ public class ResourceBucket : PlaceableEntity
         return newRb;
     }
 
-    public bool PlanResouces(ResourcePickupAIPlan plan, ref double availableCarryWeight, ResourceBucket? costs = null)
+    /// <summary>
+    /// Set (some) resources from this <c>ResourceBucket</c> as planned, to later be removed (<see href="RemovePlannedResources"/>) or 
+    /// canceled to be brought back into the pool of available resources (<see href="CanelPlannedResources"/>).
+    /// </summary>
+    /// <param name="plan">The plan under which these resources are planned.</param>
+    /// <param name="availableCarryWeight">How much weight can be planned. This parameter will be updated with the weight left after the plan.</param>
+    /// <param name="costs">Costs describe which resources to gather and how many. If provided, this function will only consider those resources.</param>
+    /// <param name="globalFilter">Selector to (partially) filter out resources globally, before anything is actually planned. Return less than or the same as the quantity given.</param>
+    /// <param name="incrementalFilter">
+    /// Selector to (partially) filter out resources incrementally, as resources are planned. This is called once with the resources considered in sequence, 
+    /// to allow aggregation. Return less than or the same as the quantity given.
+    /// </param>
+    /// <returns>Whether or not anything was planned.</returns>
+    public bool PlanResouces(AIPlan plan, ref double availableCarryWeight, ResourceBucket? costs = null, Func<Resource, double, double>? globalFilter = null,
+        Func<Resource, double, double>? incrementalFilter = null)
     {
         ResourceBucket? plannedRB = null;
 
-        foreach (var rq in AvailableResourceQuantities.Where(rq => rq.Weight > 0))
+        var filteredAvailableResourceQuantities = globalFilter is null ? AvailableResourceQuantities : AvailableResourceQuantities.Select(rq => new ResourceQuantity(rq.Resource, globalFilter(rq.Resource, rq.Quantity)));
+        foreach (var rq in filteredAvailableResourceQuantities.Where(rq => rq.Weight > 0))
             if (Math.Min(rq.Quantity, Math.Floor(availableCarryWeight / rq.Resource.Weight)) is { } usedQuantity)
             {
                 if (costs is not null)
@@ -45,6 +60,10 @@ public class ResourceBucket : PlaceableEntity
                     usedQuantity = Math.Min(usedQuantity, maxCostQuantity);
                 }
                 if (usedQuantity <= 0) continue;
+
+                if (incrementalFilter is not null)
+                    if ((usedQuantity = incrementalFilter(rq.Resource, usedQuantity)) <= 0)
+                        continue;
 
                 var usedRQ = new ResourceQuantity(rq.Resource, usedQuantity);
                 InternalAdd(usedRQ, availableResourceQuantities, negative: true);
@@ -67,14 +86,26 @@ public class ResourceBucket : PlaceableEntity
         return plannedRB is not null;
     }
 
-    public ResourceBucket GetPlannedResource(ResourcePickupAIPlan plan) => PlannedResourceBucket[plan];
+    public ResourceBucket GetPlannedResource(AIPlan plan) => PlannedResourceBucket[plan];
 
-    public ResourceBucket RemovePlannedResources(ResourcePickupAIPlan plan)
+    public ResourceBucket RemovePlannedResources(AIPlan plan)
     {
         if (PlannedResourceBucket.Remove(plan, out var rb))
         {
             // remove it from the total resources as well now
             rb.ResourceQuantities.ForEach(rq => InternalAdd(rq, resourceQuantities, negative: true));
+            return rb;
+        }
+
+        throw new InvalidOperationException();
+    }
+
+    public ResourceBucket CancelPlannedResources(AIPlan plan)
+    {
+        if (PlannedResourceBucket.Remove(plan, out var rb))
+        {
+            // put it back in the pool of available resources
+            rb.ResourceQuantities.ForEach(rq => InternalAdd(rq, availableResourceQuantities));
             return rb;
         }
 

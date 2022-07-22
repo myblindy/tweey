@@ -1,34 +1,36 @@
 ﻿namespace Tweey.Renderer;
 
-public struct FontDescription
+public struct FontDescription : IEquatable<FontDescription>
 {
     public float Size { get; init; }
     public bool Bold { get; init; }
     public bool Italic { get; init; }
 
-    public override bool Equals(object? obj) => obj is FontDescription description && Size == description.Size && Bold == description.Bold && Italic == description.Italic;
+    public bool Equals(FontDescription other) => Size == other.Size && Bold == other.Bold && Italic == other.Italic;
+    public override bool Equals(object? obj) => obj is FontDescription description && Equals(description);
     public override int GetHashCode() => HashCode.Combine(Size, Bold, Italic);
 
     public static bool operator ==(FontDescription left, FontDescription right) => left.Equals(right);
     public static bool operator !=(FontDescription left, FontDescription right) => !(left == right);
 }
 
-public class FontRenderer
+public class FontRenderer : IDisposable
 {
     readonly GrowableTextureAtlas3D backingTextureAtlas;
     readonly FontCollection fontCollection;
     readonly FontFamily regularFontFamily;
 
-    readonly Dictionary<FontDescription, Font> fonts = new();
+    readonly Dictionary<FontDescription, TextOptions> fonts = new();
     readonly Dictionary<(FontDescription fontDescription, char ch), (AtlasEntry entry, Vector2i pixelSize)> fontAtlasEntries = new();
 
     Image<Bgra32>? tempImage;
+    bool disposedValue;
 
     public FontRenderer(GrowableTextureAtlas3D backingTextureAtlas)
     {
         this.backingTextureAtlas = backingTextureAtlas;
         fontCollection = new();
-        regularFontFamily = fontCollection.Install("Data/Fonts/OpenSans-Regular.ttf");
+        regularFontFamily = fontCollection.Add("Data/Fonts/OpenSans-Regular.woff2");
     }
 
     (FontFamily, FontStyle) GetFontFamily(FontDescription fontDescription) => (fontDescription.Bold, fontDescription.Italic) switch
@@ -41,10 +43,11 @@ public class FontRenderer
     void EnsureTempImage(int width, int height)
     {
         if (tempImage is null || tempImage.Width < width || tempImage.Height < height)
+        {
+            tempImage?.Dispose();
             tempImage = new Image<Bgra32>(width + 20, height + 20);
+        }
     }
-
-    static readonly DrawingOptions drawingOptions = new() { TextOptions = { ApplyKerning = true, RenderColorFonts = true } };
 
     public Vector2 Measure(char ch, FontDescription fontDescription) =>
         GetFullAtlasEntry(ch, fontDescription).pixelSize.ToNumericsVector2();
@@ -66,24 +69,29 @@ public class FontRenderer
         if (!fontAtlasEntries.TryGetValue((fontDescription, ch), out var fullAtlasEntry))
         {
             // get the font
-            if (!fonts.TryGetValue(fontDescription, out var font))
+            if (!fonts.TryGetValue(fontDescription, out var textOptions))
             {
                 var (fontfamily, fontStyle) = GetFontFamily(fontDescription);
-                fonts[fontDescription] = font = fontfamily.CreateFont(fontDescription.Size, fontStyle);
+                fonts[fontDescription] = textOptions = new(fontfamily.CreateFont(fontDescription.Size, fontStyle))
+                {
+                    HintingMode = HintingMode.None,
+                    KerningMode = KerningMode.Normal,
+                    ColorFontSupport = ColorFontSupport.MicrosoftColrFormat
+                };
             }
 
             // measure the character
             var s = ch.ToString();
-            var renderOptions = new RendererOptions(font) { ApplyKerning = true, ColorFontSupport = ColorFontSupport.MicrosoftColrFormat };
-            var fontRect = TextMeasurer.Measure(s, renderOptions);
+            var fontRect = TextMeasurer.Measure(s, textOptions);
             var (width, height) = ((int)MathF.Ceiling(fontRect.Right), (int)MathF.Ceiling(fontRect.Bottom) + 3);
 
             // draw the character
+            textOptions.Origin = new(fontRect.Left, fontRect.Top);
             EnsureTempImage(width + (int)MathF.Floor(fontRect.Left), height + (int)MathF.Floor(fontRect.Top));
             fontAtlasEntries[(fontDescription, ch)] = fullAtlasEntry = (backingTextureAtlas.AddFromImage(tempImage, width, height, atlasPosition =>
                 tempImage.Mutate(ctx => ctx
                     .Clear(Color.Transparent)
-                    .DrawText(drawingOptions, s, font, Color.White, new(fontRect.Left, fontRect.Top)))), new(width, height));
+                    .DrawText(textOptions, s, Color.White))), new(width, height));
         }
 
         return fullAtlasEntry;
@@ -123,5 +131,35 @@ public class FontRenderer
                     }, horizontalAlignment, verticalAlignment);
                 break;
         }
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposedValue)
+        {
+            if (disposing)
+            {
+                // managed state
+            }
+
+            // unmanaged state
+            tempImage?.Dispose();
+            tempImage = null;
+
+            disposedValue = true;
+        }
+    }
+
+    ~FontRenderer()
+    {
+        // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+        Dispose(disposing: false);
+    }
+
+    public void Dispose()
+    {
+        // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
     }
 }

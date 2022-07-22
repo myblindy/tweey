@@ -74,11 +74,11 @@ public class GrowableTextureAtlas3D
     {
         var (x, y, page) = FindAndMarkSpace(new(width, height));
         writeAction(new(x, y));
-        if (!image.TryGetSinglePixelSpan(out var imageBytes)) throw new NotImplementedException();
+        if (!image.DangerousTryGetSinglePixelMemory(out var imageBytes)) throw new NotImplementedException();
 
         GL.PixelStorei(PixelStoreParameter.UnpackAlignment, 1);
         GL.PixelStorei(PixelStoreParameter.UnpackRowLength, image.Width);
-        fixed (Bgra32* p = imageBytes)
+        fixed (Bgra32* p = imageBytes.Span)
             GL.TextureSubImage3D(handle, 0, x, y, page, width, height, 1, PixelFormat.Bgra, PixelType.UnsignedByte, p);
 
         var max = new Vector3(size.X - 1, size.Y - 1, pages - 1);
@@ -111,12 +111,12 @@ public class GrowableTextureAtlas3D
             {
                 var image = Image.Load<Bgra32>(path);
                 (width, height) = (image.Width, image.Height);
-                if (!image.TryGetSinglePixelSpan(out var imageBytes)) throw new NotImplementedException();
+                if (!image.DangerousTryGetSinglePixelMemory(out var imageBytes)) throw new InvalidOperationException();
 
                 (x, y, page) = FindAndMarkSpace(new(width, height));
                 GL.PixelStorei(PixelStoreParameter.UnpackAlignment, 1);
                 GL.PixelStorei(PixelStoreParameter.UnpackRowLength, 0);
-                fixed (Bgra32* p = imageBytes)
+                fixed (Bgra32* p = imageBytes.Span)
                     GL.TextureSubImage3D(handle, 0, x, y, page, width, height, 1, PixelFormat.Bgra, PixelType.UnsignedByte, p);
             }
 

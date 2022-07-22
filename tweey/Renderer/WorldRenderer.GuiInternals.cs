@@ -266,17 +266,18 @@ partial class WorldRenderer
                     RenderView(child);
                 break;
             case LabelView labelView:
-                if (labelView.Text is not null && labelView.Text() is { } text && !string.IsNullOrWhiteSpace(text))
+                if (labelView.Text?.Invoke() is { } text && !string.IsNullOrEmpty(text) && labelView.ForegroundColor.Invoke() is { } labelForegroundColor)
                     ScreenString(text, new() { Size = labelView.FontSize }, labelView.HorizontalTextAlignment switch
                     {
                         HorizontalAlignment.Left => box.TopLeft + new Vector2(view.Margin.Left, view.Margin.Top),
                         HorizontalAlignment.Right => new(box.Right - view.Margin.Right, box.Top - view.Margin.Top),
                         _ => throw new NotImplementedException()
-                    }, labelView.ForegroundColor, labelView.HorizontalTextAlignment);
+                    }, labelForegroundColor, labelView.HorizontalTextAlignment);
                 break;
             case ProgressView progressView:
-                if (progressView.StringFormat?.Invoke() is { } stringFormat && !string.IsNullOrWhiteSpace(stringFormat)
-                    && progressView.Maximum?.Invoke() is { } maximum && progressView.Value?.Invoke() is { } value)
+                if (progressView.StringFormat?.Invoke() is { } stringFormat && !string.IsNullOrEmpty(stringFormat)
+                    && progressView.Maximum?.Invoke() is { } maximum && progressView.Value?.Invoke() is { } value
+                    && progressView.ForegroundColor?.Invoke() is { } progressForegroundColor)
                 {
                     var borderOffset = progressView.BorderColor.W > 0;
                     if (borderOffset)
@@ -285,7 +286,7 @@ partial class WorldRenderer
                     box = box.WithExpand(new Thickness(-1));
                     if (progressView.BackgroundColor.W > 0)
                         ScreenFillQuad(box, progressView.BackgroundColor, atlas[GrowableTextureAtlas3D.BlankName], false);
-                    ScreenFillQuad(Box2.FromCornerSize(box.TopLeft, (float)(box.Size.X * value / maximum), box.Size.Y), progressView.ForegroundColor, atlas[GrowableTextureAtlas3D.BlankName], false);
+                    ScreenFillQuad(Box2.FromCornerSize(box.TopLeft, (float)(box.Size.X * value / maximum), box.Size.Y), progressForegroundColor, atlas[GrowableTextureAtlas3D.BlankName], false);
                     ScreenString(string.Format(stringFormat, value / maximum * 100), new() { Size = progressView.FontSize }, progressView.HorizontalTextAlignment switch
                     {
                         HorizontalAlignment.Left => box.TopLeft + new Vector2(view.Margin.Left, view.Margin.Top),
@@ -295,8 +296,8 @@ partial class WorldRenderer
                 }
                 break;
             case ImageView imageView:
-                if (imageView.Source is not null && imageView.Source() is { } src && !string.IsNullOrWhiteSpace(src))
-                    ScreenFillQuad(box.WithExpand(-view.Margin), imageView.ForegroundColor, atlas[src], false);
+                if (imageView.Source?.Invoke() is { } src && !string.IsNullOrWhiteSpace(src)  && imageView.ForegroundColor?.Invoke() is { } imageForegroundColor)
+                    ScreenFillQuad(box.WithExpand(-view.Margin), imageForegroundColor, atlas[src], false);
                 break;
             case ButtonView buttonView:
                 if (buttonView.Child is not null)

@@ -19,14 +19,10 @@
       "minimum": 0,
       "description": "The multiplier to be applied to a villager's pickup speed, on a per-resource basis."
     },
-    "color": {
-      "type": "array",
-      "minItems": 3,
-      "maxItems": 3,
-      "description": "The representative color of this resource.",
-      "items": {
-        "type": "number"
-      }
+    "nourishment": {
+      "type": "number",
+      "minimum": 0,
+      "description": "How much nourishment this item provides, 0 or nothing means it's inedible."
     }
   },
 

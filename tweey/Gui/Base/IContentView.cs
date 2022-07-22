@@ -2,5 +2,5 @@
 
 public interface IContentView
 {
-    public Vector4 ForegroundColor { get; set; }
+    public Func<Vector4> ForegroundColor { get; set; }
 }

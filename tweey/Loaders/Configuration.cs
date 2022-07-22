@@ -11,6 +11,9 @@ public class ConfigurationData
     public double BaseHungerMax { get; set; }
     public double BaseHungerPerRealTimeSecond { get; set; }
     public double TicksPerDay { get; set; }
+    public double BaseEatSpeed { get; set; }
+    public double BaseHungerPercentage { get; set; }
+    public double BaseHungerEmergencyPercentage { get; set; }
 }
 
 public class Configuration

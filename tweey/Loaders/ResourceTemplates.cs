@@ -4,18 +4,18 @@ public class ResourceIn
 {
     public string Name { get; set; }
     public double Weight { get; set; }
-    public float[] Color { get; set; }
     public double PickupSpeedMultiplier { get; set; }
+    public double Nourishment { get; set; }
 }
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
 public class Resource : ITemplateFileName
 {
-    public string? Name { get; set; }
+    public string Name { get; set; } = null!;
     public double Weight { get; set; }
-    public Vector4 Color { get; set; }
     public double PickupSpeedMultiplier { get; set; }
-    public string? FileName { get; set; }
+    public double Nourishment { get; set; }
+    public string FileName { get; set; } = null!;
 }
 
 public record ResourceQuantity(Resource Resource)

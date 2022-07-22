@@ -80,7 +80,7 @@ public class VertexSourceGen : IIncrementalGenerator
 
     public static IEnumerable<VertexStructure> EnumerateVertexStructures(SyntaxNode rootNode, SemanticModel semanticModel)
     {
-        foreach (var sd in rootNode.DescendantNodes().OfType<StructDeclarationSyntax>())
+        foreach (var sd in rootNode.DescendantNodes().Where(n => n.IsKind(SyntaxKind.StructDeclaration)).Cast<StructDeclarationSyntax>())
             if (sd.AttributeLists.SelectMany(a => a.Attributes).Any(a => a.Name is IdentifierNameSyntax ins && ins.Identifier.Text is "VertexDefinition" or "VertexDefinitionAttribute"))
             {
                 var result = new VertexStructure { StructDeclarationSyntax = sd };
@@ -93,7 +93,7 @@ public class VertexSourceGen : IIncrementalGenerator
                         && a.ArgumentList.Arguments[0].Expression is MemberAccessExpressionSyntax mes0 && semanticModel.GetSymbolInfo(mes0.Expression).Symbol is ITypeSymbol mes0TypeSymbol && mes0TypeSymbol.ToDisplayString() == "System.Runtime.InteropServices.LayoutKind" && mes0.Name is IdentifierNameSyntax mes0ins && mes0ins.Identifier.Text == "Sequential"
                         && a.ArgumentList.Arguments.Any(w => w.NameEquals?.Name.Identifier.Text == "Pack" && semanticModel.GetConstantValue(w.Expression).Value is 1));
 
-                foreach (var field in sd.Members.OfType<FieldDeclarationSyntax>())
+                foreach (var field in sd.Members.Where(n => n.IsKind(SyntaxKind.FieldDeclaration)).Cast<FieldDeclarationSyntax>())
                     if (semanticModel.GetSymbolInfo(field.Declaration.Type).Symbol is INamedTypeSymbol namedTypeSymbol)
                     {
                         var fullTypeName = namedTypeSymbol.ToDisplayString();
@@ -112,17 +112,20 @@ public class VertexSourceGen : IIncrementalGenerator
         var inputs = context.CompilationProvider;
         context.RegisterSourceOutput(inputs, static (context, compilationProvider) =>
         {
-            var sb = new StringBuilder(@"
-using System;
-using OpenTK.Graphics.OpenGL;
+            var sb = new StringBuilder($$"""
+                using System;
+                using OpenTK.Graphics.OpenGL;
 
-[AttributeUsage(AttributeTargets.Struct)]
-public class VertexDefinitionAttribute: Attribute { }
+                {{Common.GeneratedCodeAttributeText}}
+                [AttributeUsage(AttributeTargets.Struct)]
+                public sealed class VertexDefinitionAttribute: Attribute { }
 
-public static class VertexDefinitionSetup
-{
-    public static void Setup(Type t, VertexArrayHandle va) 
-    {");
+                {{Common.GeneratedCodeAttributeText}}
+                public static class VertexDefinitionSetup
+                {
+                    public static void Setup(Type t, VertexArrayHandle va) 
+                    {
+                """);
 
             foreach (var tree in compilationProvider.SyntaxTrees)
                 if (tree.TryGetRoot(out var rootNode))

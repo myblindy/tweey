@@ -5,7 +5,7 @@ public abstract class PlaceableEntity
     public Vector2 Location { get; set; }
     public int Width { get; set; }
     public int Height { get; set; }
-    public abstract string? Name { get; set; }
+    public abstract string Name { get; set; }
 
     public Box2 Box => Box2.FromCornerSize(Location, Width, Height);
     public Box2 GetBoxAtLocation(Vector2 location) => Box2.FromCornerSize(location, Width, Height);

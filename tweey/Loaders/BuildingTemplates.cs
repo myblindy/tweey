@@ -4,12 +4,12 @@ public enum BuildingType { Production, Storage }
 
 public class BuildingTemplate : PlaceableEntity, ITemplateFileName
 {
-    public override string? Name { get; set; }
+    public override string Name { get; set; } = null!;
     public BuildingType Type { get; set; }
     public Vector4 Color { get; set; }
-    public string? FileName { get; set; }
+    public string FileName { get; set; } = null!;
     public int BuildWorkTicks { get; set; }
-    public ResourceBucket BuildCost { get; set; }
+    public ResourceBucket BuildCost { get; set; } = null!;
 }
 
 public class BuildingCostResouceTemplateIn
@@ -21,7 +21,7 @@ public class BuildingCostResouceTemplateIn
 public class BuildingCostTemplateIn
 {
     public int WorkTicks { get; set; }
-    public List<BuildingCostResouceTemplateIn>? Resources { get; set; }
+    public List<BuildingCostResouceTemplateIn>? Resources { get; } = new();
 }
 
 public class BuildingTemplateIn

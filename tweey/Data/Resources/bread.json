@@ -1,0 +1,7 @@
+{
+  "$schema": "./_schema.json",
+  "name": "Bread",
+  "weight": 0.1,
+  "pickupSpeedMultiplier": 1,
+  "nourishment": 50
+}

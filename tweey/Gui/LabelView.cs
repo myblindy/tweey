@@ -7,5 +7,5 @@ public class LabelView : View, IContentView
     public float FontSize { get; set; } = 12;
     public HorizontalAlignment HorizontalTextAlignment { get; set; } = HorizontalAlignment.Left;
     public Func<string?>? Text { get; set; }
-    public Vector4 ForegroundColor { get; set; } = Colors.White;
+    public Func<Vector4> ForegroundColor { get; set; } = () => Colors.White;
 }

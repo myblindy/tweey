@@ -2,14 +2,14 @@
 
 public interface ITemplateFileName
 {
-    string? FileName { get; set; }
+    string FileName { get; set; }
 }
 
 public abstract class BaseTemplates<TIn, TVal> : IEnumerable<string> where TVal : ITemplateFileName
 {
     readonly ImmutableDictionary<string, TVal> resources;
 
-    public BaseTemplates(ILoader loader, string subFolder, Func<TVal, string> keySelector, object? mapperParameter = null)
+    protected BaseTemplates(ILoader loader, string subFolder, Func<TVal, string> keySelector, object? mapperParameter = null)
     {
         var options = Loader.BuildJsonOptions();
         resources = loader.GetAllJsonData($@"Data/{subFolder}").Values

@@ -34,18 +34,18 @@ partial class WorldRenderer
                                     new LabelView
                                     {
                                         Text = () => world.SelectedEntity is Building building ? building.IsBuilt ? "Building " : "Building Site "
-                                            : world.SelectedEntity is ResourceBucket ? "Resources"
-                                            : world.SelectedEntity is Villager ? "Villager"
-                                            : world.SelectedEntity is Tree ? "Tree"
+                                            : world.SelectedEntity is ResourceBucket ? "Resource "
+                                            : world.SelectedEntity is Villager ? "Villager "
+                                            : world.SelectedEntity is Tree ? "Tree "
                                             : throw new InvalidOperationException(),
                                         FontSize = 30,
-                                        ForegroundColor = descriptionColor
+                                        ForegroundColor = () => descriptionColor
                                     },
                                     new LabelView
                                     {
                                         Text = () => world.SelectedEntity!.Name,
                                         FontSize = 30,
-                                        ForegroundColor = highlightColor
+                                        ForegroundColor = () => highlightColor
                                     },
                                 }
                             },
@@ -56,13 +56,13 @@ partial class WorldRenderer
                                     : $"This is a {(world.SelectedEntity switch { Building => "building", Tree => "cute tree", _ => "fluffy resource" })}, it's just existing.",
                                 FontSize = defaultFontSize,
                                 MinHeight = () => 35,
-                                ForegroundColor = descriptionColor
+                                ForegroundColor = () => descriptionColor
                             },
                             new LabelView
                             {
                                 Text = () => "Needs:",
                                 FontSize = defaultFontSize,
-                                ForegroundColor = descriptionColor
+                                ForegroundColor = () => descriptionColor
                             },
                             new StackView(StackType.Horizontal)
                             {
@@ -73,16 +73,17 @@ partial class WorldRenderer
                                     new LabelView
                                     {
                                         Text = () => "Hunger",
-                                        ForegroundColor = descriptionColor,
+                                        ForegroundColor = () => descriptionColor,
                                         FontSize = defaultFontSize,
-                                        Padding = new(30, 0, 0, 0)
+                                        Padding = new(20, 0, 0, 0)
                                     },
                                     new ProgressView
                                     {
                                         Value = () => ((Villager)world.SelectedEntity!).Needs.Hunger,
                                         Maximum = () => ((Villager)world.SelectedEntity!).Needs.HungerMax,
                                         StringFormat = () => "{0:0.0}%",
-                                        ForegroundColor = Colors.DarkRed,
+                                        ForegroundColor = () => ((Villager)world.SelectedEntity!).Needs.Hunger / ((Villager)world.SelectedEntity!).Needs.HungerMax < ((Villager)world.SelectedEntity!).HungerThreshold 
+                                            ? Colors.DarkGreen : Colors.DarkRed,
                                         TextColor = descriptionColor,
                                         FontSize = defaultFontSize - 2,
                                         MinWidth = () => 120
@@ -93,10 +94,11 @@ partial class WorldRenderer
                             {
                                 Text = () => "Inventory:",
                                 FontSize = defaultFontSize,
-                                ForegroundColor = descriptionColor
+                                ForegroundColor = () => descriptionColor
                             },
                             new RepeaterView<ResourceQuantity>
                             {
+                                Padding = new(20, 0, 0, 0),
                                 Source = () => world.SelectedEntity switch
                                 {
                                     Villager villager => villager.Inventory.ResourceQuantities.Where(rq => rq.Quantity > 0),
@@ -117,7 +119,7 @@ partial class WorldRenderer
                                             MinWidth = () => 50,
                                             Margin = new(0,0,10,0),
                                             HorizontalTextAlignment = HorizontalAlignment.Right,
-                                            ForegroundColor = highlightColor
+                                            ForegroundColor = () => highlightColor
                                         },
                                         new ImageView
                                         {
@@ -128,7 +130,7 @@ partial class WorldRenderer
                                         {
                                             Text = () => $" {rq.Resource.Name}",
                                             FontSize = defaultFontSize,
-                                            ForegroundColor = descriptionColor
+                                            ForegroundColor = () => descriptionColor
                                         }
                                     }
                                 },
@@ -136,7 +138,7 @@ partial class WorldRenderer
                                 {
                                     Text = () => "Nothing",
                                     FontSize = defaultFontSize,
-                                    ForegroundColor = descriptionColor
+                                    ForegroundColor = () => descriptionColor
                                 }
                             }
                         }
@@ -183,7 +185,7 @@ partial class WorldRenderer
                         Text = () => $"FPS: {Math.Round(frameData.Rate, 1, MidpointRounding.ToPositiveInfinity):0.0}, update: {frameData.UpdateTimePercentage * 100:0.00}%, render: {frameData.RenderTimePercentage * 100:0.00}%",
                         FontSize = 22,
                         Padding = new(2),
-                        ForegroundColor = Colors.White,
+                        ForegroundColor = () => Colors.White,
                         BackgroundColor = new(0,0,0,.4f)
                     },
                     new LabelView
@@ -192,7 +194,7 @@ partial class WorldRenderer
                         Visible = () => world.Paused,
                         FontSize = 22,
                         Padding = new(2, 0),
-                        ForegroundColor = Colors.Red,
+                        ForegroundColor = () => Colors.Red,
                     },
                 }
             }));
