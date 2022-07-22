@@ -90,7 +90,7 @@ public class World
         }
     }
 
-    public void PlantForest(Vector2i center, float radius, float chanceCenter, float chanceEdge)
+    public void PlantForest(TreeTemplate treeTemplate, Vector2i center, float radius, float chanceCenter, float chanceEdge)
     {
         for (int y = (int)MathF.Ceiling(center.Y + radius); y >= MathF.Floor(center.Y - radius); --y)
             for (int x = (int)MathF.Ceiling(center.X + radius); x >= MathF.Floor(center.X - radius); --x)
@@ -98,7 +98,7 @@ public class World
                 var distanceFromCenter = new Vector2i(Math.Abs(y - center.Y), Math.Abs(y - center.Y)).EuclideanLength;
                 var chance = chanceCenter * (radius - distanceFromCenter) / radius + chanceEdge * distanceFromCenter / radius;
                 if (Random.Shared.NextDouble() < chance)
-                    PlaceEntity(Tree.FromTemplate(TreeTemplates["pine"], new(x, y)));
+                    PlaceEntity(Tree.FromTemplate(treeTemplate, new(x, y)));
             }
     }
 
@@ -137,7 +137,7 @@ public class World
     }
 
     public event Action<PlaceableEntity, Villager>? StartedJob;
-    public void StartWork(PlaceableEntity entity, Villager villager)
+    public void StartWork<T>(T entity, Villager villager) where T : PlaceableEntity
     {
         StartedJob?.Invoke(entity, villager);
         if (entity is Building building)
@@ -149,7 +149,7 @@ public class World
     }
 
     public event Action<PlaceableEntity, Villager, bool /* last */>? EndedBuildingJob;
-    public void EndWork(PlaceableEntity entity, Villager villager)
+    public void EndWork<T>(T entity, Villager villager) where T : PlaceableEntity
     {
         if (entity is Building building)
         {
