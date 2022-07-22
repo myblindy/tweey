@@ -45,7 +45,7 @@ public class World
                     ++availableNeighboursSearchRadius;
                     availableNeighbours.AddRange(
                         GameUtilities.EnumerateNeighbourLocations(resourceBucket.Location, radiusMin: availableNeighboursSearchRadius, radiusMax: availableNeighboursSearchRadius)
-                            .Select(l => (l, rb: PlacedEntities.OfType<ResourceBucket>().FirstOrDefault(e => e.Contains(l))))
+                            .Select(l => (l, rb: GetEntities<ResourceBucket>().FirstOrDefault(e => e.Contains(l))))
                             .Where(l => l.rb is null || l.rb.AvailableWeight < Configuration.Data.GroundStackMaximumWeight));
                 }
 
@@ -118,7 +118,7 @@ public class World
                 var building = Building.FromTemplate(CurrentBuildingTemplate, worldLocation.ToNumericsVector2(), false);
                 PlaceEntity(building);
                 PlacedBuilding?.Invoke(building);
-                if (keyModifiers?.HasFlag(OpenTK.Windowing.GraphicsLibraryFramework.KeyModifiers.Shift) != true)
+                if (keyModifiers?.HasFlag(KeyModifiers.Shift) != true)
                     CurrentBuildingTemplate = null;
             }
             else

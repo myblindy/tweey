@@ -50,8 +50,20 @@
       "type": "number",
       "minimum": 0,
       "description": "How fast a villager will eat resources in units of 1/sec and multiplied by the individual resource pickup multipliers."
+    },
+    "baseHungerPercentage": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Hunger threshold at which the villager seeks out food the next change it gets."
+    },
+    "baseHungerEmergencyPercentage": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Hunger threshold at which the villager drops all it's doing and seeks out food immediately."
     }
   },
 
-  "required": [ "groundStackMaximumWeight", "baseCarryWeight", "ticksPerDay", "maximumGroundDropSpillOverRange", "baseMovementSpeed", "baseHungerMax", "baseHungerPerTick" ]
+  "required": [ "groundStackMaximumWeight", "baseCarryWeight", "ticksPerDay", "maximumGroundDropSpillOverRange", "baseMovementSpeed", "baseHungerMax", "baseHungerPerRealTimeSecond", "baseHungerPercentage", "baseHungerEmergencyPercentage" ]
 }

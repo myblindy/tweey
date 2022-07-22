@@ -2,14 +2,12 @@
 
 public class TreeTemplate : PlaceableEntity, ITemplateFileName
 {
-#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     public TreeTemplate() => (Width, Height) = (1, 1);
-#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
-    public override string Name { get; set; }
+    public override string Name { get; set; } = null!;
     public int WorkTicks { get; set; }
-    public ResourceBucket Inventory { get; set; }
-    public string FileName { get; set; }
+    public ResourceBucket Inventory { get; set; } = null!;
+    public string FileName { get; set; } = null!;
 }
 
 public class TreeResouceTemplateIn
@@ -22,7 +20,7 @@ public class TreeTemplateIn
 {
     public string Name { get; set; } = null!;
     public int WorkTicks { get; set; }
-    public List<TreeResouceTemplateIn>? ContainingResources { get; } = new();
+    public List<TreeResouceTemplateIn>? ContainingResources { get; set; }
 }
 
 public class TreeTemplates : BaseTemplates<TreeTemplateIn, TreeTemplate>

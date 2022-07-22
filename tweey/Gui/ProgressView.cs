@@ -14,6 +14,6 @@ public class ProgressView : View, IContentView
     [RequiredProperty]
     public Func<string?>? StringFormat { get; set; }
     public Vector4 TextColor { get; set; } = Colors.White;
-    public Vector4 ForegroundColor { get; set; } = Colors.Gray;
+    public Func<Vector4> ForegroundColor { get; set; } = () => Colors.Gray;
     public Vector4 BorderColor { get; set; } = Colors.Black;
 }

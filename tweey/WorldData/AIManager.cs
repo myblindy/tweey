@@ -29,7 +29,7 @@ public abstract class AIPlan
 
     public void Update(double deltaSec)
     {
-        if (Targets.Count == 0) { Done = true; return; }
+        //if (Targets.Count == 0) { Done = true; return; }
         var step = Steps[CurrentStep];
 
         switch (step.Update(deltaSec))
@@ -38,7 +38,7 @@ public abstract class AIPlan
             case AIPlanStepResult.End: step.DoneAction?.Invoke(); Done = true; break;
         }
 
-        if (Targets.Count == 0) Done = true;
+        //if (Targets.Count == 0) Done = true;
     }
 
     public abstract string Description { get; }
@@ -63,7 +63,7 @@ public abstract class AIPlan
     public virtual void Cancel() { }
 
     public AIPlanStep CreateMoveToPlaceableAIPlanStep(Action? stepDoneAction) => new(deltaSec =>
-        StepToPlaceable(FirstTarget!, deltaSec) ? AIPlanStepResult.NextStep : AIPlanStepResult.Stay, stepDoneAction);
+        FirstTarget is { } && StepToPlaceable(FirstTarget, deltaSec) ? AIPlanStepResult.NextStep : AIPlanStepResult.Stay, stepDoneAction);
 }
 
 public abstract class TypedAIPlan<T> : AIPlan where T : PlaceableEntity
@@ -100,7 +100,7 @@ public class ResourcePickupAIPlan : TypedAIPlan<ResourceBucket>
 
                 Villager.Inventory.AddRange(plannedRB.ResourceQuantities);
 
-                return AIPlanStepResult.NextStep;
+                return AIPlanStepResult.End;
             }
 
             return AIPlanStepResult.Stay;
@@ -305,7 +305,7 @@ class AIManager
     bool TryEatingPlan(Villager villager)
     {
         bool anyRB = false, anyStorage = false;
-        world.GetEntities().ForEach(e => { anyRB = anyRB || e is ResourceBucket; anyStorage = anyStorage || (e is Building building && building.IsBuilt && building.Type == BuildingType.Storage); });
+        world.GetEntities().ForEach(e => { anyRB = anyRB || e is ResourceBucket; anyStorage = anyStorage || (e is Building { Type: BuildingType.Storage, IsBuilt: true }); });
         if (!anyRB && !anyStorage) return false;
 
         var pickupPlan = new ResourcePickupAIPlan(world, villager);
@@ -367,14 +367,14 @@ class AIManager
             if (villager.AIPlan is null)
             {
                 // hungry?
-                _ = villager.Needs.HungerPercentage > .6 && TryEatingPlan(villager);
+                _ = villager.Needs.HungerPercentage > villager.HungerThreshold && TryEatingPlan(villager);
             }
 
             // emergency plans interrupt other plans
             if (!IsEmergencyPlan(villager.AIPlan))
             {
                 // hungry?
-                _ = villager.Needs.HungerPercentage > .8 && TryEatingPlan(villager);
+                _ = villager.Needs.HungerPercentage > villager.HungerEmergencyThreshold && TryEatingPlan(villager);
             }
 
             if (villager.AIPlan is null)

@@ -17,7 +17,8 @@ struct FrameData
         if (cummulativeTime + deltaTime > maxTime)
         {
             Rate = frameCount / cummulativeTime.TotalSeconds;
-            (frameCount, cummulativeTime, cummulativeUpdateTime, cummulativeRenderTime) = (0, default, default, default);
+            (frameCount, cummulativeTime, cummulativeUpdateTime, cummulativeRenderTime) = 
+                (0, default, default, default);
         }
 
         cummulativeTime += deltaTime;

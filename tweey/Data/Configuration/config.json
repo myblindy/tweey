@@ -10,5 +10,7 @@
   "baseWorkSpeed": 5,
   "baseHungerMax": 100,
   "baseHungerPerRealTimeSecond": 1,
-  "baseEatSpeed": 1
+  "baseEatSpeed": 1,
+  "baseHungerPercentage": 0.6,
+  "baseHungerEmergencyPercentage": 0.8
 }
