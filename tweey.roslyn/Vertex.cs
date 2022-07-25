@@ -37,10 +37,8 @@ public class VertexSourceGen : IIncrementalGenerator
         }
 
         var sb = new StringBuilder();
-        if (parent is NamespaceDeclarationSyntax namespaceDeclarationSyntax)
-            sb.Append(namespaceDeclarationSyntax.Name).Append('.');
-        else if (parent is FileScopedNamespaceDeclarationSyntax fileScopedNamespaceDeclaration)
-            sb.Append(fileScopedNamespaceDeclaration.Name).Append('.');
+        if (parent is BaseNamespaceDeclarationSyntax baseNamespaceDeclarationSyntax)
+            sb.Append(baseNamespaceDeclarationSyntax.Name).Append('.');
 
         items.Reverse();
         items.ForEach(i => sb.Append(i).Append('.'));
@@ -80,7 +78,7 @@ public class VertexSourceGen : IIncrementalGenerator
 
     public static IEnumerable<VertexStructure> EnumerateVertexStructures(SyntaxNode rootNode, SemanticModel semanticModel)
     {
-        foreach (var sd in rootNode.DescendantNodes().Where(n => n.IsKind(SyntaxKind.StructDeclaration)).Cast<StructDeclarationSyntax>())
+        foreach (StructDeclarationSyntax sd in rootNode.DescendantNodes().Where(n => n.IsKind(SyntaxKind.StructDeclaration)))
             if (sd.AttributeLists.SelectMany(a => a.Attributes).Any(a => a.Name is IdentifierNameSyntax ins && ins.Identifier.Text is "VertexDefinition" or "VertexDefinitionAttribute"))
             {
                 var result = new VertexStructure { StructDeclarationSyntax = sd };
@@ -88,12 +86,14 @@ public class VertexSourceGen : IIncrementalGenerator
                 // ensure this structure is packed
                 result.PackingAttributeCorrect = sd.AttributeLists.SelectMany(a => a.Attributes)
                     .Any(a => a.Name is NameSyntax ns
-                        && semanticModel.GetSymbolInfo(ns).Symbol is IMethodSymbol methodSymbol && methodSymbol.ReceiverType.ToDisplayString() == "System.Runtime.InteropServices.StructLayoutAttribute"
+                        && semanticModel.GetSymbolInfo(ns).Symbol is IMethodSymbol methodSymbol && methodSymbol.ReceiverType.ToDisplayString() is "System.Runtime.InteropServices.StructLayoutAttribute"
                         && a.ArgumentList.Arguments.Count >= 2
-                        && a.ArgumentList.Arguments[0].Expression is MemberAccessExpressionSyntax mes0 && semanticModel.GetSymbolInfo(mes0.Expression).Symbol is ITypeSymbol mes0TypeSymbol && mes0TypeSymbol.ToDisplayString() == "System.Runtime.InteropServices.LayoutKind" && mes0.Name is IdentifierNameSyntax mes0ins && mes0ins.Identifier.Text == "Sequential"
-                        && a.ArgumentList.Arguments.Any(w => w.NameEquals?.Name.Identifier.Text == "Pack" && semanticModel.GetConstantValue(w.Expression).Value is 1));
+                        && a.ArgumentList.Arguments[0].Expression is MemberAccessExpressionSyntax mes0
+                        && semanticModel.GetSymbolInfo(mes0.Expression).Symbol is ITypeSymbol mes0TypeSymbol && mes0TypeSymbol.ToDisplayString() is "System.Runtime.InteropServices.LayoutKind"
+                        && mes0.Name is IdentifierNameSyntax mes0ins && mes0ins.Identifier.Text is "Sequential"
+                        && a.ArgumentList.Arguments.Any(w => w.NameEquals?.Name.Identifier.Text is "Pack" && semanticModel.GetConstantValue(w.Expression).Value is 1));
 
-                foreach (var field in sd.Members.Where(n => n.IsKind(SyntaxKind.FieldDeclaration)).Cast<FieldDeclarationSyntax>())
+                foreach (FieldDeclarationSyntax field in sd.Members.Where(n => n.IsKind(SyntaxKind.FieldDeclaration)))
                     if (semanticModel.GetSymbolInfo(field.Declaration.Type).Symbol is INamedTypeSymbol namedTypeSymbol)
                     {
                         var fullTypeName = namedTypeSymbol.ToDisplayString();
@@ -198,7 +198,7 @@ public class VertexCodeFixProvider : CodeFixProvider
         var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
         var semanticModel = await context.Document.GetSemanticModelAsync(context.CancellationToken).ConfigureAwait(false);
 
-        foreach (Diagnostic diagnostic in context.Diagnostics)
+        foreach (var diagnostic in context.Diagnostics)
         {
             const string packingFixTitle = "Set vertex definition type packing";
             if (diagnostic.Id == VertexSourceGen.NoPackingDiagnosticDescriptor.Id)
@@ -217,7 +217,8 @@ public class VertexCodeFixProvider : CodeFixProvider
                     // find the StructLayout attribute, if it's there
                     Document newDocument;
                     if (structNode.AttributeLists.SelectMany(a => a.Attributes).FirstOrDefault(a => a.Name is NameSyntax ns
-                         && semanticModel.GetSymbolInfo(ns).Symbol is IMethodSymbol methodSymbol && methodSymbol.ReceiverType.ToDisplayString() == "System.Runtime.InteropServices.StructLayoutAttribute") is { } attributeSyntax)
+                         && semanticModel.GetSymbolInfo(ns).Symbol is IMethodSymbol methodSymbol
+                         && methodSymbol.ReceiverType.ToDisplayString() is "System.Runtime.InteropServices.StructLayoutAttribute") is { } attributeSyntax)
                     {
                         newDocument = context.Document.WithSyntaxRoot(root.ReplaceNode(attributeSyntax, correctAttribute));
                     }

@@ -3,7 +3,7 @@
 partial class WorldRenderer
 {
     readonly World world;
-    readonly GrowableTextureAtlas3D atlas = new(2048, 2048, 1);
+    readonly GrowableTextureAtlas3D atlas;
     readonly FontRenderer fontRenderer;
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -33,6 +33,11 @@ partial class WorldRenderer
     public WorldRenderer(World world)
     {
         this.world = world;
+
+        int maxTextureSize = 0;
+        GL.GetInteger(GetPName.MaxTextureSize, ref maxTextureSize);
+        maxTextureSize = Math.Max(4096, maxTextureSize);
+        atlas = new(maxTextureSize, maxTextureSize, 1);
         fontRenderer = new(atlas);
         shaderProgram.UniformBlockBind("ubo_window", windowUboBindingPoint);
         shaderProgram.Uniform("atlasSampler", 0);
@@ -67,29 +72,26 @@ partial class WorldRenderer
 
     public void Render(double deltaSec, double deltaUpdateTimeSec, double deltaRenderTimeSec)
     {
+        // frame data
+        frameData.NewFrame(TimeSpan.FromSeconds(deltaSec), TimeSpan.FromSeconds(deltaUpdateTimeSec), TimeSpan.FromSeconds(deltaRenderTimeSec));
+
         grassAtlasEntry ??= atlas[grassTilePath];
         blankAtlasEntry ??= atlas[GrowableTextureAtlas3D.BlankName];
 
-        // render the background
+        // render the background (tri0)
         var grassTileSize = 6;
         for (int y = 0; y < windowUbo.Data.WindowSize.Y / pixelZoom; y += grassTileSize)
             for (int x = 0; x < windowUbo.Data.WindowSize.X / pixelZoom; x += grassTileSize)
                 ScreenFillQuad(Box2.FromCornerSize(new(x, y), new(grassTileSize, grassTileSize)), new(.8f, .8f, .8f, 1), grassAtlasEntry);
 
-        // store the actual entities' vertices
-        foreach (var entity in world.GetEntities().Append(world.CurrentBuildingTemplate))
+        // store the actual entities' vertices(tri0)
+        foreach (var entity in world.GetEntities())
             switch (entity)
             {
                 case Building building:
                     var color = building.Color;
                     if (!building.IsBuilt) color *= new Vector4(1f, .4f, .4f, .4f);
                     ScreenFillQuad(Box2.FromCornerSize(building.Location, building.Width, building.Height), color, atlas[GetImagePath(building)]);
-                    break;
-                case BuildingTemplate buildingTemplate:
-                    // template for building to build
-                    var box = buildingTemplate.GetBoxAtLocation(world.MouseWorldPosition.ToNumericsVector2());
-                    var valid = !world.GetEntities<Building>().Any(b => b.Box.Intersects(box));
-                    ScreenFillQuad(box, valid ? Colors.Lime : Colors.Red, atlas[GetImagePath(buildingTemplate)]);
                     break;
                 case Tree tree:
                     ScreenFillQuad(Box2.FromCornerSize(tree.Location, 1, 1), Colors.White, atlas[GetImagePath(tree)]);
@@ -100,35 +102,50 @@ partial class WorldRenderer
                     break;
                 case Villager villager:
                     ScreenFillQuad(Box2.FromCornerSize(villager.Location, 1, 1), Colors.White, atlas[GetImagePath(villager)]);
+                    break;
+            }
+
+        var countTri0 = vaoGui.Vertices.Length;
+
+        // store the ai plan targets' vertices (lines)
+        foreach (var villager in world.GetEntities<Villager>())
+            if (villager.AIPlan?.FirstTarget is { } firstAiTarget)
+                ScreenLine(villager.Box, firstAiTarget.Box, Colors.Yellow);
+
+        // selection box (lines)
+        if (world.SelectedEntity is { } selectedEntity)
+            ScreenLineQuad(selectedEntity.Box, Colors.White);
+        var countLines1 = vaoGui.Vertices.Length - countTri0;
+
+        // render top layer (tri2)
+        foreach (var entity in world.GetEntities().Append(world.CurrentBuildingTemplate))
+            switch (entity)
+            {
+                case BuildingTemplate buildingTemplate:
+                    // template for building to build
+                    var box = buildingTemplate.GetBoxAtLocation(world.MouseWorldPosition.ToNumericsVector2());
+                    var valid = !world.GetEntities<Building>().Any(b => b.Box.Intersects(box));
+                    ScreenFillQuad(box, valid ? Colors.Lime : Colors.Red, atlas[GetImagePath(buildingTemplate)]);
+                    break;
+                case Villager villager:
                     ScreenString(villager.Name, new() { Size = 16 }, new((villager.Location.X + .5f) * pixelZoom, villager.Location.Y * pixelZoom - 20),
                         Colors.White, new(0, 0, 0, .4f), HorizontalAlignment.Center);
                     break;
             }
 
-        // render gui
+        // render gui (tri2)
         RenderGui();
 
-        // frame data
-        frameData.NewFrame(TimeSpan.FromSeconds(deltaSec), TimeSpan.FromSeconds(deltaUpdateTimeSec), TimeSpan.FromSeconds(deltaRenderTimeSec));
+        var countTri2 = vaoGui.Vertices.Length - countTri0 - countLines1;
 
-        var triVertexCount = vaoGui.Vertices.Length;
-
-        // store the ai plan targets' vertices
-        foreach (var villager in world.GetEntities<Villager>())
-            if (villager.AIPlan?.FirstTarget is { } firstAiTarget)
-                ScreenLine(villager.Box, firstAiTarget.Box, Colors.Yellow);
-
-        // selection box
-        if (world.SelectedEntity is { } selectedEntity)
-            ScreenLineQuad(selectedEntity.Box, Colors.White);
-        var lineVertexCount = vaoGui.Vertices.Length - triVertexCount;
         vaoGui.UploadNewData();
 
         shaderProgram.Use();
         atlas.Bind();
         windowUbo.Bind(windowUboBindingPoint);
-        vaoGui.Draw(PrimitiveType.Triangles, vertexOrIndexCount: triVertexCount);
-        vaoGui.Draw(PrimitiveType.Lines, triVertexCount, lineVertexCount);
+        vaoGui.Draw(PrimitiveType.Triangles, vertexOrIndexCount: countTri0);
+        vaoGui.Draw(PrimitiveType.Lines, countTri0, countLines1);
+        vaoGui.Draw(PrimitiveType.Triangles, countTri0 + countLines1, countTri2);
     }
 
     public Vector2i GetLocationFromScreenPoint(Vector2i screenPoint) => screenPoint / (int)pixelZoom;
