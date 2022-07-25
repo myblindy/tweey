@@ -56,7 +56,7 @@ class Program : GameWindow
         var villager = new Villager("Sana", world.Configuration.Data) { Location = new(5, 1) };
         world.PlaceEntity(villager);
         world.SelectedEntity = villager;
-        //world.PlaceEntity(new Villager("Momo", world.Configuration.Data) { Location = new(15, 20) });
+        world.PlaceEntity(new Villager("Momo", world.Configuration.Data) { Location = new(15, 20) });
 
         world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["bread"], 100)) { Location = new(3, 3) });
 

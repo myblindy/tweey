@@ -20,14 +20,17 @@ partial class WorldRenderer
         vaoGui.Vertices.Add(new(box.TopLeft * zoom, color, entry.TextureCoordinate0));
     }
 
-    void ScreenString(string s, FontDescription fontDescription, Vector2 location, Vector4 fgColor, Vector4 bgColor, HorizontalAlignment horizontalAlignment = HorizontalAlignment.Left) =>
-        fontRenderer.Render(s, fontDescription, location.ToVector2i(),
-            box =>
-            {
-                if (bgColor.W > 0)
-                    ScreenFillQuad(box, bgColor, blankAtlasEntry!, false);
-            },
-            (box, atlasEntry) => ScreenFillQuad(box, fgColor, atlasEntry, false), horizontalAlignment);
+    void ScreenString(string? s, FontDescription fontDescription, Vector2 location, Vector4 fgColor, Vector4 bgColor, HorizontalAlignment horizontalAlignment = HorizontalAlignment.Left)
+    {
+        if (s is { })
+            fontRenderer.Render(s, fontDescription, location.ToVector2i(),
+                box =>
+                {
+                    if (bgColor.W > 0)
+                        ScreenFillQuad(box, bgColor, blankAtlasEntry!, false);
+                },
+                (box, atlasEntry) => ScreenFillQuad(box, fgColor, atlasEntry, false), horizontalAlignment);
+    }
 
     void ScreenLine(Box2 box1, Box2 box2, Vector4 color)
     {

@@ -107,9 +107,12 @@ partial class WorldRenderer
         var countTri0 = vaoGui.Vertices.Length;
 
         // store the ai plan targets' vertices (lines)
-        foreach (var villager in world.GetEntities<Villager>())
-            if (villager.AIPlan?.FirstTarget is { } firstAiTarget)
-                ScreenLine(villager.Box, firstAiTarget.Box, Colors.Yellow);
+        if (world.ShowDetails)
+            foreach (var villager in world.GetEntities<Villager>())
+                if (villager.AIPlan?.FirstTarget is { } firstAiTarget)
+                    ScreenLine(villager.Box, firstAiTarget.Box, Colors.Yellow);
+                else if (world.SelectedEntity is Villager selectedVillager && selectedVillager.AIPlan?.FirstTarget is { } firstSelectedAiTarget)
+                    ScreenLine(villager.Box, firstSelectedAiTarget.Box, Colors.Yellow);
 
         // selection box (lines)
         if (world.SelectedEntity is { } selectedEntity)
@@ -123,6 +126,9 @@ partial class WorldRenderer
                 case Villager villager:
                     ScreenString(villager.Name, new() { Size = 16 }, new((villager.Location.X + .5f) * pixelZoom, villager.Location.Y * pixelZoom - 20),
                         Colors.White, new(0, 0, 0, .4f), HorizontalAlignment.Center);
+                    if (world.ShowDetails)
+                        ScreenString(villager.AIPlan?.Description, new() { Size = 13 }, new((villager.Location.X + .5f) * pixelZoom, (villager.Location.Y + 1) * pixelZoom),
+                            Colors.DarkGray, new(0, 0, 0, .2f), HorizontalAlignment.Center);
                     break;
             }
 

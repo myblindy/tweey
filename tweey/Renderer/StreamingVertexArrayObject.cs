@@ -62,14 +62,16 @@ class StreamingVertexArrayObject<TVertex> : IVertexArrayObject where TVertex : u
     /// <param name="vertexOrIndexCount">The element count to draw. <c>1</c> is one element, regardless of vertex or index size. By default, it draws the entire array, taking into account the offset parameter.</param>
     public void Draw(PrimitiveType primitiveType, int vertexOrIndexOffset = 0, int vertexOrIndexCount = -1)
     {
+        var vertexCount = vertexOrIndexCount >= 0 ? vertexOrIndexCount : lastUploadedVertexLength - vertexOrIndexOffset;
+        if (vertexCount <= 0) return;
+
         if (lastBoundVertexArray != this)
         {
             GL.BindVertexArray(vertexArrayHandle);
             lastBoundVertexArray = this;
         }
 
-        GL.DrawArrays(primitiveType, vertexCurrentOffset - lastUploadedVertexLength + vertexOrIndexOffset,
-            vertexOrIndexCount >= 0 ? vertexOrIndexCount : lastUploadedVertexLength - vertexOrIndexOffset);
+        GL.DrawArrays(primitiveType, vertexCurrentOffset - lastUploadedVertexLength + vertexOrIndexOffset, vertexCount);
     }
 
     readonly BufferHandle vertexBufferHandle;

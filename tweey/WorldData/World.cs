@@ -15,6 +15,7 @@ public class World
     public BuildingTemplate? CurrentBuildingTemplate { get; set; }
 
     public bool Paused { get; private set; }
+    public bool ShowDetails { get; private set; }
 
     public Vector2i MouseScreenPosition { get; private set; }
     public Vector2i MouseWorldPosition { get; private set; }
@@ -113,7 +114,7 @@ public class World
     {
         if (inputAction == InputAction.Press && mouseButton == MouseButton.Button1)
         {
-            if (CurrentBuildingTemplate is not null 
+            if (CurrentBuildingTemplate is not null
                 && !GetEntities<Building>().Any(b => b.Box.Intersects(Box2.FromCornerSize(worldLocation, new(CurrentBuildingTemplate.Width, CurrentBuildingTemplate.Height)))))
             {
                 var building = Building.FromTemplate(CurrentBuildingTemplate, worldLocation.ToNumericsVector2(), false);
@@ -174,6 +175,10 @@ public class World
     {
         if (inputAction == InputAction.Press && key == Keys.Space)
             Paused = !Paused;
+        else if (inputAction == InputAction.Press && key is Keys.LeftAlt or Keys.RightAlt)
+            ShowDetails = true;
+        else if (inputAction == InputAction.Release && key is Keys.LeftAlt or Keys.RightAlt)
+            ShowDetails = false;
     }
 
     public void Update(double deltaSec)
