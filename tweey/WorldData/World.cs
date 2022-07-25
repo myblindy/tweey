@@ -113,7 +113,8 @@ public class World
     {
         if (inputAction == InputAction.Press && mouseButton == MouseButton.Button1)
         {
-            if (CurrentBuildingTemplate is not null && !GetEntities<Building>().Any(b => b.Box.Intersects(Box2.FromCornerSize(worldLocation.ToNumericsVector2(), new(CurrentBuildingTemplate.Width, CurrentBuildingTemplate.Height)))))
+            if (CurrentBuildingTemplate is not null 
+                && !GetEntities<Building>().Any(b => b.Box.Intersects(Box2.FromCornerSize(worldLocation, new(CurrentBuildingTemplate.Width, CurrentBuildingTemplate.Height)))))
             {
                 var building = Building.FromTemplate(CurrentBuildingTemplate, worldLocation.ToNumericsVector2(), false);
                 PlaceEntity(building);
@@ -124,10 +125,10 @@ public class World
             else
             {
                 if (SelectedEntity is not null && SelectedEntity.Location.ToVector2i() == worldLocation)
-                    SelectedEntity = PlacedEntities.SkipWhile(e => e != SelectedEntity).Skip(1).FirstOrDefault(e => e.Box.Contains(worldLocation));
+                    SelectedEntity = GetEntities().SkipWhile(e => e != SelectedEntity).Skip(1).FirstOrDefault(e => e.Box.Contains(worldLocation));
                 else
                     SelectedEntity = null;
-                SelectedEntity ??= PlacedEntities.FirstOrDefault(e => e.Box.Contains(worldLocation));
+                SelectedEntity ??= GetEntities().FirstOrDefault(e => e.Box.Contains(worldLocation));
             }
         }
         else if (inputAction == InputAction.Press && mouseButton == MouseButton.Button2)

@@ -258,7 +258,7 @@ partial class WorldRenderer
         view = GetTemplatedView(view);
 
         var box = view.ViewData.Box;
-        if (view.BackgroundColor.W > 0)
+        if (view is not LabelView && view.BackgroundColor.W > 0)
             ScreenFillQuad(box.WithExpand(view.Padding), view.BackgroundColor, atlas[GrowableTextureAtlas3D.BlankName], false);
 
         switch (view)
@@ -274,7 +274,7 @@ partial class WorldRenderer
                         HorizontalAlignment.Left => box.TopLeft + new Vector2(view.Margin.Left, view.Margin.Top),
                         HorizontalAlignment.Right => new(box.Right - view.Margin.Right, box.Top - view.Margin.Top),
                         _ => throw new NotImplementedException()
-                    }, labelForegroundColor, Colors.Transparent, labelView.HorizontalTextAlignment);
+                    }, labelForegroundColor, labelView.BackgroundColor, labelView.HorizontalTextAlignment);
                 break;
             case ProgressView progressView:
                 if (progressView.StringFormat?.Invoke() is { } stringFormat && !string.IsNullOrEmpty(stringFormat)

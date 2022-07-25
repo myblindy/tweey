@@ -1,4 +1,6 @@
-﻿namespace Tweey.Renderer;
+﻿using Tweey.Loaders;
+
+namespace Tweey.Renderer;
 
 partial class WorldRenderer
 {
@@ -42,6 +44,9 @@ partial class WorldRenderer
         shaderProgram.UniformBlockBind("ubo_window", windowUboBindingPoint);
         shaderProgram.Uniform("atlasSampler", 0);
 
+        grassAtlasEntry = atlas[grassTilePath];
+        blankAtlasEntry = atlas[GrowableTextureAtlas3D.BlankName];
+
         InitializeGui();
     }
 
@@ -68,21 +73,15 @@ partial class WorldRenderer
     };
     const string grassTilePath = "Data/Misc/grass.png";
 
-    AtlasEntry? grassAtlasEntry, blankAtlasEntry;
+    readonly AtlasEntry grassAtlasEntry, blankAtlasEntry;
 
     public void Render(double deltaSec, double deltaUpdateTimeSec, double deltaRenderTimeSec)
     {
-        // frame data
-        frameData.NewFrame(TimeSpan.FromSeconds(deltaSec), TimeSpan.FromSeconds(deltaUpdateTimeSec), TimeSpan.FromSeconds(deltaRenderTimeSec));
-
-        grassAtlasEntry ??= atlas[grassTilePath];
-        blankAtlasEntry ??= atlas[GrowableTextureAtlas3D.BlankName];
-
         // render the background (tri0)
         var grassTileSize = 6;
         for (int y = 0; y < windowUbo.Data.WindowSize.Y / pixelZoom; y += grassTileSize)
             for (int x = 0; x < windowUbo.Data.WindowSize.X / pixelZoom; x += grassTileSize)
-                ScreenFillQuad(Box2.FromCornerSize(new(x, y), new(grassTileSize, grassTileSize)), new(.8f, .8f, .8f, 1), grassAtlasEntry);
+                ScreenFillQuad(Box2.FromCornerSize(new Vector2i(x, y), new(grassTileSize, grassTileSize)), new(.8f, .8f, .8f, 1), grassAtlasEntry);
 
         // store the actual entities' vertices(tri0)
         foreach (var entity in world.GetEntities())
@@ -118,20 +117,22 @@ partial class WorldRenderer
         var countLines1 = vaoGui.Vertices.Length - countTri0;
 
         // render top layer (tri2)
-        foreach (var entity in world.GetEntities().Append(world.CurrentBuildingTemplate))
+        foreach (var entity in world.GetEntities<Villager>())
             switch (entity)
             {
-                case BuildingTemplate buildingTemplate:
-                    // template for building to build
-                    var box = buildingTemplate.GetBoxAtLocation(world.MouseWorldPosition.ToNumericsVector2());
-                    var valid = !world.GetEntities<Building>().Any(b => b.Box.Intersects(box));
-                    ScreenFillQuad(box, valid ? Colors.Lime : Colors.Red, atlas[GetImagePath(buildingTemplate)]);
-                    break;
                 case Villager villager:
                     ScreenString(villager.Name, new() { Size = 16 }, new((villager.Location.X + .5f) * pixelZoom, villager.Location.Y * pixelZoom - 20),
                         Colors.White, new(0, 0, 0, .4f), HorizontalAlignment.Center);
                     break;
             }
+
+        // building template
+        if (world.CurrentBuildingTemplate is { })
+        {
+            var box = world.CurrentBuildingTemplate.GetBoxAtLocation(world.MouseWorldPosition);
+            var valid = !world.GetEntities<Building>().Any(b => b.Box.Intersects(box));
+            ScreenFillQuad(box, valid ? Colors.Lime : Colors.Red, atlas[GetImagePath(world.CurrentBuildingTemplate)]);
+        }
 
         // render gui (tri2)
         RenderGui();
@@ -146,6 +147,10 @@ partial class WorldRenderer
         vaoGui.Draw(PrimitiveType.Triangles, vertexOrIndexCount: countTri0);
         vaoGui.Draw(PrimitiveType.Lines, countTri0, countLines1);
         vaoGui.Draw(PrimitiveType.Triangles, countTri0 + countLines1, countTri2);
+
+        // frame data
+        frameData.NewFrame(TimeSpan.FromSeconds(deltaSec), TimeSpan.FromSeconds(deltaUpdateTimeSec), TimeSpan.FromSeconds(deltaRenderTimeSec),
+            3, (ulong)countTri0 + (ulong)countTri2, (ulong)countLines1);
     }
 
     public Vector2i GetLocationFromScreenPoint(Vector2i screenPoint) => screenPoint / (int)pixelZoom;

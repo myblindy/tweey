@@ -82,7 +82,7 @@ partial class WorldRenderer
                                         Value = () => ((Villager)world.SelectedEntity!).Needs.Hunger,
                                         Maximum = () => ((Villager)world.SelectedEntity!).Needs.HungerMax,
                                         StringFormat = () => "{0:0.0}%",
-                                        ForegroundColor = () => ((Villager)world.SelectedEntity!).Needs.Hunger / ((Villager)world.SelectedEntity!).Needs.HungerMax < ((Villager)world.SelectedEntity!).HungerThreshold 
+                                        ForegroundColor = () => ((Villager)world.SelectedEntity!).Needs.Hunger / ((Villager)world.SelectedEntity!).Needs.HungerMax < ((Villager)world.SelectedEntity!).HungerThreshold
                                             ? Colors.DarkGreen : Colors.DarkRed,
                                         TextColor = descriptionColor,
                                         FontSize = defaultFontSize - 2,
@@ -182,7 +182,10 @@ partial class WorldRenderer
                 {
                     new LabelView
                     {
-                        Text = () => $"FPS: {Math.Round(frameData.Rate, 1, MidpointRounding.ToPositiveInfinity):0.0}, update: {frameData.UpdateTimePercentage * 100:0.00}%, render: {frameData.RenderTimePercentage * 100:0.00}%",
+                        Text = () => $"""
+                            FPS: {Math.Round(frameData.Rate, 1, MidpointRounding.ToPositiveInfinity):0.0}, Update: {frameData.UpdateTimePercentage * 100:0.00}%, Render: {frameData.RenderTimePercentage * 100:0.00}%
+                            Draw calls: {frameData.DrawCallCount}, Triangles: {frameData.TriangleCount}, Lines: {frameData.LineCount}
+                            """,
                         FontSize = 22,
                         Padding = new(2),
                         ForegroundColor = () => Colors.White,

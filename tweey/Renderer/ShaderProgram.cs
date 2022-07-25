@@ -18,7 +18,11 @@ class ShaderProgram
             if (status == 0)
             {
                 GL.GetShaderInfoLog(handle, out var statusInfoLog);
-                throw new InvalidOperationException($"Compilation errors for '{path}':\n\n{statusInfoLog}");
+                throw new InvalidOperationException($"""
+                    Compilation errors for '{path}':
+            
+                    {statusInfoLog}
+                    """);
             }
 
             return handle;
@@ -37,7 +41,11 @@ class ShaderProgram
         if (status == 0)
         {
             GL.GetProgramInfoLog(programHandle, out var programInfoLog);
-            throw new InvalidOperationException($"Linking errors for '{vsPath}' and '{fsPath}':\n\n{programInfoLog}");
+            throw new InvalidOperationException($"""
+                Linking errors for '{vsPath}' and '{fsPath}':
+
+                {programInfoLog}
+                """);
         }
 
         GL.DeleteShader(vsName);

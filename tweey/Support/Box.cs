@@ -16,11 +16,16 @@ public struct Box2 : IEquatable<Box2>
 
     public static Box2 FromCornerSize(Vector2 topLeft, Vector2 size) =>
         new() { TopLeft = topLeft, BottomRight = topLeft + size - Vector2.One };
+    public static Box2 FromCornerSize(Vector2i topLeft, Vector2i size) =>
+        FromCornerSize(topLeft.ToNumericsVector2(), size.ToNumericsVector2());
 
     public static Box2 FromCornerSize(Vector2 topLeft, float width, float height) =>
         new() { TopLeft = topLeft, BottomRight = topLeft + new Vector2(width - 1, height - 1) };
+    public static Box2 FromCornerSize(Vector2i topLeft, float width, float height) =>
+        FromCornerSize(topLeft.ToNumericsVector2(), width, height);
 
     public Box2 WithExpand(Vector2 offset) => new() { TopLeft = TopLeft - offset, BottomRight = BottomRight + offset };
+    public Box2 WithExpand(Vector2i offset) => WithExpand(offset.ToNumericsVector2());
     public Box2 WithExpand(Thickness offset) => new() { TopLeft = TopLeft - new Vector2(offset.Left, offset.Top), BottomRight = BottomRight + new Vector2(offset.Right, offset.Bottom) };
 
     public bool Intersects(Box2 other) => Left <= other.Right && Right >= other.Left && Top <= other.Bottom && Bottom >= other.Top;

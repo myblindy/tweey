@@ -97,29 +97,51 @@ public class FontRenderer : IDisposable
         return result;
     }
 
-    static readonly List<(AtlasEntry entry, Vector2i pixelSize)> renderCache = new();
+    static readonly List<(char ch, AtlasEntry? entry, Vector2i pixelSize)> renderCache = new();
     public void Render(ReadOnlySpan<char> s, FontDescription fontDescription, Vector2i position, Action<Box2>? measure, Action<Box2, AtlasEntry> write,
         HorizontalAlignment horizontalAlignment = HorizontalAlignment.Center, VerticalAlignment verticalAlignment = VerticalAlignment.Center)
     {
         renderCache.Clear();
+        Vector2i lastLineSize = default, totalSize = default;
 
         foreach (var ch in s)
-            renderCache.Add(GetFullAtlasEntry(ch, fontDescription));
-        var sizeX = renderCache.Sum(w => w.pixelSize.X);
+            if (ch is '\n')
+            {
+                totalSize = new(Math.Max(totalSize.X, lastLineSize.X), totalSize.Y + lastLineSize.Y);
+                lastLineSize = default;
+                renderCache.Add((ch, default, default));
+            }
+            else if (ch is not '\r')
+            {
+                var (entry, pixelSize) = GetFullAtlasEntry(ch, fontDescription);
+                lastLineSize.X += pixelSize.X;
+                lastLineSize.Y = Math.Max(lastLineSize.Y, pixelSize.Y);
+                renderCache.Add((ch, entry, pixelSize));
+            }
+        totalSize = new(Math.Max(totalSize.X, lastLineSize.X), totalSize.Y + lastLineSize.Y);
 
         if (horizontalAlignment is HorizontalAlignment.Right)
-            position = new(position.X - sizeX, position.Y);
+            position = new(position.X - totalSize.X, position.Y);
         else if (horizontalAlignment is HorizontalAlignment.Center)
-            position = new(position.X - sizeX / 2, position.Y);
+            position = new(position.X - totalSize.X / 2, position.Y);
 
-        measure?.Invoke(Box2.FromCornerSize(position.ToNumericsVector2(), new(sizeX, renderCache.Max(w => w.pixelSize.Y))));
+        measure?.Invoke(Box2.FromCornerSize(position, totalSize));
 
-        foreach (var (entry, pixelSize) in renderCache)
-        {
-            var chBox = Box2.FromCornerSize(position.ToNumericsVector2(), pixelSize.ToNumericsVector2());
-            write(chBox, entry);
-            position += new Vector2i((int)MathF.Ceiling(chBox.Size.X), 0);
-        }
+        var startX = position.X;
+        var maxLineHeight = 0;
+        foreach (var (ch, entry, pixelSize) in renderCache)
+            if (ch is '\n')
+            {
+                position = new(startX, position.Y + maxLineHeight);
+                maxLineHeight = 0;
+            }
+            else if (ch is not '\r')
+            {
+                var chBox = Box2.FromCornerSize(position, pixelSize);
+                write(chBox, entry!);
+                position.X += pixelSize.X;
+                maxLineHeight = Math.Max(maxLineHeight, pixelSize.Y);
+            }
     }
 
     protected virtual void Dispose(bool disposing)

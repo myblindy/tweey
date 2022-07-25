@@ -100,7 +100,7 @@ public class ResourcePickupAIPlan : TypedAIPlan<ResourceBucket>
 
                 Villager.Inventory.AddRange(plannedRB.ResourceQuantities);
 
-                return AIPlanStepResult.End;
+                return Targets.Count > 0 ? AIPlanStepResult.NextStep : AIPlanStepResult.End;
             }
 
             return AIPlanStepResult.Stay;
@@ -121,7 +121,7 @@ public class StoreInventoryAIPlan : TypedAIPlan<Building>
             if (Villager.PickupActionTime.AdvanceTimeAndConsumeActions(deltaSec) > 0)
             {
                 PeekTarget()!.Inventory.Add(Villager.Inventory, true);
-                return AIPlanStepResult.NextStep;
+                return AIPlanStepResult.End;
             }
             return AIPlanStepResult.Stay;
         }));

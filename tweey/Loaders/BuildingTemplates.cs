@@ -21,7 +21,8 @@ public class BuildingCostResouceTemplateIn
 public class BuildingCostTemplateIn
 {
     public int WorkTicks { get; set; }
-    public List<BuildingCostResouceTemplateIn>? Resources { get; } = new();
+    [SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "System.Text.Json doesn't support this")]
+    public List<BuildingCostResouceTemplateIn> Resources { get; set; } = null!;
 }
 
 public class BuildingTemplateIn
