@@ -108,11 +108,13 @@ partial class WorldRenderer
 
         // store the ai plan targets' vertices (lines)
         if (world.ShowDetails)
+        {
             foreach (var villager in world.GetEntities<Villager>())
                 if (villager.AIPlan?.FirstTarget is { } firstAiTarget)
                     ScreenLine(villager.Box, firstAiTarget.Box, Colors.Yellow);
-                else if (world.SelectedEntity is Villager selectedVillager && selectedVillager.AIPlan?.FirstTarget is { } firstSelectedAiTarget)
-                    ScreenLine(villager.Box, firstSelectedAiTarget.Box, Colors.Yellow);
+        }
+        else if (world.SelectedEntity is Villager selectedVillager && selectedVillager.AIPlan?.FirstTarget is { } firstSelectedAiTarget)
+            ScreenLine(selectedVillager.Box, firstSelectedAiTarget.Box, Colors.Yellow);
 
         // selection box (lines)
         if (world.SelectedEntity is { } selectedEntity)
