@@ -15,7 +15,7 @@ public class BuildingTemplate : PlaceableEntity, ITemplateFileName
     public string FileName { get; set; } = null!;
     public int BuildWorkTicks { get; set; }
     public ResourceBucket BuildCost { get; set; } = null!;
-    public ReadOnlyCollection<BuildingProductionLineTemplate> ProductionLines { get; } = null!;
+    public ReadOnlyCollection<BuildingProductionLineTemplate> ProductionLines { get; set; } = null!;
 }
 
 [SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "System.Text.Json doesn't support this")]
