@@ -2,6 +2,5 @@
   "$schema": "./_schema.json",
   "name": "Firewood",
   "weight": 0.1,
-  "color": [ 0.777, 0.777, 0.777 ],
   "pickupSpeedMultiplier": 1
 }

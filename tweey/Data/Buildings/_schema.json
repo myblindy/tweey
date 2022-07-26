@@ -21,15 +21,6 @@
       "type": "integer",
       "minimum": 1
     },
-    "color": {
-      "type": "array",
-      "minItems": 3,
-      "maxItems": 3,
-      "description": "The representative color of this building",
-      "items": {
-        "type": "number"
-      }
-    },
     "productionLines": {
       "type": "array",
       "items": {
@@ -61,5 +52,5 @@
       }
     }
   },
-  "required": [ "name", "type", "width", "height", "color", "buildCost" ]
+  "required": [ "name", "type", "width", "height", "buildCost" ]
 }

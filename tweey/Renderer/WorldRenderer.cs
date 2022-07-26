@@ -88,7 +88,7 @@ partial class WorldRenderer
             switch (entity)
             {
                 case Building building:
-                    var color = building.Color;
+                    var color = Colors.White;
                     if (!building.IsBuilt) color *= new Vector4(1f, .4f, .4f, .4f);
                     ScreenFillQuad(Box2.FromCornerSize(building.Location, building.Width, building.Height), color, atlas[GetImagePath(building)]);
                     break;
