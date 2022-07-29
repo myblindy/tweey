@@ -4,6 +4,9 @@ global using System.Collections.Generic;
 global using System.Collections.Immutable;
 global using System.Collections.ObjectModel;
 global using System.Diagnostics.CodeAnalysis;
+global using System.Drawing;
+global using System.Drawing.Imaging;
+global using System.Drawing.Text;
 global using System.IO;
 global using System.Linq;
 global using System.Text;
@@ -13,11 +16,11 @@ global using System.Runtime.InteropServices;
 global using System.Text.Json;
 global using System.Text.Json.Serialization;
 
-global using SixLabors.ImageSharp;
-global using SixLabors.ImageSharp.PixelFormats;
-global using SixLabors.ImageSharp.Drawing.Processing;
-global using SixLabors.ImageSharp.Processing;
-global using SixLabors.Fonts;
+//global using SixLabors.ImageSharp;
+//global using SixLabors.ImageSharp.PixelFormats;
+//global using SixLabors.ImageSharp.Drawing.Processing;
+//global using SixLabors.ImageSharp.Processing;
+//global using SixLabors.Fonts;
 
 global using Tweey.Actors;
 global using Tweey.Actors.Interfaces;
@@ -43,4 +46,3 @@ global using InputAction = OpenTK.Windowing.GraphicsLibraryFramework.InputAction
 global using MouseButton = OpenTK.Windowing.GraphicsLibraryFramework.MouseButton;
 global using KeyModifiers = OpenTK.Windowing.GraphicsLibraryFramework.KeyModifiers;
 global using Keys = OpenTK.Windowing.GraphicsLibraryFramework.Keys;
-global using Image = SixLabors.ImageSharp.Image;

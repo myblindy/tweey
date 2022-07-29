@@ -38,7 +38,7 @@ partial class WorldRenderer
 
         int maxTextureSize = 0;
         GL.GetInteger(GetPName.MaxTextureSize, ref maxTextureSize);
-        maxTextureSize = Math.Max(4096, maxTextureSize);
+        maxTextureSize = Math.Min(4096, maxTextureSize);
         atlas = new(maxTextureSize, maxTextureSize, 1);
         fontRenderer = new(atlas);
         shaderProgram.UniformBlockBind("ubo_window", windowUboBindingPoint);
@@ -130,7 +130,7 @@ partial class WorldRenderer
                         Colors.White, new(0, 0, 0, .4f), HorizontalAlignment.Center);
                     if (world.ShowDetails)
                         ScreenString(villager.AIPlan?.Description, new() { Size = 13 }, new((villager.Location.X + .5f) * pixelZoom, (villager.Location.Y + 1) * pixelZoom),
-                            Colors.DarkGray, new(0, 0, 0, .2f), HorizontalAlignment.Center);
+                            Colors.White, new(0, 0, 0, .4f), HorizontalAlignment.Center);
                     break;
             }
 
