@@ -126,10 +126,10 @@ partial class WorldRenderer
             switch (entity)
             {
                 case Villager villager:
-                    ScreenString(villager.Name, new() { Size = 16 }, new((villager.Location.X + .5f) * pixelZoom, villager.Location.Y * pixelZoom - 20),
+                    ScreenString(villager.Name, new() { Size = 16 }, new Vector2((villager.Location.X + .5f) * pixelZoom, villager.Location.Y * pixelZoom - 20),
                         Colors.White, new(0, 0, 0, .4f), HorizontalAlignment.Center);
                     if (world.ShowDetails)
-                        ScreenString(villager.AIPlan?.Description, new() { Size = 13 }, new((villager.Location.X + .5f) * pixelZoom, (villager.Location.Y + 1) * pixelZoom),
+                        ScreenString(villager.AIPlan?.Description, new() { Size = 13 }, new Vector2((villager.Location.X + .5f) * pixelZoom, (villager.Location.Y + 1) * pixelZoom),
                             Colors.White, new(0, 0, 0, .4f), HorizontalAlignment.Center);
                     break;
             }

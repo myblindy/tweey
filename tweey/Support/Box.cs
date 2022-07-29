@@ -10,6 +10,9 @@ public struct Box2 : IEquatable<Box2>
     public float Right => BottomRight.X;
     public float Bottom => BottomRight.Y;
 
+    public Vector2 TopRight => new(Right, Top);
+    public Vector2 BottomLeft => new(Left, Bottom);
+
     public Vector2 Center => TopLeft + new Vector2((Right - Left) / 2, (Bottom - Top) / 2);
 
     public Vector2 Size => BottomRight - TopLeft + Vector2.One;

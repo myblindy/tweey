@@ -157,16 +157,20 @@ partial class WorldRenderer
                             },
                             Child = new StackView(StackType.Vertical)
                             {
+                                Margin = new(0, 0, 20, 0),
                                 Children =
                                 {
                                     new ImageView
                                     {
                                         Source = () => GetImagePath(world.BuildingTemplates[key]),
-                                        InheritParentSize = true,
+                                        MinWidth = () => 0,
                                     },
                                     new LabelView
                                     {
                                         Text = () => world.BuildingTemplates[key].Name,
+                                        Margin = new(0, 5, 0, 0),
+                                        FontSize = defaultFontSize,
+                                        HorizontalTextAlignment = HorizontalAlignment.Center
                                     },
                                 }
                             }

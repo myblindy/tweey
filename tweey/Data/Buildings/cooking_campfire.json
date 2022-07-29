@@ -1,0 +1,17 @@
+{
+  "$schema": "./_schema.json",
+  "name": "Cooking Campfire",
+  "type": "production",
+  "buildCost": {
+    "workTicks": 60,
+    "resources": [
+      {
+        "resource": "wood",
+        "quantity": 3
+      }
+    ]
+  },
+  "productionLines": [],
+  "width": 1,
+  "height": 1
+}
