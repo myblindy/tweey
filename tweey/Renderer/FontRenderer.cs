@@ -98,12 +98,13 @@ public class FontRenderer : IDisposable
             }
 
             // draw the character
-            EnsureTempImage((int)chBox.Size.X, (int)chBox.Size.Y);
-            fontAtlasEntries[(fontDescription, ch)] = fullAtlasEntry = (backingTextureAtlas.AddFromImage(tempImage, (int)chBox.Size.X, (int)chBox.Size.Y, atlasPosition =>
+            var chSizei = new Vector2i((int)MathF.Ceiling(chBox.Size.X), (int)MathF.Ceiling(chBox.Size.Y));
+            EnsureTempImage(chSizei.X, chSizei.Y);
+            fontAtlasEntries[(fontDescription, ch)] = fullAtlasEntry = (backingTextureAtlas.AddFromImage(tempImage, chSizei.X, chSizei.Y, atlasPosition =>
             {
                 using var g = Graphics.FromImage(tempImage);
                 g.Clear(Color.Transparent);
-                g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
+                g.TextRenderingHint = fontDescription.Size <= 13 ? TextRenderingHint.SingleBitPerPixelGridFit : TextRenderingHint.ClearTypeGridFit;
                 g.PageUnit = GraphicsUnit.Pixel;
                 g.DrawString(s, font, Brushes.White, chBox.Left, chBox.Top, stringFormat);
             }), chBox.Size.ToVector2i());
