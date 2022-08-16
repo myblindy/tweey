@@ -306,7 +306,7 @@ partial class WorldRenderer
                     ScreenFillQuad(Box2.FromCornerSize(box.TopLeft, (float)(box.Size.X * value / maximum), box.Size.Y), progressForegroundColor, blankAtlasEntry, false);
                     ScreenString(string.Format(stringFormat, value / maximum * 100), new() { Size = progressView.FontSize },
                         new Box2 { TopLeft = box.TopLeft + new Vector2(view.Margin.Left, view.Margin.Top), BottomRight = box.BottomRight - new Vector2(view.Margin.Right, view.Margin.Bottom) },
-                        progressView.TextColor, Colors.Transparent, progressView.HorizontalTextAlignment);
+                        progressView.TextColor, Colors4.Transparent, progressView.HorizontalTextAlignment);
                 }
                 break;
             case ImageView imageView:

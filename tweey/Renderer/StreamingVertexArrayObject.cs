@@ -1,14 +1,19 @@
 ﻿namespace Tweey.Renderer;
 
-interface IVertexArrayObject { }
+abstract class BaseVertexArrayObject
+{
+    protected static BaseVertexArrayObject? lastBoundVertexArray;
 
-class StreamingVertexArrayObject<TVertex> : IVertexArrayObject where TVertex : unmanaged
+    public abstract void Draw(PrimitiveType primitiveType, int vertexOrIndexOffset = 0, int vertexOrIndexCount = -1);
+}
+
+class StreamingVertexArrayObject<TVertex> : BaseVertexArrayObject where TVertex : unmanaged
 {
     public unsafe StreamingVertexArrayObject(int initialVertexCapacity = ushort.MaxValue)
     {
         newVertexCapacity = vertexCapacity = initialVertexCapacity;
 
-        vertexBufferHandle = GL.GenBuffer();
+        vertexBufferHandle = GL.CreateBuffer();
         OrphanVertexBuffer();
 
         vertexArrayHandle = GL.CreateVertexArray();
@@ -19,14 +24,8 @@ class StreamingVertexArrayObject<TVertex> : IVertexArrayObject where TVertex : u
         tempVertices = new(initialVertexCapacity);
     }
 
-    static IVertexArrayObject? lastBoundVertexArray;
-
-    void OrphanVertexBuffer()
-    {
-        GL.BindBuffer(BufferTargetARB.ArrayBuffer, vertexBufferHandle);
-        GL.BufferData(BufferTargetARB.ArrayBuffer, Unsafe.SizeOf<TVertex>() * vertexCapacity, IntPtr.Zero, BufferUsageARB.StreamDraw);
-        GL.BindBuffer(BufferTargetARB.ArrayBuffer, BufferHandle.Zero);
-    }
+    unsafe void OrphanVertexBuffer() =>
+        GL.NamedBufferData(vertexBufferHandle, Unsafe.SizeOf<TVertex>() * vertexCapacity, null, VertexBufferObjectUsage.StreamDraw);
 
     public unsafe void UploadNewData()
     {
@@ -60,7 +59,7 @@ class StreamingVertexArrayObject<TVertex> : IVertexArrayObject where TVertex : u
     /// <param name="primitiveType">The primitive type of the draw call.</param>
     /// <param name="vertexOrIndexOffset">The offset into the vertex or index buffers, in element units. Ie, <c>1</c> is the second element, regardless of vertex or index size. By default, it starts at the beginning of the buffer.</param>
     /// <param name="vertexOrIndexCount">The element count to draw. <c>1</c> is one element, regardless of vertex or index size. By default, it draws the entire array, taking into account the offset parameter.</param>
-    public void Draw(PrimitiveType primitiveType, int vertexOrIndexOffset = 0, int vertexOrIndexCount = -1)
+    public override void Draw(PrimitiveType primitiveType, int vertexOrIndexOffset = 0, int vertexOrIndexCount = -1)
     {
         var vertexCount = vertexOrIndexCount >= 0 ? vertexOrIndexCount : lastUploadedVertexLength - vertexOrIndexOffset;
         if (vertexCount <= 0) return;

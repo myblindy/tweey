@@ -5,7 +5,7 @@ partial class WorldRenderer
     void InitializeGui()
     {
         var descriptionColor = new Vector4(.8f, .8f, .8f, 1);
-        var highlightColor = Colors.Aqua;
+        var highlightColor = Colors4.Aqua;
         var defaultFontSize = 18;
 
         gui.RootViewDescriptions.Add(new(
@@ -83,7 +83,7 @@ partial class WorldRenderer
                                         Maximum = () => ((Villager)world.SelectedEntity!).Needs.HungerMax,
                                         StringFormat = () => "{0:0.0}%",
                                         ForegroundColor = () => ((Villager)world.SelectedEntity!).Needs.Hunger / ((Villager)world.SelectedEntity!).Needs.HungerMax < ((Villager)world.SelectedEntity!).HungerThreshold
-                                            ? Colors.DarkGreen : Colors.DarkRed,
+                                            ? Colors4.DarkGreen : Colors4.DarkRed,
                                         TextColor = descriptionColor,
                                         FontSize = defaultFontSize - 2,
                                         MinWidth = () => 120
@@ -192,7 +192,7 @@ partial class WorldRenderer
                             """,
                         FontSize = 22,
                         Padding = new(2),
-                        ForegroundColor = () => Colors.White,
+                        ForegroundColor = () => Colors4.White,
                         BackgroundColor = new(0,0,0,.4f)
                     },
                     new LabelView
@@ -201,7 +201,7 @@ partial class WorldRenderer
                         Visible = () => world.Paused,
                         FontSize = 22,
                         Padding = new(2, 0),
-                        ForegroundColor = () => Colors.Red,
+                        ForegroundColor = () => Colors4.Red,
                     },
                 }
             }));

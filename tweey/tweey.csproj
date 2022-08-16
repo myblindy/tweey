@@ -63,6 +63,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Update="Gui\Colors.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Colors.tt</DependentUpon>
+    </Compile>
     <Compile Update="Support\Needs.cs">
       <DesignTime>True</DesignTime>
       <AutoGen>True</AutoGen>

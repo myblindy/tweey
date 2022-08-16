@@ -46,3 +46,4 @@ global using InputAction = OpenTK.Windowing.GraphicsLibraryFramework.InputAction
 global using MouseButton = OpenTK.Windowing.GraphicsLibraryFramework.MouseButton;
 global using KeyModifiers = OpenTK.Windowing.GraphicsLibraryFramework.KeyModifiers;
 global using Keys = OpenTK.Windowing.GraphicsLibraryFramework.Keys;
+global using PixelFormat = OpenTK.Graphics.OpenGL.PixelFormat;

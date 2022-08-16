@@ -82,7 +82,7 @@ public class GrowableTextureAtlas3D
 
             GL.PixelStorei(PixelStoreParameter.UnpackAlignment, 1);
             GL.PixelStorei(PixelStoreParameter.UnpackRowLength, image.Width);
-            GL.TextureSubImage3D(handle, 0, x, y, page, width, height, 1, OpenTK.Graphics.OpenGL.PixelFormat.Bgra, PixelType.UnsignedByte, bmpData.Scan0);
+            GL.TextureSubImage3D(handle, 0, x, y, page, width, height, 1, PixelFormat.Bgra, PixelType.UnsignedByte, bmpData.Scan0);
 
             var max = new Vector3(size.X - 1, size.Y - 1, pages - 1);
             return new(new Vector3(x, y, page) / max, new Vector3(x + width - 1, y + height - 1, page) / max, new(width, height));
