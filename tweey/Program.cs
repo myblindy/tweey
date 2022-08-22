@@ -51,7 +51,6 @@ class Program : GameWindow
         GL.Disable(EnableCap.DepthTest);
         GL.Disable(EnableCap.CullFace);
         GL.Enable(EnableCap.Blend);
-        GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
         var villager = new Villager("Sana", world.Configuration.Data) { Location = new(5, 1) };
         world.PlaceEntity(villager);
@@ -120,7 +119,7 @@ class Program : GameWindow
 
     protected override void OnRenderFrame(FrameEventArgs args)
     {
-        GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+        //GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
         worldRenderer!.Render(args.Time, UpdateTime, RenderTime);
         SwapBuffers();
     }

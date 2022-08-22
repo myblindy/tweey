@@ -16,6 +16,9 @@ public class Texture2D : IDisposable
         GL.TextureParameteri(Handle, TextureParameterName.TextureMagFilter, (int)All.Linear);
     }
 
+    public void Bind() =>
+        GL.BindTexture(TextureTarget.Texture2d, Handle);
+
     private bool disposedValue;
 
     protected virtual void Dispose(bool disposing)

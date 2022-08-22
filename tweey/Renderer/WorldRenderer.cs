@@ -49,6 +49,9 @@ partial class WorldRenderer
 
         InitializeLightMap();
         InitializeGui();
+
+        windowUbo.Bind(windowUboBindingPoint);
+        lightMapFBUbo.Bind(lightsUboBindingPoint);
     }
 
     public void Resize(int width, int height)
@@ -81,7 +84,7 @@ partial class WorldRenderer
     public void Render(double deltaSec, double deltaUpdateTimeSec, double deltaRenderTimeSec)
     {
         // render lightmap to texture
-        RenderLightMap();
+        RenderLightMapToFrameBuffer();
 
         // render to screen
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, FramebufferHandle.Zero);
@@ -159,14 +162,27 @@ partial class WorldRenderer
 
         vaoGui.UploadNewData();
 
-        shaderProgram.Use();
-        atlas.Bind();
-        windowUbo.Bind(windowUboBindingPoint);
+        void setupDraw()
+        {
+            shaderProgram.Use();
+            atlas.Bind();
+
+            GL.Viewport(0, 0, (int)windowUbo.Data.WindowSize.X, (int)windowUbo.Data.WindowSize.Y);
+            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);     // normal blending
+        }
+
+        setupDraw();
         vaoGui.Draw(PrimitiveType.Triangles, vertexOrIndexCount: countTri0);
+
+        // multiply the light map over the screen (will reset shader)
+        RenderLightMapToScreen();
+
+        setupDraw();
         vaoGui.Draw(PrimitiveType.Lines, countTri0, countLines1);
         vaoGui.Draw(PrimitiveType.Triangles, countTri0 + countLines1, countTri2);
 
         // frame data
+        // TODO update with light map calls
         frameData.NewFrame(TimeSpan.FromSeconds(deltaSec), TimeSpan.FromSeconds(deltaUpdateTimeSec), TimeSpan.FromSeconds(deltaRenderTimeSec),
             3, (ulong)countTri0 + (ulong)countTri2, (ulong)countLines1);
     }
