@@ -31,10 +31,8 @@ void main()
         const vec2 lightPosition = lights[idx].location.xy;
 
         float dist = length(lightPosition - pos);
-        if(dist <= range)
-            resultColor += startColor * ((range - dist) / range);
+        resultColor += startColor * (max(0, range - dist) / range);
     }
 
     color = vec4(resultColor, 1.0);
-    //color = color * 0.0001 + vec4(fs_tex0, 0.0, 1.0);
 }
