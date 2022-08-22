@@ -84,7 +84,7 @@ partial class WorldRenderer
     public void Render(double deltaSec, double deltaUpdateTimeSec, double deltaRenderTimeSec)
     {
         // render lightmap to texture
-        RenderLightMapToFrameBuffer();
+        RenderLightMapToFrameBuffer(out var lightDrawCalls0, out var lightTris0);
 
         // render to screen
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, FramebufferHandle.Zero);
@@ -171,20 +171,21 @@ partial class WorldRenderer
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);     // normal blending
         }
 
+        // draw the world
         setupDraw();
         vaoGui.Draw(PrimitiveType.Triangles, vertexOrIndexCount: countTri0);
 
         // multiply the light map over the screen (will reset shader)
-        RenderLightMapToScreen();
+        RenderLightMapToScreen(out var lightDrawCalls1, out var lightTris1);
 
+        // draw the gui overlays, which shouldn't be light mapped
         setupDraw();
         vaoGui.Draw(PrimitiveType.Lines, countTri0, countLines1);
         vaoGui.Draw(PrimitiveType.Triangles, countTri0 + countLines1, countTri2);
 
         // frame data
-        // TODO update with light map calls
         frameData.NewFrame(TimeSpan.FromSeconds(deltaSec), TimeSpan.FromSeconds(deltaUpdateTimeSec), TimeSpan.FromSeconds(deltaRenderTimeSec),
-            3, (ulong)countTri0 + (ulong)countTri2, (ulong)countLines1);
+            3 + lightDrawCalls0 + lightDrawCalls1, (ulong)countTri0 + (ulong)countTri2, (ulong)countLines1 + lightTris0 + lightTris1);
     }
 
     public Vector2i GetLocationFromScreenPoint(Vector2i screenPoint) => screenPoint / (int)pixelZoom;

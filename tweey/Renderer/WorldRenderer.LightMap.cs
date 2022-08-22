@@ -93,7 +93,7 @@ public partial class WorldRenderer
         lightMapCellsSize = new(cellsX, cellsY);
     }
 
-    void RenderLightMapToFrameBuffer()
+    void RenderLightMapToFrameBuffer(out ulong drawCalls, out ulong tris)
     {
         lightMapFrameBuffer!.Bind(FramebufferTarget.Framebuffer);
         GL.ClearColor(.4f, .4f, .4f, 1f);
@@ -115,9 +115,13 @@ public partial class WorldRenderer
         GL.Viewport(0, 0, lightMapCellsSize.X, lightMapCellsSize.Y);
         GL.BlendFunc(BlendingFactor.One, BlendingFactor.One);   // additive blending
         lightMapFBVao.Draw(PrimitiveType.Triangles);
+
+
+        drawCalls = 1;
+        tris = 2;
     }
 
-    void RenderLightMapToScreen()
+    void RenderLightMapToScreen(out ulong drawCalls, out ulong tris)
     {
         lightMapScreenShaderProgram.Use();
 
@@ -126,5 +130,8 @@ public partial class WorldRenderer
 
         GL.BlendFunc(BlendingFactor.DstColor, BlendingFactor.OneMinusSrcAlpha);     // multiplicative
         lightMapFBVao.Draw(PrimitiveType.Triangles);
+
+        drawCalls = 1;
+        tris = 2;
     }
 }
