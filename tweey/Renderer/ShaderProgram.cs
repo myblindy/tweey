@@ -95,4 +95,7 @@ class ShaderProgram
 
     public void Uniform(string uniformVariableName, int value) =>
         GL.ProgramUniform1i(programHandle, attributeLocations[uniformVariableName], value);
+
+    public void Uniform(string uniformVariableName, Vector4 value) =>
+        GL.ProgramUniform4f(programHandle, attributeLocations[uniformVariableName], value.X, value.Y, value.Z, value.W);
 }

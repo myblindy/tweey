@@ -1,6 +1,6 @@
-﻿namespace Tweey.Renderer;
+﻿namespace Tweey.Renderer.Textures;
 
-public class Texture2D : IDisposable
+public class Texture2D : BaseTexture, IDisposable
 {
     public TextureHandle Handle { get; }
 
@@ -16,8 +16,15 @@ public class Texture2D : IDisposable
         GL.TextureParameteri(Handle, TextureParameterName.TextureMagFilter, (int)All.Linear);
     }
 
-    public void Bind() =>
-        GL.BindTexture(TextureTarget.Texture2d, Handle);
+    public override void Bind(int unit = 0)
+    {
+        if (LastBoundTexture[unit] != this)
+        {
+            GL.ActiveTexture((TextureUnit)((int)TextureUnit.Texture0 + unit));
+            GL.BindTexture(TextureTarget.Texture2d, Handle);
+            LastBoundTexture[unit] = this;
+        }
+    }
 
     private bool disposedValue;
 

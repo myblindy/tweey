@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using Tweey.Renderer.Textures;
 
 namespace Tweey.Renderer;
 
@@ -6,7 +7,6 @@ public partial class WorldRenderer
 {
     StaticVertexArrayObject<LightMapFBVertex> lightMapFBVao;
     readonly ShaderProgram lightMapFBShaderProgram = new("lightmap");
-    readonly ShaderProgram lightMapScreenShaderProgram = new("lightmap-copy");
     readonly UniformBufferObject<LightMapFBUbo> lightMapFBUbo = new();
     const int lightsUboBindingPoint = 2;
     Texture2D? lightMapTexture;
@@ -96,7 +96,6 @@ public partial class WorldRenderer
     void RenderLightMapToFrameBuffer(out ulong drawCalls, out ulong tris)
     {
         lightMapFrameBuffer!.Bind(FramebufferTarget.Framebuffer);
-        GL.ClearColor(.4f, .4f, .4f, 1f);
         GL.Clear(ClearBufferMask.ColorBufferBit);
 
         lightMapFBUbo.Data.CellSize = lightMapCellsSize.ToNumericsVector2();
@@ -116,20 +115,6 @@ public partial class WorldRenderer
         GL.BlendFunc(BlendingFactor.One, BlendingFactor.One);   // additive blending
         lightMapFBVao.Draw(PrimitiveType.Triangles);
 
-
-        drawCalls = 1;
-        tris = 2;
-    }
-
-    void RenderLightMapToScreen(out ulong drawCalls, out ulong tris)
-    {
-        lightMapScreenShaderProgram.Use();
-
-        lightMapScreenShaderProgram.Uniform("lightMapSampler", 0);
-        lightMapTexture!.Bind();
-
-        GL.BlendFunc(BlendingFactor.DstColor, BlendingFactor.OneMinusSrcAlpha);     // multiplicative
-        lightMapFBVao.Draw(PrimitiveType.Triangles);
 
         drawCalls = 1;
         tris = 2;

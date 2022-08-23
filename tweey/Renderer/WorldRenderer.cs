@@ -1,4 +1,5 @@
 ﻿using Tweey.Loaders;
+using Tweey.Renderer.Textures;
 
 namespace Tweey.Renderer;
 
@@ -29,7 +30,8 @@ partial class WorldRenderer
     }
 
     readonly StreamingVertexArrayObject<GuiVertex> vaoGui = new();
-    readonly ShaderProgram shaderProgram = new("gui");
+    readonly ShaderProgram guiShaderProgram = new("gui");
+    readonly ShaderProgram guiLightMapShaderProgram = new("gui-lightmap");
     readonly GuiSpace gui = new();
 
     public WorldRenderer(World world)
@@ -41,8 +43,13 @@ partial class WorldRenderer
         maxTextureSize = Math.Min(4096, maxTextureSize);
         atlas = new(maxTextureSize, maxTextureSize, 1);
         fontRenderer = new(atlas);
-        shaderProgram.UniformBlockBind("ubo_window", windowUboBindingPoint);
-        shaderProgram.Uniform("atlasSampler", 0);
+
+        guiShaderProgram.UniformBlockBind("ubo_window", windowUboBindingPoint);
+        guiShaderProgram.Uniform("atlasSampler", 0);
+
+        guiLightMapShaderProgram.UniformBlockBind("ubo_window", windowUboBindingPoint);
+        guiLightMapShaderProgram.Uniform("atlasSampler", 0);
+        guiLightMapShaderProgram.Uniform("lightMapSampler", 1);
 
         grassAtlasEntry = atlas[grassTilePath];
         blankAtlasEntry = atlas[GrowableTextureAtlas3D.BlankName];
@@ -162,30 +169,25 @@ partial class WorldRenderer
 
         vaoGui.UploadNewData();
 
-        void setupDraw()
-        {
-            shaderProgram.Use();
-            atlas.Bind();
+        // draw the world (with light mapping)
+        guiLightMapShaderProgram.Use();
+        guiLightMapShaderProgram.Uniform("ambientColor", new Vector4(.3f, .3f, .3f, 1f));
+        atlas.Bind(0);
+        lightMapTexture!.Bind(1);
 
-            GL.Viewport(0, 0, (int)windowUbo.Data.WindowSize.X, (int)windowUbo.Data.WindowSize.Y);
-            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);     // normal blending
-        }
+        GL.Viewport(0, 0, (int)windowUbo.Data.WindowSize.X, (int)windowUbo.Data.WindowSize.Y);
+        GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);     // normal blending
 
-        // draw the world
-        setupDraw();
         vaoGui.Draw(PrimitiveType.Triangles, vertexOrIndexCount: countTri0);
 
-        // multiply the light map over the screen (will reset shader)
-        RenderLightMapToScreen(out var lightDrawCalls1, out var lightTris1);
-
         // draw the gui overlays, which shouldn't be light mapped
-        setupDraw();
+        guiShaderProgram.Use();
         vaoGui.Draw(PrimitiveType.Lines, countTri0, countLines1);
         vaoGui.Draw(PrimitiveType.Triangles, countTri0 + countLines1, countTri2);
 
         // frame data
         frameData.NewFrame(TimeSpan.FromSeconds(deltaSec), TimeSpan.FromSeconds(deltaUpdateTimeSec), TimeSpan.FromSeconds(deltaRenderTimeSec),
-            3 + lightDrawCalls0 + lightDrawCalls1, (ulong)countTri0 + (ulong)countTri2, (ulong)countLines1 + lightTris0 + lightTris1);
+            3 + lightDrawCalls0, (ulong)countTri0 + (ulong)countTri2, (ulong)countLines1 + lightTris0);
     }
 
     public Vector2i GetLocationFromScreenPoint(Vector2i screenPoint) => screenPoint / (int)pixelZoom;
