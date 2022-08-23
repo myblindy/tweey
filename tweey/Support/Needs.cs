@@ -4,12 +4,10 @@ namespace Tweey.Support;
 
 public class Needs
 {
-            [RequiredProperty]
-        public double HungerMax { get; set; }
+            public required double HungerMax { get; set; }
         public double Hunger { get; set; }
         public double HungerPercentage => Hunger / HungerMax;
-        [RequiredProperty]
-        public double HungerPerSecond { get; set; }
+        public required double HungerPerSecond { get; set; }
     
     public void UpdateWithChanges(NeedsChange change)
     {

@@ -9,11 +9,9 @@ public class RepeaterView<T> : View, IRepeaterView
 {
     public RepeaterView() : base(new()) { }
 
-    [RequiredProperty]
-    public Func<IEnumerable<T>?>? Source { get; set; }
+    public required Func<IEnumerable<T>?>? Source { get; set; }
     public IContainerView? ContainerView { get; set; }
-    [RequiredProperty]
-    public Func<T, View>? ItemView { get; set; }
+    public required Func<T, View>? ItemView { get; set; }
     public View? EmptyView { get; set; }
 
     public View CreateView()
