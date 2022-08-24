@@ -30,8 +30,9 @@ void main()
         const vec3 startColor = lights[idx].rangeAndstartColor.yzw;
         const vec2 lightPosition = lights[idx].location.xy;
 
-        float dist = length(lightPosition - pos);
-        resultColor += startColor * (max(0, range - dist) / range);
+        const float dist = length(lightPosition - pos);
+        const float strength = max(0, range - dist) / range;
+        resultColor += startColor * strength * strength;
     }
 
     color = vec4(resultColor, 1.0);
