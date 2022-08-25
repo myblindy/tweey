@@ -90,8 +90,8 @@ public partial class WorldRenderer
         lightMapFrameBuffer?.Dispose();
         lightMapTexture?.Dispose();
 
-        var cellsX = (int)Math.Floor(width / pixelZoom) * 3;
-        var cellsY = (int)Math.Floor(height / pixelZoom) * 3;
+        var cellsX = (int)Math.Ceiling(width / pixelZoom) * 3;
+        var cellsY = (int)Math.Ceiling(height / pixelZoom) * 3;
         lightMapTexture = new(cellsX, cellsY, SizedInternalFormat.Rgba8);
         lightMapFrameBuffer = new(new[] { lightMapTexture });
 

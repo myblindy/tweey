@@ -168,8 +168,8 @@ partial class WorldRenderer
                 break;
 
             case ProgressView progressView:
-                if (progressView.StringFormat?.Invoke() is { } stringFormat && !string.IsNullOrWhiteSpace(stringFormat)
-                    && progressView.Maximum?.Invoke() is var maximum && progressView.Value?.Invoke() is var value)
+                if (progressView.StringFormat() is { } stringFormat && !string.IsNullOrWhiteSpace(stringFormat)
+                    && progressView.Maximum() is var maximum && progressView.Value() is var value)
                 {
                     size += fontRenderer.Measure(string.Format(stringFormat, value / maximum * 100), new FontDescription { Size = progressView.FontSize });
                     if (progressView.BorderColor.W != 0) size += new Vector2(2, 2);
@@ -293,8 +293,8 @@ partial class WorldRenderer
                         labelForegroundColor, labelView.BackgroundColor, labelView.HorizontalTextAlignment);
                 break;
             case ProgressView progressView:
-                if (progressView.StringFormat?.Invoke() is { } stringFormat && !string.IsNullOrEmpty(stringFormat)
-                    && progressView.Maximum?.Invoke() is { } maximum && progressView.Value?.Invoke() is { } value
+                if (progressView.StringFormat() is { } stringFormat && !string.IsNullOrEmpty(stringFormat)
+                    && progressView.Maximum() is { } maximum && progressView.Value() is { } value
                     && progressView.ForegroundColor?.Invoke() is { } progressForegroundColor)
                 {
                     var borderOffset = progressView.BorderColor.W > 0;
