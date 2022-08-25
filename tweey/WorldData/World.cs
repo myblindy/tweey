@@ -16,6 +16,7 @@ public class World
 
     public bool Paused { get; private set; }
     public bool ShowDetails { get; private set; }
+    public bool DebugShowLightAtMouse { get; private set; }
 
     public Vector2i MouseScreenPosition { get; private set; }
     public Vector2i MouseWorldPosition { get; private set; }
@@ -179,10 +180,15 @@ public class World
             ShowDetails = true;
         else if (inputAction == InputAction.Release && key is Keys.LeftAlt or Keys.RightAlt)
             ShowDetails = false;
+        else if (inputAction == InputAction.Press && key == Keys.F1)
+            DebugShowLightAtMouse = !DebugShowLightAtMouse;
     }
 
+    public TimeSpan TotalTime { get; private set; }
     public void Update(double deltaSec)
     {
+        TotalTime += TimeSpan.FromSeconds(deltaSec);
+
         if (!Paused)
             aiManager.Update(deltaSec);
         soundManager.Update(deltaSec);
