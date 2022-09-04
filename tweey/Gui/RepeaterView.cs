@@ -9,16 +9,16 @@ public class RepeaterView<T> : View, IRepeaterView
 {
     public RepeaterView() : base(new()) { }
 
-    public required Func<IEnumerable<T>?>? Source { get; set; }
+    public required Func<IEnumerable<T>?> Source { get; set; }
     public IContainerView? ContainerView { get; set; }
-    public required Func<T, View>? ItemView { get; set; }
+    public required Func<T, View> ItemView { get; set; }
     public View? EmptyView { get; set; }
 
     public View CreateView()
     {
         IContainerView? result = null;
 
-        if (Source is not null && Source() is { } items)
+        if (Source() is { } items)
             foreach (var item in items)
             {
                 if (result is null)
