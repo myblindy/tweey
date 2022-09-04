@@ -1,11 +1,4 @@
-﻿namespace Tweey.Renderer;
-
-abstract class BaseVertexArrayObject
-{
-    protected static BaseVertexArrayObject? lastBoundVertexArray;
-
-    public abstract void Draw(PrimitiveType primitiveType, int vertexOrIndexOffset = 0, int vertexOrIndexCount = -1);
-}
+﻿namespace Tweey.Renderer.VertexArrayObjects;
 
 class StreamingVertexArrayObject<TVertex> : BaseVertexArrayObject where TVertex : unmanaged
 {
@@ -71,6 +64,7 @@ class StreamingVertexArrayObject<TVertex> : BaseVertexArrayObject where TVertex 
         }
 
         GL.DrawArrays(primitiveType, vertexCurrentOffset - lastUploadedVertexLength + vertexOrIndexOffset, vertexCount);
+        AddFrameData(primitiveType, (ulong)vertexCount);
     }
 
     readonly BufferHandle vertexBufferHandle;

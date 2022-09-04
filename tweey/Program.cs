@@ -81,7 +81,6 @@ class Program : GameWindow
 
     protected override void OnResize(ResizeEventArgs e)
     {
-        GL.Viewport(0, 0, e.Width, e.Height);
         worldRenderer?.Resize(e.Width, e.Height);
     }
 

@@ -50,11 +50,11 @@ public abstract class AIPlan
         for (int movements = Villager.MovementActionTime.ConsumeActions(); movements > 0; --movements)
         {
             // reached the resource?
-            if (entity!.Box.Intersects(Villager.Box.WithExpand(Vector2.One)))
+            if (entity.Box.Intersects(Villager.Box.WithExpand(Vector2.One)))
                 return true;
 
             // if not, move towards it
-            Villager.Location += (entity!.Location - Villager.Location).Sign();
+            Villager.Location += (entity.Location - Villager.Location).Sign();
         }
 
         return false;

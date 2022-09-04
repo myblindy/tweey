@@ -1,5 +1,6 @@
 ﻿using Tweey.Loaders;
 using Tweey.Renderer.Textures;
+using Tweey.Renderer.VertexArrayObjects;
 
 namespace Tweey.Renderer;
 
@@ -12,14 +13,19 @@ partial class WorldRenderer
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     struct WindowUbo
     {
-        public Vector2 WindowSize;
+        Vector4 WindowSizeAndZero;
+        public Vector2 WindowSize
+        {
+            get => new(WindowSizeAndZero.X, WindowSizeAndZero.Y);
+            set => (WindowSizeAndZero.X, WindowSizeAndZero.Y) = (value.X, value.Y);
+        }
     }
 
     readonly UniformBufferObject<WindowUbo> windowUbo = new();
     const int windowUboBindingPoint = 1;
 
     [VertexDefinition, StructLayout(LayoutKind.Sequential, Pack = 1)]
-    [SuppressMessage("Performance", "CA1815:Override equals and operator equals on value types", Justification = "It's a vertex buffer structure")]
+    //[SuppressMessage("Performance", "CA1815:Override equals and operator equals on value types", Justification = "It's a vertex buffer structure")]
     public struct GuiVertex
     {
         public Vector2 Location;
@@ -30,7 +36,7 @@ partial class WorldRenderer
             (Location, Color, Tex0) = (location, color, tex0);
     }
 
-    readonly StreamingVertexArrayObject<GuiVertex> vaoGui = new();
+    readonly StreamingVertexArrayObject<GuiVertex> guiVAO = new();
     readonly ShaderProgram guiShaderProgram = new("gui");
     readonly ShaderProgram guiLightMapShaderProgram = new("gui-lightmap");
     readonly GuiSpace gui = new();
@@ -65,14 +71,13 @@ partial class WorldRenderer
     public void Resize(int width, int height)
     {
         windowUbo.Data.WindowSize = new(width, height);
-        windowUbo.Update();
+        windowUbo.UploadData();
 
         ResizeLightMap(width, height);
     }
 
     float pixelZoom = 35;
 
-    FrameData frameData;
     static string GetImagePath(BuildingTemplate building) => $"Data/Buildings/{building.FileName}.png";
     static string GetImagePath(Resource resource) => $"Data/Resources/{resource.FileName}.png";
     static string GetImagePath(Villager _) => $"Data/Misc/villager.png";
@@ -125,7 +130,7 @@ partial class WorldRenderer
                     break;
             }
 
-        var countTri0 = vaoGui.Vertices.Length;
+        var countTri0 = guiVAO.Vertices.Length;
 
         // store the ai plan targets' vertices (lines)
         if (world.ShowDetails)
@@ -140,7 +145,7 @@ partial class WorldRenderer
         // selection box (lines)
         if (world.SelectedEntity is { } selectedEntity)
             ScreenLineQuad(selectedEntity.Box, Colors4.White);
-        var countLines1 = vaoGui.Vertices.Length - countTri0;
+        var countLines1 = guiVAO.Vertices.Length - countTri0;
 
         // render top layer (tri2)
         foreach (var entity in world.GetEntities<Villager>())
@@ -166,29 +171,28 @@ partial class WorldRenderer
         // render gui (tri2)
         RenderGui();
 
-        var countTri2 = vaoGui.Vertices.Length - countTri0 - countLines1;
+        var countTri2 = guiVAO.Vertices.Length - countTri0 - countLines1;
 
-        vaoGui.UploadNewData();
+        guiVAO.UploadNewData();
 
         // draw the world (with light mapping)
         guiLightMapShaderProgram.Use();
         guiLightMapShaderProgram.Uniform("ambientColor", new Vector4(.3f, .3f, .3f, 1f));
         atlas.Bind(0);
-        lightMapTexture!.Bind(1);
+        lightMapTexture.Bind(1);
 
         GL.Viewport(0, 0, (int)windowUbo.Data.WindowSize.X, (int)windowUbo.Data.WindowSize.Y);
         GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);     // normal blending
 
-        vaoGui.Draw(PrimitiveType.Triangles, vertexOrIndexCount: countTri0);
+        guiVAO.Draw(PrimitiveType.Triangles, vertexOrIndexCount: countTri0);
 
         // draw the gui overlays, which shouldn't be light mapped
         guiShaderProgram.Use();
-        vaoGui.Draw(PrimitiveType.Lines, countTri0, countLines1);
-        vaoGui.Draw(PrimitiveType.Triangles, countTri0 + countLines1, countTri2);
+        guiVAO.Draw(PrimitiveType.Lines, countTri0, countLines1);
+        guiVAO.Draw(PrimitiveType.Triangles, countTri0 + countLines1, countTri2);
 
         // frame data
-        frameData.NewFrame(TimeSpan.FromSeconds(deltaSec), TimeSpan.FromSeconds(deltaUpdateTimeSec), TimeSpan.FromSeconds(deltaRenderTimeSec),
-            3 + lightDrawCalls0, (ulong)countTri0 + (ulong)countTri2, (ulong)countLines1 + lightTris0);
+        FrameData.NewFrame(TimeSpan.FromSeconds(deltaSec), TimeSpan.FromSeconds(deltaUpdateTimeSec), TimeSpan.FromSeconds(deltaRenderTimeSec));
     }
 
     public Vector2i GetLocationFromScreenPoint(Vector2i screenPoint) => screenPoint / (int)pixelZoom;

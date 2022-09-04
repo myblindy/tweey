@@ -37,4 +37,20 @@ public static class Extensions
         foreach (var item in items)
             set.Add(item);
     }
+
+    public static ulong Sum<T>(this IEnumerable<T> source, Func<T, ulong> transform)
+    {
+        ulong sum = 0;
+        foreach (var item in source)
+            sum += transform(item);
+        return sum;
+    }
+
+    public static TimeSpan Sum<T>(this IEnumerable<T> source, Func<T, TimeSpan> transform)
+    {
+        TimeSpan sum = default;
+        foreach (var item in source)
+            sum += transform(item);
+        return sum;
+    }
 }

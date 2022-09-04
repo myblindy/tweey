@@ -1,35 +1,46 @@
 ﻿namespace Tweey.Support;
 
-struct FrameData
+static class FrameData
 {
     static readonly TimeSpan maxTime = TimeSpan.FromSeconds(1);
-    TimeSpan cummulativeTime, cummulativeUpdateTime, cummulativeRenderTime;
-    ulong cummulativeDrawCallCount, cummulativeTriangleCount, cummulativeLineCount;
-    int frameCount;
 
-    public double Rate { get; private set; }
-
-    public double UpdateTimePercentage => cummulativeUpdateTime.TotalSeconds / cummulativeTime.TotalSeconds;
-    public double RenderTimePercentage => cummulativeRenderTime.TotalSeconds / cummulativeTime.TotalSeconds;
-    public ulong DrawCallCount => frameCount is 0 ? 0 : cummulativeDrawCallCount / (ulong)frameCount;
-    public ulong TriangleCount => frameCount is 0 ? 0 : cummulativeTriangleCount / (ulong)frameCount;
-    public ulong LineCount => frameCount is 0 ? 0 : cummulativeLineCount / (ulong)frameCount;
-
-    public void NewFrame(TimeSpan deltaTime, TimeSpan deltaUpdateTime, TimeSpan deltaRenderTime, ulong drawCalls, ulong triangles, ulong lines)
+    struct Snapshot
     {
-        ++frameCount;
-        if (cummulativeTime + deltaTime > maxTime)
-        {
-            Rate = frameCount / cummulativeTime.TotalSeconds;
-            (frameCount, cummulativeTime, cummulativeUpdateTime, cummulativeRenderTime, cummulativeDrawCallCount, cummulativeTriangleCount, cummulativeLineCount) =
-                (1, default, default, default, 0, 0, 0);
-        }
+        public TimeSpan DeltaTime, DeltaUpdateTime, DeltaRenderTime;
+        public ulong DrawCallCount, TriangleCount, LineCount;
+    }
+    static readonly Snapshot[] snapshots = new Snapshot[200];
+    static int currentSnapshotIndex = -1;
 
-        cummulativeTime += deltaTime;
-        cummulativeUpdateTime += deltaUpdateTime;
-        cummulativeRenderTime += deltaRenderTime;
-        cummulativeDrawCallCount += drawCalls;
-        cummulativeTriangleCount += triangles;
-        cummulativeLineCount += lines;
+    static IEnumerable<Snapshot> ActiveSnapshots => snapshots.Take(currentSnapshotIndex);
+    static ulong ActiveSnapshotsCount => (ulong)currentSnapshotIndex;
+
+    public static double Rate => currentSnapshotIndex < 0 ? 0 : ActiveSnapshotsCount / ActiveSnapshots.Sum(w => w.DeltaTime).TotalSeconds;
+    public static double UpdateTimePercentage => currentSnapshotIndex <= 0 ? 0 : ActiveSnapshots.Sum(w => w.DeltaUpdateTime) / ActiveSnapshots.Sum(w => w.DeltaTime);
+    public static double RenderTimePercentage => currentSnapshotIndex <= 0 ? 0 : ActiveSnapshots.Sum(w => w.DeltaRenderTime) / ActiveSnapshots.Sum(w => w.DeltaTime);
+    public static ulong DrawCallCount => currentSnapshotIndex <= 0 ? 0 : ActiveSnapshots.Sum(w => w.DrawCallCount) / ActiveSnapshotsCount;
+    public static ulong TriangleCount => currentSnapshotIndex <= 0 ? 0 : ActiveSnapshots.Sum(w => w.TriangleCount) / ActiveSnapshotsCount;
+    public static ulong LineCount => currentSnapshotIndex <= 0 ? 0 : ActiveSnapshots.Sum(w => w.LineCount) / ActiveSnapshotsCount;
+
+    public static void NewTriangleDraw(ulong count) =>
+        (snapshots[currentSnapshotIndex + 1].DrawCallCount, snapshots[currentSnapshotIndex + 1].TriangleCount) =
+        (snapshots[currentSnapshotIndex + 1].DrawCallCount + 1, snapshots[currentSnapshotIndex + 1].TriangleCount + count);
+
+    public static void NewLineDraw(ulong count) =>
+        (snapshots[currentSnapshotIndex + 1].DrawCallCount, snapshots[currentSnapshotIndex + 1].LineCount) =
+        (snapshots[currentSnapshotIndex + 1].DrawCallCount + 1, snapshots[currentSnapshotIndex + 1].LineCount + count);
+
+    public static void NewFrame(TimeSpan deltaTime, TimeSpan deltaUpdateTime, TimeSpan deltaRenderTime)
+    {
+        snapshots[currentSnapshotIndex + 1].DeltaTime = deltaTime;
+        snapshots[currentSnapshotIndex + 1].DeltaUpdateTime = deltaUpdateTime;
+        snapshots[currentSnapshotIndex + 1].DeltaRenderTime = deltaRenderTime;
+
+        if (++currentSnapshotIndex == snapshots.Length - 1)
+        {
+            Array.Copy(snapshots, snapshots.Length / 2, snapshots, 0, snapshots.Length / 2);
+            currentSnapshotIndex = snapshots.Length / 2 - 1;
+        }
+        snapshots[currentSnapshotIndex + 1] = new();
     }
 }

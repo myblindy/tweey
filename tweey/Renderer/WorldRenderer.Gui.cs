@@ -187,8 +187,8 @@ partial class WorldRenderer
                     new LabelView
                     {
                         Text = () => $"""
-                            FPS: {Math.Round(frameData.Rate, 1, MidpointRounding.ToPositiveInfinity):0.0}, Update: {frameData.UpdateTimePercentage * 100:0.00}%, Render: {frameData.RenderTimePercentage * 100:0.00}%
-                            Draw calls: {frameData.DrawCallCount}, Triangles: {frameData.TriangleCount}, Lines: {frameData.LineCount}
+                            FPS: {Math.Round(FrameData.Rate, 0, MidpointRounding.ToPositiveInfinity):0}, Update: {FrameData.UpdateTimePercentage * 100:0.00}%, Render: {FrameData.RenderTimePercentage * 100:0.00}%
+                            Draw calls: {FrameData.DrawCallCount}, Triangles: {FrameData.TriangleCount}, Lines: {FrameData.LineCount}
                             """,
                         FontSize = 22,
                         Padding = new(2),

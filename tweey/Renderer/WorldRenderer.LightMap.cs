@@ -1,19 +1,52 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
+using System.Drawing;
+using Tweey.Actors;
 using Tweey.Renderer.Textures;
+using Tweey.Renderer.VertexArrayObjects;
 
 namespace Tweey.Renderer;
 
 public partial class WorldRenderer
 {
-    StaticVertexArrayObject<LightMapFBVertex> lightMapFBVao;
+    readonly StaticVertexArrayObject<LightMapFBVertex> lightMapFBVao =
+        new(new LightMapFBVertex[]
+        {
+            new(new(-1, -1), new (0, 0)),
+            new(new(1, -1), new (1, 0)),
+            new(new(-1, 1), new (0, 1)),
+
+            new(new(-1, 1), new (0, 1)),
+            new(new(1, -1), new (1, 0)),
+            new(new(1, 1), new (1, 1)),
+        });
     readonly ShaderProgram lightMapFBShaderProgram = new("lightmap");
     readonly UniformBufferObject<LightMapFBUbo> lightMapFBUbo = new();
+
     Texture2D lightMapOcclusionTexture = null!;
-    byte[] lightMapOcclusionTextureBacking = null!;
+    FrameBuffer lightMapOcclusionFrameBuffer = null!;
+    readonly StreamingVertexArrayObject<LightMapOcclusionFBVertex> lightMapOcclusionVAO = new();
+    readonly ShaderProgram lightMapOcclusionShaderProgram = new("lightmap-occlusion");
+    readonly Texture2D lightMapOcclusionCircleTexture =
+        new(@"Data\Misc\large-circle.png", SizedInternalFormat.R8, minFilter: TextureMinFilter.NearestMipmapNearest, magFilter: TextureMagFilter.Nearest);
+
     const int lightsUboBindingPoint = 2;
     Texture2D lightMapTexture = null!;
     FrameBuffer lightMapFrameBuffer = null!;
-    Vector2i lightMapCellsSize;
+
+    [VertexDefinition, StructLayout(LayoutKind.Sequential, Pack = 1)]
+    [SuppressMessage("Performance", "CA1815:Override equals and operator equals on value types", Justification = "Vertex structure definition")]
+    public struct LightMapOcclusionFBVertex
+    {
+        public Vector2 Location;
+        public Vector2 Tex0;
+
+        public LightMapOcclusionFBVertex(Vector2 location, Vector2 tex0)
+        {
+            Location = location;
+            Tex0 = tex0;
+        }
+    }
 
     [VertexDefinition, StructLayout(LayoutKind.Sequential, Pack = 1)]
     [SuppressMessage("Performance", "CA1815:Override equals and operator equals on value types", Justification = "Vertex structure definition")]
@@ -45,15 +78,13 @@ public partial class WorldRenderer
                 Location = new(location, 0, 0);
                 RangeAndStartColor = new(range, startColor.X, startColor.Y, startColor.Z);
             }
+
+            public void ClearToInvalid() =>
+                (Location, RangeAndStartColor) = (new(-100000, -100000, 0, 0), new(0, 0, 0, 0));
         }
 
-        Vector4 ActualLightCountAndCellSizeAndZero;
-        public int ActualLightCount { get => (int)ActualLightCountAndCellSizeAndZero.X; set => ActualLightCountAndCellSizeAndZero.X = value; }
-        public Vector2 CellSize
-        {
-            get => new(ActualLightCountAndCellSizeAndZero.Y, ActualLightCountAndCellSizeAndZero.Z);
-            set => ActualLightCountAndCellSizeAndZero = new(ActualLightCountAndCellSizeAndZero.X, value.X, value.Y, 0);
-        }
+        Vector4 ActualLightCountAndZero;
+        public int ActualLightCount { get => (int)ActualLightCountAndZero.X; set => ActualLightCountAndZero.X = value; }
 
         public const int MaxLightCount = 16;
         fixed byte Data[Light.Size * MaxLightCount];
@@ -68,111 +99,92 @@ public partial class WorldRenderer
         }
     }
 
-    [MemberNotNull(nameof(lightMapFBVao))]
     void InitializeLightMap()
     {
-        lightMapFBVao = new(new LightMapFBVertex[]
-        {
-            new(new(-1, -1), new (0, 0)),
-            new(new(1, -1), new (1, 0)),
-            new(new(-1, 1), new (0, 1)),
-
-            new(new(-1, 1), new (0, 1)),
-            new(new(1, -1), new (1, 0)),
-            new(new(1, 1), new (1, 1)),
-        });
-
+        lightMapFBShaderProgram.UniformBlockBind("ubo_window", windowUboBindingPoint);
+        lightMapFBShaderProgram.UniformBlockBind("ubo_lights", lightsUboBindingPoint);
         lightMapFBShaderProgram.Uniform("occlusionSampler", 0);
+
+        lightMapOcclusionShaderProgram.UniformBlockBind("ubo_window", windowUboBindingPoint);
+        lightMapOcclusionShaderProgram.Uniform("circleSampler", 0);
     }
 
     void ResizeLightMap(int width, int height)
     {
         lightMapFrameBuffer?.Dispose();
         lightMapTexture?.Dispose();
-
-        var cellsX = (int)Math.Floor(width / pixelZoom) * 3;
-        var cellsY = (int)Math.Floor(height / pixelZoom) * 3;
-        lightMapTexture = new(cellsX, cellsY, SizedInternalFormat.Rgba8);
+        lightMapTexture = new(width, height, SizedInternalFormat.Rgba8);
         lightMapFrameBuffer = new(new[] { lightMapTexture });
 
+        lightMapOcclusionFrameBuffer?.Dispose();
         lightMapOcclusionTexture?.Dispose();
-        lightMapOcclusionTexture = new(cellsX, cellsY, SizedInternalFormat.R8);
-        lightMapOcclusionTextureBacking = new byte[cellsX * cellsY];
-
-        lightMapCellsSize = new(cellsX, cellsY);
+        lightMapOcclusionTexture = new(width, height, SizedInternalFormat.R8);
+        lightMapOcclusionFrameBuffer = new(new[] { lightMapOcclusionTexture });
     }
 
     unsafe void RenderLightMapToFrameBuffer(out ulong drawCalls, out ulong tris)
     {
-        // build the occlusions
-        Array.Clear(lightMapOcclusionTextureBacking);
-
-        void markOcclusionCenterVector(Vector2i worldPosition)
+        // setup the occlusion map for rendering and build the occlusions
+        void markOcclusionBox(Box2 box, bool circle = false, float scale = 1f)
         {
-            if (worldPosition.X * 3 + 1 is { } x && x >= 0 && x < lightMapCellsSize.X
-                && worldPosition.Y * 3 + 1 is { } y && y >= 0 && y < lightMapCellsSize.Y)
-            {
-                lightMapOcclusionTextureBacking[y * lightMapCellsSize.X + x] = byte.MaxValue;
-            }
-        }
+            var zoom = pixelZoom;
+            var uvHalf = new Vector2(.5f, .5f);         // the center of the circle texture is white, use that for the box case
 
-        void markOcclusionBox(Box2 box)
-        {
-            var boxSize = box.Size;
-            int xStart = (int)box.Left * 3, xEnd = xStart + (int)boxSize.X * 3;
-            int yStart = (int)box.Top * 3, yEnd = yStart + (int)boxSize.Y * 3;
+            var center = box.Center + new Vector2(.5f, .5f);
+            var rx = box.Size.X / 2 * scale;
+            var ry = box.Size.Y / 2 * scale;
 
-            xStart = Math.Max(0, xStart); xEnd = Math.Min(xEnd, lightMapCellsSize.X);
-            yStart = Math.Max(0, yStart); yEnd = Math.Min(yEnd, lightMapCellsSize.Y);
+            lightMapOcclusionVAO.Vertices.Add(new((center + new Vector2(-rx, ry)) * zoom, circle ? new(0, 0) : uvHalf));
+            lightMapOcclusionVAO.Vertices.Add(new((center + new Vector2(rx, -ry)) * zoom, circle ? new(1, 1) : uvHalf));
+            lightMapOcclusionVAO.Vertices.Add(new((center + new Vector2(rx, ry)) * zoom, circle ? new(1, 0) : uvHalf));
 
-            for (var y = yStart; y <= yEnd; ++y)
-                for (var x = xStart; x <= xEnd; ++x)
-                    lightMapOcclusionTextureBacking[y * lightMapCellsSize.X + x] = byte.MaxValue;
+            lightMapOcclusionVAO.Vertices.Add(new((center + new Vector2(-rx, -ry)) * zoom, circle ? new(0, 1) : uvHalf));
+            lightMapOcclusionVAO.Vertices.Add(new((center + new Vector2(rx, -ry)) * zoom, circle ? new(1, 1) : uvHalf));
+            lightMapOcclusionVAO.Vertices.Add(new((center + new Vector2(-rx, ry)) * zoom, circle ? new(0, 0) : uvHalf));
         }
 
         foreach (var entity in world.GetEntities())
             if (entity is Tree)
-                markOcclusionCenterVector(entity.Location.ToVector2i());
+                markOcclusionBox(entity.Box, true, .3f);
             else if (entity is Building { IsBuilt: true } building)
-                markOcclusionBox(building.Box);
+                markOcclusionBox(building.Box, false);
 
-        // upload the occlusions
-        fixed (byte* p = lightMapOcclusionTextureBacking)
-        {
-            GL.PixelStorei(PixelStoreParameter.UnpackAlignment, 1);
-            GL.PixelStorei(PixelStoreParameter.UnpackRowLength, lightMapCellsSize.X);
-            GL.TextureSubImage2D(lightMapOcclusionTexture.Handle, 0, 0, 0, lightMapCellsSize.X, lightMapCellsSize.Y, PixelFormat.Red, PixelType.UnsignedByte, p);
-        }
+        lightMapOcclusionVAO.UploadNewData();
+
+        lightMapOcclusionFrameBuffer.Bind(FramebufferTarget.Framebuffer);
+        GL.Clear(ClearBufferMask.ColorBufferBit);
+        lightMapOcclusionShaderProgram.Use();
+        lightMapOcclusionCircleTexture.Bind(0);
+        GL.BlendFunc(BlendingFactor.One, BlendingFactor.One);            // no alpha channel, use additive blending
+        lightMapOcclusionVAO.Draw(PrimitiveType.Triangles);
 
         // setup the light map for rendering
-        lightMapFrameBuffer.Bind(FramebufferTarget.Framebuffer);
-        GL.Clear(ClearBufferMask.ColorBufferBit);
-
         // upload the light data to the shader
-        lightMapFBUbo.Data.CellSize = lightMapCellsSize.ToNumericsVector2();
-
         lightMapFBUbo.Data.ActualLightCount = 0;
         foreach (var villager in world.GetEntities<Villager>())
             lightMapFBUbo.Data[lightMapFBUbo.Data.ActualLightCount++] =
-                new(new(villager.Location.X * 3 + 1, villager.Location.Y * 3 + 1), 12 * 3,
+                new(new Vector2(villager.Location.X + .5f, villager.Location.Y + .5f) * pixelZoom, 12 * pixelZoom,
                     lightMapFBUbo.Data.ActualLightCount == 1 ? new(.5f, .5f, .9f) : new(.9f, .5f, .5f));
 
         if (world.DebugShowLightAtMouse)
         {
             var totalTimeSec = (float)world.TotalTime.TotalSeconds;
             lightMapFBUbo.Data[lightMapFBUbo.Data.ActualLightCount++] =
-                new(new(world.MouseWorldPosition.X * 3 + 1, world.MouseWorldPosition.Y * 3 + 1), 16 * 3,
+                new(new Vector2(world.MouseScreenPosition.X, world.MouseScreenPosition.Y), 16 * pixelZoom,
                     new(MathF.Sin(totalTimeSec / 2f) / 2 + 1, MathF.Sin(totalTimeSec / 4f) / 2 + 1, MathF.Sin(totalTimeSec / 6f) / 2 + 1));
         }
 
-        lightMapFBUbo.Update();
+        for (int idx = lightMapFBUbo.Data.ActualLightCount; idx < LightMapFBUbo.MaxLightCount; ++idx)
+            lightMapFBUbo.Data[idx].ClearToInvalid();
+
+        lightMapFBUbo.UploadData();
 
         // render the light map
+        lightMapFrameBuffer.Bind(FramebufferTarget.Framebuffer);
+        GL.Clear(ClearBufferMask.ColorBufferBit);
         lightMapFBShaderProgram.Use();
-        lightMapFBShaderProgram.UniformBlockBind("ubo_lights", lightsUboBindingPoint);
         lightMapOcclusionTexture.Bind(0);
 
-        GL.Viewport(0, 0, lightMapCellsSize.X, lightMapCellsSize.Y);
         GL.BlendFunc(BlendingFactor.One, BlendingFactor.One);   // additive blending
         lightMapFBVao.Draw(PrimitiveType.Triangles);
 

@@ -1,4 +1,4 @@
-﻿namespace Tweey.Renderer;
+﻿namespace Tweey.Renderer.VertexArrayObjects;
 
 class StaticVertexArrayObject<TVertex> : BaseVertexArrayObject where TVertex : unmanaged
 {
@@ -29,7 +29,8 @@ class StaticVertexArrayObject<TVertex> : BaseVertexArrayObject where TVertex : u
             lastBoundVertexArray = this;
         }
 
-        GL.DrawArrays(primitiveType, vertexOrIndexOffset, vertexCount);
+        var count = vertexCount - vertexOrIndexOffset;
+        GL.DrawArrays(primitiveType, vertexOrIndexOffset, count);
+        AddFrameData(primitiveType, (ulong)count);
     }
-
 }
