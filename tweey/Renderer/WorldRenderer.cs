@@ -97,7 +97,7 @@ partial class WorldRenderer
     public void Render(double deltaSec, double deltaUpdateTimeSec, double deltaRenderTimeSec)
     {
         // render lightmap to texture
-        RenderLightMapToFrameBuffer(out var lightDrawCalls0, out var lightTris0);
+        RenderLightMapToFrameBuffer();
 
         // render to screen
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, FramebufferHandle.Zero);

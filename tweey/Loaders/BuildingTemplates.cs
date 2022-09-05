@@ -8,6 +8,13 @@ public class BuildingProductionLineTemplate
     public ResourceBucket Outputs { get; set; } = null!;
 }
 
+public class BuildingLightTemplate
+{
+    public float Range { get; set; }
+    [JsonConverter(typeof(Vector3JsonConverter))]
+    public Vector3 Color { get; set; }
+}
+
 public class BuildingTemplate : PlaceableEntity, ITemplateFileName
 {
     public override string Name { get; set; } = null!;
@@ -16,6 +23,7 @@ public class BuildingTemplate : PlaceableEntity, ITemplateFileName
     public int BuildWorkTicks { get; set; }
     public ResourceBucket BuildCost { get; set; } = null!;
     public ReadOnlyCollection<BuildingProductionLineTemplate> ProductionLines { get; set; } = null!;
+    public BuildingLightTemplate? EmitLight { get; set; }
 }
 
 [SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "System.Text.Json doesn't support this")]
@@ -47,6 +55,7 @@ public class BuildingTemplateIn
     public int Height { get; set; }
     public BuildingCostTemplateIn? BuildCost { get; set; }
     public List<BuildingProductionLineTemplateIn>? ProductionLines { get; set; }
+    public BuildingLightTemplate? EmitLight { get; set; }
 }
 
 public class BuildingTemplates : BaseTemplates<BuildingTemplateIn, BuildingTemplate>

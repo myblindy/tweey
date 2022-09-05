@@ -83,9 +83,6 @@ public partial class WorldRenderer
                 (Location, RangeAndStartColor) = (new(-100000, -100000, 0, 0), new(0, 0, 0, 0));
         }
 
-        Vector4 ActualLightCountAndZero;
-        public int ActualLightCount { get => (int)ActualLightCountAndZero.X; set => ActualLightCountAndZero.X = value; }
-
         public const int MaxLightCount = 16;
         fixed byte Data[Light.Size * MaxLightCount];
         public ref Light this[int idx]
@@ -113,7 +110,7 @@ public partial class WorldRenderer
     {
         lightMapFrameBuffer?.Dispose();
         lightMapTexture?.Dispose();
-        lightMapTexture = new(width, height, SizedInternalFormat.Rgba8);
+        lightMapTexture = new(width, height, SizedInternalFormat.Rgba8, minFilter: TextureMinFilter.Nearest, magFilter: TextureMagFilter.Nearest);
         lightMapFrameBuffer = new(new[] { lightMapTexture });
 
         lightMapOcclusionFrameBuffer?.Dispose();
@@ -122,7 +119,7 @@ public partial class WorldRenderer
         lightMapOcclusionFrameBuffer = new(new[] { lightMapOcclusionTexture });
     }
 
-    unsafe void RenderLightMapToFrameBuffer(out ulong drawCalls, out ulong tris)
+    unsafe void RenderLightMapToFrameBuffer()
     {
         // setup the occlusion map for rendering and build the occlusions
         void markOcclusionBox(Box2 box, bool circle = false, float scale = 1f)
@@ -146,7 +143,7 @@ public partial class WorldRenderer
         foreach (var entity in world.GetEntities())
             if (entity is Tree)
                 markOcclusionBox(entity.Box, true, .3f);
-            else if (entity is Building { IsBuilt: true } building)
+            else if (entity is Building { IsBuilt: true, EmitLight: null } building)
                 markOcclusionBox(building.Box, false);
 
         lightMapOcclusionVAO.UploadNewData();
@@ -160,35 +157,53 @@ public partial class WorldRenderer
 
         // setup the light map for rendering
         // upload the light data to the shader
-        lightMapFBUbo.Data.ActualLightCount = 0;
-        foreach (var villager in world.GetEntities<Villager>())
-            lightMapFBUbo.Data[lightMapFBUbo.Data.ActualLightCount++] =
-                new(new Vector2(villager.Location.X + .5f, villager.Location.Y + .5f) * pixelZoom, 12 * pixelZoom,
-                    lightMapFBUbo.Data.ActualLightCount == 1 ? new(.5f, .5f, .9f) : new(.9f, .5f, .5f));
+        var lightCount = 0;
 
-        if (world.DebugShowLightAtMouse)
-        {
-            var totalTimeSec = (float)world.TotalTime.TotalSeconds;
-            lightMapFBUbo.Data[lightMapFBUbo.Data.ActualLightCount++] =
-                new(new Vector2(world.MouseScreenPosition.X, world.MouseScreenPosition.Y), 16 * pixelZoom,
-                    new(MathF.Sin(totalTimeSec / 2f) / 2 + 1, MathF.Sin(totalTimeSec / 4f) / 2 + 1, MathF.Sin(totalTimeSec / 6f) / 2 + 1));
-        }
-
-        for (int idx = lightMapFBUbo.Data.ActualLightCount; idx < LightMapFBUbo.MaxLightCount; ++idx)
-            lightMapFBUbo.Data[idx].ClearToInvalid();
-
-        lightMapFBUbo.UploadData();
-
-        // render the light map
+        // setup the re-callable engine to render the light maps
         lightMapFrameBuffer.Bind(FramebufferTarget.Framebuffer);
         GL.Clear(ClearBufferMask.ColorBufferBit);
         lightMapFBShaderProgram.Use();
         lightMapOcclusionTexture.Bind(0);
-
         GL.BlendFunc(BlendingFactor.One, BlendingFactor.One);   // additive blending
-        lightMapFBVao.Draw(PrimitiveType.Triangles);
 
-        drawCalls = 1;
-        tris = 2;
+        void renderLights()
+        {
+            if (lightCount == 0) return;
+
+            for (int idx = lightCount; idx < LightMapFBUbo.MaxLightCount; ++idx)
+                lightMapFBUbo.Data[idx].ClearToInvalid();
+
+            lightMapFBUbo.UploadData();
+
+            // render the light map
+            lightMapFBVao.Draw(PrimitiveType.Triangles);
+        }
+
+        void addLight(Vector2 location, float range, Vector3 color)
+        {
+            lightMapFBUbo.Data[lightCount++] = new(location, range, color);
+            if (lightCount == LightMapFBUbo.MaxLightCount)
+            {
+                renderLights();
+                lightCount = 0;
+            }
+        }
+
+        // call the engine once for each light
+        foreach (var entity in world.GetEntities())
+            if (entity is Villager)
+                addLight(new Vector2(entity.Location.X + .5f, entity.Location.Y + .5f) * pixelZoom, 12 * pixelZoom,
+                    lightCount == 1 ? new(.5f, .5f, .9f) : new(.9f, .5f, .5f));
+            else if (entity is Building { IsBuilt: true, EmitLight: { } emitLight })
+                addLight((entity.Center + new Vector2(.5f)) * pixelZoom, emitLight.Range * pixelZoom, emitLight.Color);
+
+        if (world.DebugShowLightAtMouse)
+        {
+            var totalTimeSec = (float)world.TotalTime.TotalSeconds;
+            addLight(new Vector2(world.MouseScreenPosition.X, world.MouseScreenPosition.Y), 16 * pixelZoom,
+                new(MathF.Sin(totalTimeSec / 2f) / 2 + 1, MathF.Sin(totalTimeSec / 4f) / 2 + 1, MathF.Sin(totalTimeSec / 6f) / 2 + 1));
+        }
+
+        renderLights();
     }
 }

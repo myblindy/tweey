@@ -9,7 +9,6 @@ const int MaxLightsCount = 16;
 
 layout(std140) uniform ubo_lights
 {
-    vec4 actualLightCountAndZero; // lights count, zero
     Light lights[MaxLightsCount];
 };
 
@@ -23,7 +22,6 @@ out vec4 color;
 void main()
 {
     vec3 resultColor = vec3(0.0);
-    const int lightsCount = int(actualLightCountAndZero.x);
     const vec2 size = fs_window_size;
     const vec2 pos = (size - vec2(1.0)) * fs_tex0;
 
