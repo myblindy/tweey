@@ -110,7 +110,7 @@ public class World
         return PlacedEntities.Remove(entity);
     }
 
-    public event Action<Building>? PlacedBuilding;
+    event Action<Building>? PlacedBuilding;
     public void MouseEvent(Vector2i screenPosition, Vector2i worldLocation, InputAction? inputAction = null, MouseButton? mouseButton = null, KeyModifiers? keyModifiers = null)
     {
         if (inputAction == InputAction.Press && mouseButton == MouseButton.Button1)
@@ -139,7 +139,7 @@ public class World
         (MouseScreenPosition, MouseWorldPosition) = (screenPosition, worldLocation);
     }
 
-    public event Action<PlaceableEntity, Villager>? StartedJob;
+    event Action<PlaceableEntity, Villager>? StartedJob;
     public void StartWork<T>(T entity, Villager villager) where T : PlaceableEntity
     {
         StartedJob?.Invoke(entity, villager);
@@ -151,7 +151,7 @@ public class World
             throw new NotImplementedException();
     }
 
-    public event Action<PlaceableEntity, Villager, bool /* last */>? EndedBuildingJob;
+    event Action<PlaceableEntity, Villager, bool /* last */>? EndedBuildingJob;
     public void EndWork<T>(T entity, Villager villager) where T : PlaceableEntity
     {
         if (entity is Building building)
@@ -168,8 +168,8 @@ public class World
             throw new NotImplementedException();
     }
 
-    public event Action<BuildingTemplate?>? CurrentBuildingTemplateChanged;
-    internal void FireCurrentBuildingTemplateChanged() =>
+    event Action<BuildingTemplate?>? CurrentBuildingTemplateChanged;
+    public void FireCurrentBuildingTemplateChanged() =>
         CurrentBuildingTemplateChanged?.Invoke(CurrentBuildingTemplate);
 
     public void KeyEvent(InputAction inputAction, Keys key, int scanCode, KeyModifiers keyModifiers)

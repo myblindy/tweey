@@ -5,6 +5,8 @@ public class TreeTemplate : PlaceableEntity, ITemplateFileName
     public TreeTemplate() => (Width, Height) = (1, 1);
 
     public override string Name { get; set; } = null!;
+    public override Box2 InterpolatedBox => Box;
+    public override Vector2 InterpolatedLocation { get => Location; set => Location = value; }
     public int WorkTicks { get; set; }
     public ResourceBucket Inventory { get; set; } = null!;
     public string FileName { get; set; } = null!;

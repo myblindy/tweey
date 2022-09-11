@@ -192,7 +192,7 @@ public partial class WorldRenderer
         // call the engine once for each light
         foreach (var entity in world.GetEntities())
             if (entity is Villager)
-                addLight(new Vector2(entity.Location.X + .5f, entity.Location.Y + .5f) * pixelZoom, 12 * pixelZoom,
+                addLight(new Vector2(entity.InterpolatedLocation.X + .5f, entity.InterpolatedLocation.Y + .5f) * pixelZoom, 12 * pixelZoom,
                     lightCount == 1 ? new(.5f, .5f, .9f) : new(.9f, .5f, .5f));
             else if (entity is Building { IsBuilt: true, EmitLight: { } emitLight })
                 addLight((entity.Center + new Vector2(.5f)) * pixelZoom, emitLight.Range * pixelZoom, emitLight.Color);
