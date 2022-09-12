@@ -52,10 +52,10 @@ class Program : GameWindow
         GL.Disable(EnableCap.CullFace);
         GL.Enable(EnableCap.Blend);
 
-        var villager = new Villager("Sana", world.Configuration.Data) { Location = new(5, 1) };
+        var villager = new Villager("Sana", new(5, 1), world.Configuration.Data);
         world.PlaceEntity(villager);
         world.SelectedEntity = villager;
-        world.PlaceEntity(new Villager("Momo", world.Configuration.Data) { Location = new(15, 20) });
+        world.PlaceEntity(new Villager("Momo", new(15, 20), world.Configuration.Data));
 
         world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["bread"], 100)) { Location = new(3, 3) });
 

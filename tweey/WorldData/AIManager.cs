@@ -45,17 +45,31 @@ public abstract class AIPlan
 
     protected bool StepToPlaceable(PlaceableEntity entity, double deltaSec)
     {
+        // already next to the resource?
+        if (entity.Box.Intersects(Villager.Box.WithExpand(Vector2.One)))
+        {
+            Villager.InterpolatedLocation = Villager.Location;
+            return true;
+        }
+
         Villager.MovementActionTime.AdvanceTime(deltaSec);
 
-        for (int movements = Villager.MovementActionTime.ConsumeActions(); movements > 0; --movements)
+        var (movements, fractionalRemainderMovement) = Villager.MovementActionTime.ConsumeActions();
+        for (; movements > 0; --movements)
         {
-            // reached the resource?
-            if (entity.Box.Intersects(Villager.Box.WithExpand(Vector2.One)))
-                return true;
-
             // if not, move towards it
             Villager.Location += (entity.Location - Villager.Location).Sign();
+
+            // reached the resource?
+            if (entity.Box.Intersects(Villager.Box.WithExpand(Vector2.One)))
+            {
+                Villager.InterpolatedLocation = Villager.Location;
+                return true;
+            }
         }
+
+        // partial movement
+        Villager.InterpolatedLocation = Villager.Location + (entity.Location - Villager.Location).Sign() * (float)fractionalRemainderMovement;
 
         return false;
     }
@@ -89,7 +103,7 @@ public class ResourcePickupAIPlan : TypedAIPlan<ResourceBucket>
         Steps.Add(CreateMoveToPlaceableAIPlanStep(() => Villager.PickupActionTime.Reset(Villager.PickupActionsPerSecond / PeekTarget()!.GetPlannedResource(this).PickupSpeedMultiplier)));
         Steps.Add(new(deltaSec =>
         {
-            if (Villager.PickupActionTime.AdvanceTimeAndConsumeActions(deltaSec) > 0)
+            if (Villager.PickupActionTime.AdvanceTimeAndConsumeActions(deltaSec).actions > 0)
             {
                 // remove the resource from the world and from our list of targets to hit and place it in our inventory
                 var worldRB = DequeueTarget();
@@ -118,7 +132,7 @@ public class StoreInventoryAIPlan : TypedAIPlan<Building>
         Steps.Add(CreateMoveToPlaceableAIPlanStep(() => Villager.PickupActionTime.Reset(Villager.PickupActionsPerSecond / Villager.Inventory.PickupSpeedMultiplier)));
         Steps.Add(new(deltaSec =>
         {
-            if (Villager.PickupActionTime.AdvanceTimeAndConsumeActions(deltaSec) > 0)
+            if (Villager.PickupActionTime.AdvanceTimeAndConsumeActions(deltaSec).actions > 0)
             {
                 PeekTarget()!.Inventory.Add(Villager.Inventory, true);
                 return AIPlanStepResult.End;
@@ -142,7 +156,7 @@ public class BuildAIPlan : TypedAIPlan<Building>
         Steps.Add(new(deltaSec =>
         {
             var building = PeekTarget()!;
-            if (Villager.WorkActionTime.AdvanceTimeAndConsumeActions(deltaSec) > 0 && --building.BuildWorkTicks <= 0)
+            if (Villager.WorkActionTime.AdvanceTimeAndConsumeActions(deltaSec).actions > 0 && --building.BuildWorkTicks <= 0)
             {
                 building.IsBuilt = true;
                 World.EndWork(building, Villager);
@@ -167,7 +181,7 @@ public class ChopTreeAIPlan : TypedAIPlan<Tree>
         }));
         Steps.Add(new(deltaSec =>
         {
-            if (Villager.WorkActionTime.AdvanceTimeAndConsumeActions(deltaSec) > 0 && --tree.WorkTicks <= 0)
+            if (Villager.WorkActionTime.AdvanceTimeAndConsumeActions(deltaSec).actions > 0 && --tree.WorkTicks <= 0)
             {
                 World.EndWork(tree, Villager);
                 tree.Inventory.Location = tree.Location;
@@ -187,7 +201,7 @@ public class EatAIPlan : AIPlan
     public EatAIPlan(World world, Villager villager) : base(world, villager, true) =>
         Steps.Add(new(deltaSec =>
         {
-            if (Villager.EatActionTime.AdvanceTimeAndConsumeActions(deltaSec) > 0)
+            if (Villager.EatActionTime.AdvanceTimeAndConsumeActions(deltaSec).actions > 0)
             {
                 Villager.Needs.UpdateWithChanges(new() { Hunger = -Villager.Inventory.AvailableResourceQuantities.Sum(rq => rq.Resource.Nourishment * rq.Quantity) });
                 Villager.Inventory.Clear();

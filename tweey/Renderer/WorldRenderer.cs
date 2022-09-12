@@ -126,7 +126,7 @@ partial class WorldRenderer
                     ScreenFillQuad(Box2.FromCornerSize(resourceBucket.Location, 1, 1), Colors4.White, atlas[GetImagePath(resQ.Resource)]);
                     break;
                 case Villager villager:
-                    ScreenFillQuad(Box2.FromCornerSize(villager.Location, 1, 1), Colors4.White, atlas[GetImagePath(villager)]);
+                    ScreenFillQuad(Box2.FromCornerSize(villager.InterpolatedLocation, 1, 1), Colors4.White, atlas[GetImagePath(villager)]);
                     break;
             }
 
@@ -137,14 +137,17 @@ partial class WorldRenderer
         {
             foreach (var villager in world.GetEntities<Villager>())
                 if (villager.AIPlan?.FirstTarget is { } firstAiTarget)
-                    ScreenLine(villager.Box, firstAiTarget.Box, Colors4.Yellow);
+                    ScreenLine(villager.InterpolatedBox, firstAiTarget.Box, Colors4.Yellow);
         }
         else if (world.SelectedEntity is Villager selectedVillager && selectedVillager.AIPlan?.FirstTarget is { } firstSelectedAiTarget)
-            ScreenLine(selectedVillager.Box, firstSelectedAiTarget.Box, Colors4.Yellow);
+            ScreenLine(selectedVillager.InterpolatedBox, firstSelectedAiTarget.Box, Colors4.Yellow);
 
         // selection box (lines)
         if (world.SelectedEntity is { } selectedEntity)
-            ScreenLineQuad(selectedEntity.Box, Colors4.White);
+        {
+            ScreenLineQuad(selectedEntity.Box, Colors4.Red);
+            ScreenLineQuad(selectedEntity.InterpolatedBox, Colors4.White);
+        }
         var countLines1 = guiVAO.Vertices.Length - countTri0;
 
         // render top layer (tri2)
@@ -152,10 +155,10 @@ partial class WorldRenderer
             switch (entity)
             {
                 case Villager villager:
-                    ScreenString(villager.Name, new() { Size = 16 }, new Vector2((villager.Location.X + .5f) * pixelZoom, villager.Location.Y * pixelZoom - 20),
+                    ScreenString(villager.Name, new() { Size = 16 }, new Vector2((villager.InterpolatedLocation.X + .5f) * pixelZoom, villager.InterpolatedLocation.Y * pixelZoom - 20),
                         Colors4.White, new(0, 0, 0, .4f), HorizontalAlignment.Center);
                     if (world.ShowDetails)
-                        ScreenString(villager.AIPlan?.Description, new() { Size = 13 }, new Vector2((villager.Location.X + .5f) * pixelZoom, (villager.Location.Y + 1) * pixelZoom),
+                        ScreenString(villager.AIPlan?.Description, new() { Size = 13 }, new Vector2((villager.InterpolatedLocation.X + .5f) * pixelZoom, (villager.InterpolatedLocation.Y + 1) * pixelZoom),
                             Colors4.White, new(0, 0, 0, .4f), HorizontalAlignment.Center);
                     break;
             }

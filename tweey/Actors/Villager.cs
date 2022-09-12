@@ -2,10 +2,10 @@
 
 public class Villager : PlaceableEntity
 {
-    public Villager(string name, ConfigurationData configurationData)
+    public Villager(string name, Vector2 location, ConfigurationData configurationData)
     {
         (Name, Width, Height, MovementActionTime, PickupActionsPerSecond, WorkActionsPerSecond, EatActionsPerSecond, HungerThreshold, HungerEmergencyThreshold) =
-            (name, 1, 1, new(configurationData.BaseMovementSpeed), configurationData.BasePickupSpeed, configurationData.BaseWorkSpeed, configurationData.BaseEatSpeed, 
+            (name, 1, 1, new(configurationData.BaseMovementSpeed), configurationData.BasePickupSpeed, configurationData.BaseWorkSpeed, configurationData.BaseEatSpeed,
                 configurationData.BaseHungerPercentage, configurationData.BaseHungerEmergencyPercentage);
 
         Needs = new()
@@ -13,7 +13,12 @@ public class Villager : PlaceableEntity
             HungerMax = configurationData.BaseHungerMax,
             HungerPerSecond = configurationData.BaseHungerPerRealTimeSecond
         };
+
+        Location = InterpolatedLocation = location;
     }
+
+    public override Vector2 InterpolatedLocation { get; set; }
+    public override Box2 InterpolatedBox => Box2.FromCornerSize(InterpolatedLocation, Width, Height);
 
     public void Update(double deltaSec) => Needs.Update(deltaSec);
 

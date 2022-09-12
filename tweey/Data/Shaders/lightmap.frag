@@ -39,7 +39,8 @@ void main()
 
         // walk between pos and lightPosition to find occlusions
         vec2 tempPos = pos;
-        int lineSteps = int(ceil(abs(lightPosition.x - pos.x) > abs(lightPosition.y - pos.y) ? abs(lightPosition.x - pos.x) : abs(lightPosition.y - pos.y)));
+        const int lineStepSkip = 3;
+        int lineSteps = int(ceil(abs(lightPosition.x - pos.x) > abs(lightPosition.y - pos.y) ? abs(lightPosition.x - pos.x) : abs(lightPosition.y - pos.y))) / lineStepSkip;
         const vec2 lineInc = (lightPosition - pos) / lineSteps;
 
         float lightStrength = 1.0;
@@ -52,8 +53,8 @@ void main()
             tempPos = nextPos;
         }
 
-        const float strength = max(0, range - dist) / range * lightStrength;
-        resultColor += startColor * strength * strength;
+        const float strength = max(0, range - dist) / range ;
+        resultColor += startColor * strength * strength * lightStrength;
     }
 
     color = vec4(resultColor, 1.0);

@@ -7,9 +7,9 @@ abstract class BaseVertexArrayObject
     protected void AddFrameData(PrimitiveType primitiveType, ulong count)
     {
         if (primitiveType is PrimitiveType.Lines)
-            FrameData.NewLineDraw(count);
+            FrameData.NewLineDraw(count / 2);
         else if (primitiveType is PrimitiveType.Triangles)
-            FrameData.NewTriangleDraw(count);
+            FrameData.NewTriangleDraw(count / 3);
         else
             throw new NotImplementedException();
     }
