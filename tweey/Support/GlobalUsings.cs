@@ -38,7 +38,7 @@ global using OpenTK.Windowing.Common;
 global using OpenTK.Windowing.Desktop;
 global using OpenTK.Windowing.GraphicsLibraryFramework;
 
-global using static MoreLinq.Extensions.ForEachExtension;
+global using SuperLinq;
 
 global using Vector2i = OpenTK.Mathematics.Vector2i;
 global using Configuration = Tweey.Loaders.Configuration;
