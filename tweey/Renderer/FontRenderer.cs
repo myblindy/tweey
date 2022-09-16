@@ -32,7 +32,6 @@ public class FontRenderer : IDisposable
     static readonly StringFormat stringFormat;
     bool disposedValue;
 
-    [SuppressMessage("Performance", "CA1810:Initialize reference type static fields inline", Justification = "Complex initialization")]
     static FontRenderer()
     {
         stringFormat = StringFormat.GenericTypographic;

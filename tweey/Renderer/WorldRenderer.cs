@@ -24,7 +24,6 @@ partial class WorldRenderer
     const int windowUboBindingPoint = 1;
 
     [VertexDefinition, StructLayout(LayoutKind.Sequential, Pack = 1)]
-    //[SuppressMessage("Performance", "CA1815:Override equals and operator equals on value types", Justification = "It's a vertex buffer structure")]
     public struct GuiVertex
     {
         public Vector2 Location;

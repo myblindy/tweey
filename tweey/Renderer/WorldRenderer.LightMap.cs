@@ -32,7 +32,6 @@ public partial class WorldRenderer
     FrameBuffer lightMapFrameBuffer = null!;
 
     [VertexDefinition, StructLayout(LayoutKind.Sequential, Pack = 1)]
-    [SuppressMessage("Performance", "CA1815:Override equals and operator equals on value types", Justification = "Vertex structure definition")]
     public struct LightMapOcclusionFBVertex
     {
         public Vector2 Location;
@@ -46,7 +45,6 @@ public partial class WorldRenderer
     }
 
     [VertexDefinition, StructLayout(LayoutKind.Sequential, Pack = 1)]
-    [SuppressMessage("Performance", "CA1815:Override equals and operator equals on value types", Justification = "Vertex structure definition")]
     public struct LightMapFBVertex
     {
         public Vector2 Location;

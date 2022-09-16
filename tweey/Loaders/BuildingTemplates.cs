@@ -28,7 +28,6 @@ public class BuildingTemplate : PlaceableEntity, ITemplateFileName
     public BuildingLightTemplate? EmitLight { get; set; }
 }
 
-[SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "System.Text.Json doesn't support this")]
 public class BuildingProductionLineTemplateIn
 {
     public List<BuildingResouceQuantityTemplateIn> Inputs { get; set; } = null!;
@@ -41,14 +40,12 @@ public class BuildingResouceQuantityTemplateIn
     public int Quantity { get; set; }
 }
 
-[SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "System.Text.Json doesn't support this")]
 public class BuildingCostTemplateIn
 {
     public int WorkTicks { get; set; }
     public List<BuildingResouceQuantityTemplateIn> Resources { get; set; } = null!;
 }
 
-[SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "System.Text.Json doesn't support this")]
 public class BuildingTemplateIn
 {
     public string? Name { get; set; }
