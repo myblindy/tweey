@@ -14,7 +14,7 @@ class StreamingVertexArrayObject<TVertex> : BaseVertexArrayObject where TVertex 
 
         VertexDefinitionSetup.Setup(typeof(TVertex), vertexArrayHandle);
 
-        tempVertices = new(initialVertexCapacity);
+        Vertices = new(initialVertexCapacity);
     }
 
     unsafe void OrphanVertexBuffer() =>
@@ -23,10 +23,10 @@ class StreamingVertexArrayObject<TVertex> : BaseVertexArrayObject where TVertex 
     public unsafe void UploadNewData()
     {
         const int minBufferMultiplier = 10, maxBufferMultiplier = 15;
-        if (tempVertices.Length * minBufferMultiplier > newVertexCapacity)
-            newVertexCapacity = tempVertices.Length * maxBufferMultiplier;
+        if (Vertices.Count * minBufferMultiplier > newVertexCapacity)
+            newVertexCapacity = Vertices.Count * maxBufferMultiplier;
 
-        if (vertexCurrentOffset + tempVertices.Length >= vertexCapacity)
+        if (vertexCurrentOffset + Vertices.Count >= vertexCapacity)
         {
             // orphan the buffer
             vertexCapacity = newVertexCapacity;
@@ -35,15 +35,14 @@ class StreamingVertexArrayObject<TVertex> : BaseVertexArrayObject where TVertex 
         }
 
         // copy the temp vertex data to the driver
-        var destLength = vertexCapacity * Unsafe.SizeOf<TVertex>();
-        var dest = GL.MapNamedBufferRange(vertexBufferHandle, new(vertexCurrentOffset * Unsafe.SizeOf<TVertex>()), tempVertices.Length * Unsafe.SizeOf<TVertex>(),
+        // TODO: perhaps implement the Add() directly to this mapped memory
+        var dest = GL.MapNamedBufferRange(vertexBufferHandle, vertexCurrentOffset * Unsafe.SizeOf<TVertex>(), Vertices.Count * Unsafe.SizeOf<TVertex>(),
             MapBufferAccessMask.MapWriteBit | MapBufferAccessMask.MapUnsynchronizedBit | MapBufferAccessMask.MapInvalidateBufferBit | MapBufferAccessMask.MapInvalidateRangeBit);
-        fixed (TVertex* src = &tempVertices[0])
-            System.Buffer.MemoryCopy(src, dest, destLength, tempVertices.Length * Unsafe.SizeOf<TVertex>());
+        CollectionsMarshal.AsSpan(Vertices).CopyTo(new Span<TVertex>(dest, Vertices.Count));
         GL.UnmapNamedBuffer(vertexBufferHandle);
 
-        vertexCurrentOffset += lastUploadedVertexLength = tempVertices.Length;
-        tempVertices.Clear();
+        vertexCurrentOffset += lastUploadedVertexLength = Vertices.Count;
+        Vertices.Clear();
     }
 
     /// <summary>
@@ -71,6 +70,5 @@ class StreamingVertexArrayObject<TVertex> : BaseVertexArrayObject where TVertex 
     readonly VertexArrayHandle vertexArrayHandle;
     int vertexCapacity, newVertexCapacity, vertexCurrentOffset, lastUploadedVertexLength;
 
-    RefGrowableArray<TVertex> tempVertices;
-    public ref RefGrowableArray<TVertex> Vertices => ref tempVertices;
+    public List<TVertex> Vertices { get; }
 }

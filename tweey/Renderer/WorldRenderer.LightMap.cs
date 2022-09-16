@@ -1,7 +1,4 @@
-﻿using System;
-using System.Diagnostics;
-using System.Drawing;
-using Tweey.Actors;
+﻿using System.Diagnostics;
 using Tweey.Renderer.Textures;
 using Tweey.Renderer.VertexArrayObjects;
 

@@ -9,7 +9,6 @@ global using System.Drawing.Imaging;
 global using System.Drawing.Text;
 global using System.IO;
 global using System.Linq;
-global using System.Text;
 global using System.Numerics;
 global using System.Runtime.CompilerServices;
 global using System.Runtime.InteropServices;
