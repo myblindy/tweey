@@ -29,7 +29,6 @@ public abstract class AIPlan
 
     public void Update(double deltaSec)
     {
-        //if (Targets.Count == 0) { Done = true; return; }
         var step = Steps[CurrentStep];
 
         switch (step.Update(deltaSec))
@@ -37,8 +36,6 @@ public abstract class AIPlan
             case AIPlanStepResult.NextStep: step.DoneAction?.Invoke(); CurrentStep = (CurrentStep + 1) % Steps.Count; break;
             case AIPlanStepResult.End: step.DoneAction?.Invoke(); Done = true; break;
         }
-
-        //if (Targets.Count == 0) Done = true;
     }
 
     public abstract string Description { get; }
@@ -48,7 +45,7 @@ public abstract class AIPlan
         // already next to the resource?
         if (entity.Box.Intersects(Villager.Box.WithExpand(Vector2.One)))
         {
-            Villager.InterpolatedLocation = Villager.Location;
+            Villager.InterpolateToTarget(entity, 0);
             return true;
         }
 
@@ -63,13 +60,13 @@ public abstract class AIPlan
             // reached the resource?
             if (entity.Box.Intersects(Villager.Box.WithExpand(Vector2.One)))
             {
-                Villager.InterpolatedLocation = Villager.Location;
+                Villager.InterpolateToTarget(entity, 0);
                 return true;
             }
         }
 
         // partial movement
-        Villager.InterpolatedLocation = Villager.Location + (entity.Location - Villager.Location).Sign() * (float)fractionalRemainderMovement;
+        Villager.InterpolateToTarget(entity, fractionalRemainderMovement);
 
         return false;
     }
