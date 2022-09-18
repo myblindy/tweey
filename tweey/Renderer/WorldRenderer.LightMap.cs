@@ -63,19 +63,20 @@ public partial class WorldRenderer
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         public struct Light
         {
-            public Vector4 Location;
-            public Vector4 RangeAndStartColor;
+            public Vector4 LocationAndAngle { get; private set; }
+            public Vector4 RangeAndStartColor { get; private set; }
 
             public const int Size = sizeof(float) * 8;
+            public static readonly Vector2 FullAngle = new(0, 1);
 
-            public Light(Vector2 location, float range, Vector3 startColor)
+            public Light(Vector2 location, float range, Vector3 startColor, Vector2 angleMinMax)
             {
-                Location = new(location, 0, 0);
+                LocationAndAngle = new(location, angleMinMax.X, angleMinMax.Y);
                 RangeAndStartColor = new(range, startColor.X, startColor.Y, startColor.Z);
             }
 
             public void ClearToInvalid() =>
-                (Location, RangeAndStartColor) = (new(-100000, -100000, 0, 0), new(0, 0, 0, 0));
+                (LocationAndAngle, RangeAndStartColor) = (new(-100000, -100000, FullAngle.X, FullAngle.Y), new(0, 0, 0, 0));
         }
 
         public const int MaxLightCount = 16;
@@ -138,8 +139,11 @@ public partial class WorldRenderer
         foreach (var entity in world.GetEntities())
             if (entity is Tree)
                 markOcclusionBox(entity.Box, true, .3f);
-            else if (entity is Building { IsBuilt: true, EmitLight: null } building)
-                markOcclusionBox(building.Box, false);
+            else if (entity is Building { IsBuilt: true } building)
+            {
+                if (building.EmitLight is not null && building.Name != "Siren")
+                    markOcclusionBox(building.Box, false);
+            }
 
         lightMapOcclusionVAO.UploadNewData();
 
@@ -174,9 +178,9 @@ public partial class WorldRenderer
             lightMapFBVao.Draw(PrimitiveType.Triangles);
         }
 
-        void addLight(Vector2 location, float range, Vector3 color)
+        void addLight(Vector2 location, float range, Vector3 color, Vector2 angleMinMax)
         {
-            lightMapFBUbo.Data[lightCount++] = new(location, range, color);
+            lightMapFBUbo.Data[lightCount++] = new(location, range, color, angleMinMax);
             if (lightCount == LightMapFBUbo.MaxLightCount)
             {
                 renderLights();
@@ -184,19 +188,36 @@ public partial class WorldRenderer
             }
         }
 
+        Vector2 getAngleMinMaxFromHeading(double heading, double coneAngle) =>
+            new((float)((-heading - coneAngle + 2.25) % 1.0), (float)((-heading + coneAngle + 2.25) % 1.0));
+
         // call the engine once for each light
         foreach (var entity in world.GetEntities())
-            if (entity is Villager)
+            if (entity is Villager villager)
                 addLight(new Vector2(entity.InterpolatedLocation.X + .5f, entity.InterpolatedLocation.Y + .5f) * pixelZoom, 12 * pixelZoom,
-                    lightCount == 1 ? new(.5f, .5f, .9f) : new(.9f, .5f, .5f));
-            else if (entity is Building { IsBuilt: true, EmitLight: { } emitLight })
-                addLight((entity.Center + new Vector2(.5f)) * pixelZoom, emitLight.Range * pixelZoom, emitLight.Color);
+                    lightCount == 1 ? new(.5f, .5f, .9f) : new(.9f, .5f, .5f), getAngleMinMaxFromHeading(villager.Heading, .1));
+            else if (entity is Building { IsBuilt: true, Name: "Siren" })
+            {
+                const float range = 12;
+                const float coneAngle = .25f / 2;
+                var heading = (float)(world.TotalTime.TotalSeconds / 4) % 1f;
+
+                var red = new Vector3(.6f, .1f, .1f);
+                var blue = new Vector3(.1f, .1f, .6f);
+                addLight((entity.Center + new Vector2(.5f)) * pixelZoom, range * pixelZoom, red, getAngleMinMaxFromHeading(heading, coneAngle));
+                addLight((entity.Center + new Vector2(.5f)) * pixelZoom, range * pixelZoom, blue, getAngleMinMaxFromHeading(heading + .25f, coneAngle));
+                addLight((entity.Center + new Vector2(.5f)) * pixelZoom, range * pixelZoom, red, getAngleMinMaxFromHeading(heading + .5f, coneAngle));
+                addLight((entity.Center + new Vector2(.5f)) * pixelZoom, range * pixelZoom, blue, getAngleMinMaxFromHeading(heading + .75f, coneAngle));
+            }
+            else if (entity is Building { IsBuilt: true, EmitLight: { } emitLight, Name: { } name })
+                addLight((entity.Center + new Vector2(.5f)) * pixelZoom, emitLight.Range * pixelZoom, emitLight.Color, LightMapFBUbo.Light.FullAngle);
 
         if (world.DebugShowLightAtMouse)
         {
             var totalTimeSec = (float)world.TotalTime.TotalSeconds;
             addLight(new Vector2(world.MouseScreenPosition.X, world.MouseScreenPosition.Y), 16 * pixelZoom,
-                new(MathF.Sin(totalTimeSec / 2f) / 2 + 1, MathF.Sin(totalTimeSec / 4f) / 2 + 1, MathF.Sin(totalTimeSec / 6f) / 2 + 1));
+                new(MathF.Sin(totalTimeSec / 2f) / 2 + 1, MathF.Sin(totalTimeSec / 4f) / 2 + 1, MathF.Sin(totalTimeSec / 6f) / 2 + 1),
+                LightMapFBUbo.Light.FullAngle);
         }
 
         renderLights();

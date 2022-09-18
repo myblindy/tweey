@@ -1,0 +1,17 @@
+{
+  "$schema": "./_schema.json",
+  "name": "Siren",
+  "type": "production",
+  "buildCost": {
+    "workTicks": 2,
+    "resources": [
+      {
+        "resource": "wood",
+        "quantity": 3
+      }
+    ]
+  },
+  "productionLines": [],
+  "width": 1,
+  "height": 1
+}
