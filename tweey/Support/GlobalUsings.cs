@@ -9,7 +9,6 @@ global using System.Drawing.Imaging;
 global using System.Drawing.Text;
 global using System.IO;
 global using System.Linq;
-global using System.Text;
 global using System.Numerics;
 global using System.Runtime.CompilerServices;
 global using System.Runtime.InteropServices;
@@ -38,7 +37,7 @@ global using OpenTK.Windowing.Common;
 global using OpenTK.Windowing.Desktop;
 global using OpenTK.Windowing.GraphicsLibraryFramework;
 
-global using static MoreLinq.Extensions.ForEachExtension;
+global using SuperLinq;
 
 global using Vector2i = OpenTK.Mathematics.Vector2i;
 global using Configuration = Tweey.Loaders.Configuration;

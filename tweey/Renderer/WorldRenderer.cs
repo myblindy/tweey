@@ -1,5 +1,4 @@
-﻿using Tweey.Loaders;
-using Tweey.Renderer.Textures;
+﻿using Tweey.Renderer.Textures;
 using Tweey.Renderer.VertexArrayObjects;
 
 namespace Tweey.Renderer;
@@ -25,7 +24,6 @@ partial class WorldRenderer
     const int windowUboBindingPoint = 1;
 
     [VertexDefinition, StructLayout(LayoutKind.Sequential, Pack = 1)]
-    //[SuppressMessage("Performance", "CA1815:Override equals and operator equals on value types", Justification = "It's a vertex buffer structure")]
     public struct GuiVertex
     {
         public Vector2 Location;
@@ -130,7 +128,7 @@ partial class WorldRenderer
                     break;
             }
 
-        var countTri0 = guiVAO.Vertices.Length;
+        var countTri0 = guiVAO.Vertices.Count;
 
         // store the ai plan targets' vertices (lines)
         if (world.ShowDetails)
@@ -148,7 +146,7 @@ partial class WorldRenderer
             ScreenLineQuad(selectedEntity.Box, Colors4.Red);
             ScreenLineQuad(selectedEntity.InterpolatedBox, Colors4.White);
         }
-        var countLines1 = guiVAO.Vertices.Length - countTri0;
+        var countLines1 = guiVAO.Vertices.Count - countTri0;
 
         // render top layer (tri2)
         foreach (var entity in world.GetEntities<Villager>())
@@ -174,7 +172,7 @@ partial class WorldRenderer
         // render gui (tri2)
         RenderGui();
 
-        var countTri2 = guiVAO.Vertices.Length - countTri0 - countLines1;
+        var countTri2 = guiVAO.Vertices.Count - countTri0 - countLines1;
 
         guiVAO.UploadNewData();
 

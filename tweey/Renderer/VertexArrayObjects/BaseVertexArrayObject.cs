@@ -4,7 +4,7 @@ abstract class BaseVertexArrayObject
 {
     protected static BaseVertexArrayObject? lastBoundVertexArray;
 
-    protected void AddFrameData(PrimitiveType primitiveType, ulong count)
+    protected static void AddFrameData(PrimitiveType primitiveType, ulong count)
     {
         if (primitiveType is PrimitiveType.Lines)
             FrameData.NewLineDraw(count / 2);

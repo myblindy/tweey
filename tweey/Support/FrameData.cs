@@ -2,8 +2,6 @@
 
 static class FrameData
 {
-    static readonly TimeSpan maxTime = TimeSpan.FromSeconds(1);
-
     struct Snapshot
     {
         public TimeSpan DeltaTime, DeltaUpdateTime, DeltaRenderTime;
