@@ -39,7 +39,7 @@ public class Villager : PlaceableEntity
             // P1 = Location
             // P2 = Target
             // P3 = Location + (1, 0)
-            var rawAngle = /*Math.Atan2(0, 1)*/ 0 - Math.Atan2(target!.Center.Y - Center.Y, target!.Center.X - Center.X);
+            var rawAngle = /*Math.Atan2(0, 1)*/ 0 - Math.Atan2(target!.Center.Y - InterpolatedCenter.Y, target!.Center.X - InterpolatedCenter.X);
             return ((rawAngle + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2);
         }
     }

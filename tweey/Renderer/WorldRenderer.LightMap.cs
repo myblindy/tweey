@@ -139,7 +139,7 @@ public partial class WorldRenderer
                 markOcclusionBox(entity.Box, true, .3f);
             else if (entity is Building { IsBuilt: true } building)
             {
-                if (building.EmitLight is not null && building.Name != "Siren")
+                if (building.EmitLight is null && building.Name != "Siren")
                     markOcclusionBox(building.Box, false);
             }
 
@@ -207,7 +207,7 @@ public partial class WorldRenderer
                 addLight((entity.Center + new Vector2(.5f)) * pixelZoom, range * pixelZoom, red, getAngleMinMaxFromHeading(heading + .5f, coneAngle));
                 addLight((entity.Center + new Vector2(.5f)) * pixelZoom, range * pixelZoom, blue, getAngleMinMaxFromHeading(heading + .75f, coneAngle));
             }
-            else if (entity is Building { IsBuilt: true, EmitLight: { } emitLight, Name: { } name })
+            else if (entity is Building { IsBuilt: true, EmitLight: { } emitLight })
                 addLight((entity.Center + new Vector2(.5f)) * pixelZoom, emitLight.Range * pixelZoom, emitLight.Color, LightMapFBUbo.Light.FullAngle);
 
         if (world.DebugShowLightAtMouse)
