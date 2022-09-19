@@ -40,9 +40,7 @@ partial class WorldRenderer
     {
         this.world = world;
 
-        int maxTextureSize = 0;
-        GL.GetInteger(GetPName.MaxTextureSize, ref maxTextureSize);
-        maxTextureSize = Math.Min(4096, maxTextureSize);
+        var maxTextureSize = Math.Min(4096, GraphicsEngine.MaxTextureSize);
         atlas = new(maxTextureSize, maxTextureSize, 1);
         fontRenderer = new(atlas);
 
@@ -95,8 +93,7 @@ partial class WorldRenderer
         RenderLightMapToFrameBuffer();
 
         // render to screen
-        GL.BindFramebuffer(FramebufferTarget.Framebuffer, FramebufferHandle.Zero);
-        GL.ClearColor(0f, 0f, 0f, 1f);
+        GraphicsEngine.UnbindFrameBuffer();
 
         // render the background (tri0)
         var grassTileSize = 6;
@@ -179,8 +176,8 @@ partial class WorldRenderer
         atlas.Bind(0);
         lightMapTexture.Bind(1);
 
-        GL.Viewport(0, 0, (int)windowUbo.Data.WindowSize.X, (int)windowUbo.Data.WindowSize.Y);
-        GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);     // normal blending
+        GraphicsEngine.Viewport(0, 0, (int)windowUbo.Data.WindowSize.X, (int)windowUbo.Data.WindowSize.Y);
+        GraphicsEngine.BlendNormalAlpha();
 
         guiVAO.Draw(PrimitiveType.Triangles, vertexOrIndexCount: countTri0);
 

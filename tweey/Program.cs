@@ -118,7 +118,6 @@ class Program : GameWindow
 
     protected override void OnRenderFrame(FrameEventArgs args)
     {
-        //GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
         worldRenderer!.Render(args.Time, UpdateTime, RenderTime);
         SwapBuffers();
     }

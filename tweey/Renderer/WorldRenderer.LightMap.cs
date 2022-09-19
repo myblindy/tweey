@@ -146,10 +146,10 @@ public partial class WorldRenderer
         lightMapOcclusionVAO.UploadNewData();
 
         lightMapOcclusionFrameBuffer.Bind(FramebufferTarget.Framebuffer);
-        GL.Clear(ClearBufferMask.ColorBufferBit);
+        GraphicsEngine.Clear();
         lightMapOcclusionShaderProgram.Use();
         lightMapOcclusionCircleTexture.Bind(0);
-        GL.BlendFunc(BlendingFactor.One, BlendingFactor.One);            // no alpha channel, use additive blending
+        GraphicsEngine.BlendAdditive();            // no alpha channel, use additive blending
         lightMapOcclusionVAO.Draw(PrimitiveType.Triangles);
 
         // setup the light map for rendering
@@ -158,10 +158,10 @@ public partial class WorldRenderer
 
         // setup the re-callable engine to render the light maps
         lightMapFrameBuffer.Bind(FramebufferTarget.Framebuffer);
-        GL.Clear(ClearBufferMask.ColorBufferBit);
+        GraphicsEngine.Clear();
         lightMapFBShaderProgram.Use();
         lightMapOcclusionTexture.Bind(0);
-        GL.BlendFunc(BlendingFactor.One, BlendingFactor.One);   // additive blending
+        GraphicsEngine.BlendAdditive();
 
         void renderLights()
         {
