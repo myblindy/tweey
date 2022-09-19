@@ -51,7 +51,7 @@ partial class WorldRenderer
                             },
                             new LabelView
                             {
-                                Text = () => world.SelectedEntity is Villager villager ? villager.AIPlan is { } aiPlan ? aiPlan.Description : "Idle."
+                                Text = () => world.SelectedEntity is Villager villager ? (villager.AIPlan is { } aiPlan ? aiPlan.Description : "Idle.") + $" Heading: {villager.Heading:0.000}"
                                     : world.SelectedEntity is Building { IsBuilt: false} buildingSite ? $"This is a building site, waiting for {buildingSite.BuildCost} and {buildingSite.BuildWorkTicks} work ticks."
                                     : $"This is a {(world.SelectedEntity switch { Building => "building", Tree => "cute tree", _ => "fluffy resource" })}, it's just existing.",
                                 FontSize = defaultFontSize,

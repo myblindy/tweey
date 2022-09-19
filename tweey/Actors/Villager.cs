@@ -19,6 +19,30 @@ public class Villager : PlaceableEntity
 
     public override Vector2 InterpolatedLocation { get; set; }
     public override Box2 InterpolatedBox => Box2.FromCornerSize(InterpolatedLocation, Width, Height);
+    WeakReference<PlaceableEntity>? headingTarget;
+    public void InterpolateToTarget(PlaceableEntity target, double fraction)
+    {
+        InterpolatedLocation = Location + (target.Location - Location).Sign() * (float)fraction;
+        headingTarget = new(target);
+    }
+
+    /// <summary>
+    /// The villager's heading, based on its target, between <c>0</c> and <c>1</c> (east), with north being <c>0.25</c>, west being <c>0.5</c> and south being <c>0.75</c>.
+    /// </summary>
+    public double Heading
+    {
+        get
+        {
+            if (headingTarget?.TryGetTarget(out var target) != true)
+                return 0;
+
+            // P1 = Location
+            // P2 = Target
+            // P3 = Location + (1, 0)
+            var rawAngle = /*Math.Atan2(0, 1)*/ 0 - Math.Atan2(target!.Center.Y - Center.Y, target!.Center.X - Center.X);
+            return ((rawAngle + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2);
+        }
+    }
 
     public void Update(double deltaSec) => Needs.Update(deltaSec);
 

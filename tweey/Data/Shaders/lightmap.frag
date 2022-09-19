@@ -1,8 +1,10 @@
 ﻿#version 460 core
 
+#define PI 3.1415926535897932384626433832795
+
 struct Light
 {
-    vec4 location;
+    vec4 locationAndAngle;
     vec4 rangeAndstartColor;
 };
 const int MaxLightsCount = 16;
@@ -28,11 +30,18 @@ void main()
     for(int idx = 0; idx < MaxLightsCount; ++idx)
     {
         const float range = lights[idx].rangeAndstartColor.x;
-        const vec2 lightPosition = lights[idx].location.xy;
+        const vec2 lightPosition = lights[idx].locationAndAngle.xy;
         const float dist = length(lightPosition - pos);
 
+        const float rawAngle = -atan(lightPosition.x - pos.x, lightPosition.y - pos.y);
+        const float angle = mod(rawAngle + PI * 2, PI * 2) / (PI * 2);
+        vec2 angleMinMax = lights[idx].locationAndAngle.zw;
+
+        if(angleMinMax.x > angleMinMax.y)
+            angleMinMax = vec2(angleMinMax.x, 1.0 + angleMinMax.y);
+
         // early abort, the next part is expensive
-        if(dist > range)
+        if(dist > range || !((angle >= angleMinMax.x && angle <= angleMinMax.y) || (angle + 1.0 >= angleMinMax.x && angle + 1.0 <= angleMinMax.y)))
             continue;
 
         const vec3 startColor = lights[idx].rangeAndstartColor.yzw;
