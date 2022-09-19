@@ -1,4 +1,4 @@
-﻿namespace Tweey.Renderer.Textures;
+﻿namespace Twee.Renderer.Textures;
 
 public abstract class BaseTexture
 {

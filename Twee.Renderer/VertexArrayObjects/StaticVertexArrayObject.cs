@@ -1,6 +1,6 @@
-﻿namespace Tweey.Renderer.VertexArrayObjects;
+﻿namespace Twee.Renderer.VertexArrayObjects;
 
-class StaticVertexArrayObject<TVertex> : BaseVertexArrayObject where TVertex : unmanaged
+public class StaticVertexArrayObject<TVertex> : BaseVertexArrayObject where TVertex : unmanaged
 {
     readonly BufferHandle bufferHandle;
     readonly VertexArrayHandle vaHandle;
@@ -18,15 +18,15 @@ class StaticVertexArrayObject<TVertex> : BaseVertexArrayObject where TVertex : u
         vaHandle = GL.CreateVertexArray();
         GL.VertexArrayVertexBuffer(vaHandle, 0, bufferHandle, IntPtr.Zero, Unsafe.SizeOf<TVertex>());
 
-        VertexDefinitionSetup.Setup(typeof(TVertex), vaHandle);
+        VertexDefinitionSetup?.Invoke(typeof(TVertex), vaHandle);
     }
 
     public override void Draw(PrimitiveType primitiveType, int vertexOrIndexOffset = 0, int vertexOrIndexCount = -1)
     {
-        if (lastBoundVertexArray != this)
+        if (LastBoundVertexArray != this)
         {
             GL.BindVertexArray(vaHandle);
-            lastBoundVertexArray = this;
+            LastBoundVertexArray = this;
         }
 
         var count = vertexCount - vertexOrIndexOffset;

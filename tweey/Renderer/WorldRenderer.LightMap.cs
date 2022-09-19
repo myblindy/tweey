@@ -1,6 +1,4 @@
 ﻿using System.Diagnostics;
-using Tweey.Renderer.Textures;
-using Tweey.Renderer.VertexArrayObjects;
 
 namespace Tweey.Renderer;
 

@@ -1,4 +1,4 @@
-﻿namespace Tweey.Renderer.Textures;
+﻿namespace Twee.Renderer.Textures;
 
 public record AtlasEntry(Vector3 TextureCoordinate0, Vector3 TextureCoordinate1, Vector2i PixelSize);
 

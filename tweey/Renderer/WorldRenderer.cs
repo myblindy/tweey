@@ -1,7 +1,4 @@
-﻿using Tweey.Renderer.Textures;
-using Tweey.Renderer.VertexArrayObjects;
-
-namespace Tweey.Renderer;
+﻿namespace Tweey.Renderer;
 
 partial class WorldRenderer
 {

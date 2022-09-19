@@ -1,6 +1,6 @@
-﻿namespace Tweey.Renderer;
+﻿namespace Twee.Renderer;
 
-class ShaderProgram
+public class ShaderProgram
 {
     readonly ProgramHandle programHandle;
     readonly Dictionary<string, int> attributeLocations = new();
@@ -13,7 +13,7 @@ class ShaderProgram
             GL.ShaderSource(handle, File.ReadAllText(path));
             GL.CompileShader(handle);
 
-            int status = 0;
+            var status = 0;
             GL.GetShaderi(handle, ShaderParameterName.CompileStatus, ref status);
             if (status == 0)
             {
@@ -36,7 +36,7 @@ class ShaderProgram
         GL.AttachShader(programHandle, fsName);
         GL.LinkProgram(programHandle);
 
-        int status = 0;
+        var status = 0;
         GL.GetProgrami(programHandle, ProgramPropertyARB.LinkStatus, ref status);
         if (status == 0)
         {
@@ -56,7 +56,7 @@ class ShaderProgram
         GL.GetProgrami(programHandle, ProgramPropertyARB.ActiveUniforms, ref uniformCount);
         for (uint i = 0; i < uniformCount; ++i)
         {
-            int length = 0;
+            var length = 0;
             var name = GL.GetActiveUniformName(programHandle, i, Math.Max(1, activeUniformMaxLength), ref length);
             int location = GL.GetUniformLocation(programHandle, name);
 
@@ -69,7 +69,7 @@ class ShaderProgram
         GL.GetProgrami(programHandle, ProgramPropertyARB.ActiveUniformBlocks, ref uniformBlockCount);
         for (uint i = 0; i < uniformBlockCount; ++i)
         {
-            int length = 0;
+            var length = 0;
             var name = GL.GetActiveUniformBlockName(programHandle, i, Math.Max(1, activeUniformBlockMaxNameLength), ref length);
             var location = (int)GL.GetUniformBlockIndex(programHandle, name);
 

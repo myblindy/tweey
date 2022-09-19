@@ -1,6 +1,6 @@
-﻿namespace Tweey.Support;
+﻿namespace Twee.Core;
 
-static class FrameData
+public static class FrameData
 {
     struct Snapshot
     {

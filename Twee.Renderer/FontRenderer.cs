@@ -1,6 +1,6 @@
-﻿using Tweey.Renderer.Textures;
+﻿using Twee.Renderer.Textures;
 
-namespace Tweey.Renderer;
+namespace Twee.Renderer;
 
 public struct FontDescription : IEquatable<FontDescription>
 {

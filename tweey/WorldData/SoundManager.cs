@@ -1,4 +1,4 @@
-﻿namespace Tweey.Renderer;
+﻿namespace Tweey.WorldData;
 
 class SoundManager
 {

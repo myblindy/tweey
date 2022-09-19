@@ -1,6 +1,6 @@
-﻿namespace Tweey.Renderer;
+﻿namespace Twee.Renderer;
 
-class UniformBufferObject<T> where T : unmanaged
+public class UniformBufferObject<T> where T : unmanaged
 {
     public BufferHandle Handle { get; }
 

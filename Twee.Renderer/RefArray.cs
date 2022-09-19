@@ -1,4 +1,4 @@
-﻿namespace Tweey.Renderer;
+﻿namespace Twee.Renderer;
 
 unsafe struct RefArray<T> where T : unmanaged
 {

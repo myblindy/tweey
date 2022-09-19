@@ -1,6 +1,6 @@
-﻿namespace Tweey.Renderer.VertexArrayObjects;
+﻿namespace Twee.Renderer.VertexArrayObjects;
 
-class StreamingVertexArrayObject<TVertex> : BaseVertexArrayObject where TVertex : unmanaged
+public class StreamingVertexArrayObject<TVertex> : BaseVertexArrayObject where TVertex : unmanaged
 {
     public unsafe StreamingVertexArrayObject(int initialVertexCapacity = ushort.MaxValue)
     {
@@ -12,7 +12,7 @@ class StreamingVertexArrayObject<TVertex> : BaseVertexArrayObject where TVertex 
         vertexArrayHandle = GL.CreateVertexArray();
         GL.VertexArrayVertexBuffer(vertexArrayHandle, 0, vertexBufferHandle, IntPtr.Zero, Unsafe.SizeOf<TVertex>());
 
-        VertexDefinitionSetup.Setup(typeof(TVertex), vertexArrayHandle);
+        VertexDefinitionSetup?.Invoke(typeof(TVertex), vertexArrayHandle);
 
         Vertices = new(initialVertexCapacity);
     }
@@ -56,10 +56,10 @@ class StreamingVertexArrayObject<TVertex> : BaseVertexArrayObject where TVertex 
         var vertexCount = vertexOrIndexCount >= 0 ? vertexOrIndexCount : lastUploadedVertexLength - vertexOrIndexOffset;
         if (vertexCount <= 0) return;
 
-        if (lastBoundVertexArray != this)
+        if (LastBoundVertexArray != this)
         {
             GL.BindVertexArray(vertexArrayHandle);
-            lastBoundVertexArray = this;
+            LastBoundVertexArray = this;
         }
 
         GL.DrawArrays(primitiveType, vertexCurrentOffset - lastUploadedVertexLength + vertexOrIndexOffset, vertexCount);

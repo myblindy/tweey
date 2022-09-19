@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
 
-namespace tweey.roslyn;
+namespace Twee.Roslyn;
 
 static class Common
 {
