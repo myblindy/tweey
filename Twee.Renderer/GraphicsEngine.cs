@@ -23,10 +23,10 @@ public static class GraphicsEngine
     /// <summary>
     /// Normal blending, source <c>SRC_ALPHA</c> and destination <c>ONE_MINUS_SRC_ALPHA</c>.
     /// </summary>
-    public static void BlendNormalAlpha()=>
+    public static void BlendNormalAlpha() =>
         GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
-    public static void UnbindFrameBuffer()=>
+    public static void UnbindFrameBuffer() =>
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, FramebufferHandle.Zero);
 
     public static void Viewport(int x, int y, int width, int height) =>
