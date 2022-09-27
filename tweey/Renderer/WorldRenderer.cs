@@ -1,8 +1,11 @@
-﻿namespace Tweey.Renderer;
+﻿using Twee.Renderer.Shaders;
+
+namespace Tweey.Renderer;
 
 partial class WorldRenderer
 {
     readonly World world;
+    readonly ShaderPrograms shaderPrograms = new();
     readonly GrowableTextureAtlas3D atlas;
     readonly FontRenderer fontRenderer;
 
@@ -32,12 +35,15 @@ partial class WorldRenderer
     }
 
     readonly StreamingVertexArrayObject<GuiVertex> guiVAO = new();
-    readonly ShaderProgram guiShaderProgram = new("gui");
-    readonly ShaderProgram guiLightMapShaderProgram = new("gui-lightmap");
+    readonly ShaderProgram guiShaderProgram;
+    readonly ShaderProgram guiLightMapShaderProgram;
     readonly GuiSpace gui = new();
 
     public WorldRenderer(World world)
     {
+        guiShaderProgram = new(shaderPrograms, "gui");
+        guiLightMapShaderProgram = new(shaderPrograms, "gui-lightmap");
+
         this.world = world;
 
         var maxTextureSize = Math.Min(4096, GraphicsEngine.MaxTextureSize);

@@ -1,4 +1,6 @@
 ﻿using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using Twee.Renderer.Shaders;
 
 namespace Tweey.Renderer;
 
@@ -15,13 +17,13 @@ public partial class WorldRenderer
             new(new(1, -1), new (1, 0)),
             new(new(1, 1), new (1, 1)),
         });
-    readonly ShaderProgram lightMapFBShaderProgram = new("lightmap");
+    ShaderProgram lightMapFBShaderProgram;
     readonly UniformBufferObject<LightMapFBUbo> lightMapFBUbo = new();
 
     Texture2D lightMapOcclusionTexture = null!;
     FrameBuffer lightMapOcclusionFrameBuffer = null!;
     readonly StreamingVertexArrayObject<LightMapOcclusionFBVertex> lightMapOcclusionVAO = new();
-    readonly ShaderProgram lightMapOcclusionShaderProgram = new("lightmap-occlusion");
+    ShaderProgram lightMapOcclusionShaderProgram;
     readonly Texture2D lightMapOcclusionCircleTexture =
         new(@"Data\Misc\large-circle.png", SizedInternalFormat.R8, minFilter: TextureMinFilter.NearestMipmapNearest, magFilter: TextureMagFilter.Nearest);
 
@@ -90,8 +92,12 @@ public partial class WorldRenderer
         }
     }
 
+    [MemberNotNull(nameof(lightMapFBShaderProgram), nameof(lightMapOcclusionShaderProgram))]
     void InitializeLightMap()
     {
+        lightMapFBShaderProgram = new(shaderPrograms, "lightmap");
+        lightMapOcclusionShaderProgram = new(shaderPrograms, "lightmap-occlusion");
+
         lightMapFBShaderProgram.UniformBlockBind("ubo_window", windowUboBindingPoint);
         lightMapFBShaderProgram.UniformBlockBind("ubo_lights", lightsUboBindingPoint);
         lightMapFBShaderProgram.Uniform("occlusionSampler", 0);

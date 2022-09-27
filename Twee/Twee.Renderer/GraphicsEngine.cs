@@ -4,11 +4,35 @@ public static class GraphicsEngine
 {
     public static int MaxTextureSize { get; }
 
+    static readonly HashSet<string> supportedExtensions = new();
+    public static NativeParallelShaderCompilationType NativeParallelShaderCompilation { get; }
+
     static GraphicsEngine()
     {
         int maxTextureSize = 0;
         GL.GetInteger(GetPName.MaxTextureSize, ref maxTextureSize);
         MaxTextureSize = maxTextureSize;
+
+        int extensionsCount = 0;
+        GL.GetInteger(GetPName.NumExtensions, ref extensionsCount);
+        while (extensionsCount-- > 0)
+            supportedExtensions.Add(GL.GetStringi(StringName.Extensions, (uint)extensionsCount)!);
+
+        NativeParallelShaderCompilation =
+            supportedExtensions.Contains("ARB_parallel_shader_compile") ? NativeParallelShaderCompilationType.Arb :
+            supportedExtensions.Contains("KHR_parallel_shader_compile") ? NativeParallelShaderCompilationType.Khr :
+            NativeParallelShaderCompilationType.None;
+    }
+
+    public static bool MaxShaderCompilerThreads(uint count)
+    {
+        if (NativeParallelShaderCompilation is NativeParallelShaderCompilationType.Arb)
+            GL.ARB.MaxShaderCompilerThreadsARB(count);
+        else if (NativeParallelShaderCompilation is NativeParallelShaderCompilationType.Khr)
+            GL.KHR.MaxShaderCompilerThreadsKHR(count);
+        else
+            return false;
+        return true;
     }
 
     public static void Clear(bool alsoClearDepth = false) =>
@@ -32,3 +56,5 @@ public static class GraphicsEngine
     public static void Viewport(int x, int y, int width, int height) =>
         GL.Viewport(x, y, width, height);
 }
+
+public enum NativeParallelShaderCompilationType { None, Arb, Khr }
