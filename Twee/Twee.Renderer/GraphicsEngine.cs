@@ -4,7 +4,6 @@ public static class GraphicsEngine
 {
     public static int MaxTextureSize { get; }
 
-    static readonly HashSet<string> supportedExtensions = new();
     public static NativeParallelShaderCompilationType NativeParallelShaderCompilation { get; }
 
     static GraphicsEngine()
@@ -16,12 +15,15 @@ public static class GraphicsEngine
         int extensionsCount = 0;
         GL.GetInteger(GetPName.NumExtensions, ref extensionsCount);
         while (extensionsCount-- > 0)
-            supportedExtensions.Add(GL.GetStringi(StringName.Extensions, (uint)extensionsCount)!);
-
-        NativeParallelShaderCompilation =
-            supportedExtensions.Contains("ARB_parallel_shader_compile") ? NativeParallelShaderCompilationType.Arb :
-            supportedExtensions.Contains("KHR_parallel_shader_compile") ? NativeParallelShaderCompilationType.Khr :
-            NativeParallelShaderCompilationType.None;
+            switch (GL.GetStringi(StringName.Extensions, (uint)extensionsCount))
+            {
+                case "GL_ARB_parallel_shader_compile" when NativeParallelShaderCompilation is NativeParallelShaderCompilationType.None or NativeParallelShaderCompilationType.Khr:
+                    NativeParallelShaderCompilation = NativeParallelShaderCompilationType.Arb;
+                    break;
+                case "GL_KHR_parallel_shader_compile" when NativeParallelShaderCompilation is NativeParallelShaderCompilationType.None:
+                    NativeParallelShaderCompilation = NativeParallelShaderCompilationType.Khr;
+                    break;
+            }
     }
 
     public static bool MaxShaderCompilerThreads(uint count)
