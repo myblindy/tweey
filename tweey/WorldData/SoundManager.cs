@@ -1,6 +1,10 @@
-﻿namespace Tweey.WorldData;
+﻿using System.Globalization;
+using System.Text.RegularExpressions;
+using Twee.Core;
 
-class SoundManager
+namespace Tweey.WorldData;
+
+partial class SoundManager
 {
     private readonly World world;
 
@@ -8,6 +12,14 @@ class SoundManager
     {
         this.world = world;
 
+        // read the production line sounds
+        foreach (var productionLineSoundPath in Directory.EnumerateFiles("Data/Buildings"))
+            if (ProductionLineSoundPathRegex().Match(Path.GetFileName(productionLineSoundPath)) is { Success: true } match)
+                productionLineSounds.Add(
+                    (match.Groups[1].Value, int.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture) - 1),
+                    productionLineSoundPath);
+
+        // open the device
         var audioDevice = ALC.OpenDevice(null);
         if (audioDevice.Handle != IntPtr.Zero)
         {
@@ -22,15 +34,20 @@ class SoundManager
     const string PlacedBuildingFile = @"Data/Sounds/place_building.ogg";
     const string ButtonClickFile = @"Data/Sounds/button_click.ogg";
 
-    static string FileNameForEntity(PlaceableEntity entity) => entity switch
+    readonly static Dictionary<(string buildingName, int productionLineIndex), string> productionLineSounds = new();
+
+    static string? FileNameForEntity(PlaceableEntity entity, Villager villager) => entity switch
     {
-        Building => BuildBuildingFile,
+        Building { IsBuilt: false } => BuildBuildingFile,
+        Building { ProductionLines: { } } building =>
+            building.ActiveProductionLines.FindIndex(w => building.GetAssignedWorkerSlot(villager)?.ActiveProductionLine == w) is { } productionLineIndex
+                && productionLineIndex >= 0 && productionLineSounds.TryGetValue((building.FileName, productionLineIndex), out var path) ? path : null,
         Tree => ChopTreeFile,
-        _ => throw new NotImplementedException()
+        _ => null
     };
 
     readonly Dictionary<string, int> soundBuffers = new();
-    readonly Dictionary<PlaceableEntity, int> loopingSoundSources = new();
+    readonly Dictionary<(PlaceableEntity, Villager), int> loopingSoundSources = new();
     readonly List<int> nonLoopingSoundSources = new();
 
     int GetSoundBufferHandle(string path) => soundBuffers.TryGetValue(path, out var soundBufferHandle) ? soundBufferHandle : soundBuffers[path] = LoadBufferFromFile(path);
@@ -63,15 +80,18 @@ class SoundManager
     public void OnPlacedBuilding(Building building) =>
         nonLoopingSoundSources.Add(CreateSource(PlacedBuildingFile, false));
 
-    public void OnStartedJob(PlaceableEntity entity, Villager villager) =>
-        loopingSoundSources[entity] = CreateSource(FileNameForEntity(entity), true);
+    public void OnStartedJob(PlaceableEntity entity, Villager villager)
+    {
+        if (FileNameForEntity(entity, villager) is { } path)
+            loopingSoundSources[(entity, villager)] = CreateSource(path, true);
+    }
 
     public void OnEndedJob(PlaceableEntity entity, Villager villager, bool last)
     {
         if (last)
         {
-            AL.DeleteSource(loopingSoundSources[entity]);
-            loopingSoundSources.Remove(entity);
+            AL.DeleteSource(loopingSoundSources[(entity, villager)]);
+            loopingSoundSources.Remove((entity, villager));
 
             // if a tree, add the falling sound at the end
             if (entity is Tree)
@@ -92,4 +112,7 @@ class SoundManager
 
     float volume = 1f;
     public float Volume { get => volume; set => AL.Listener(ALListenerf.Gain, volume = value); }
+
+    [RegexGenerator("^(.*)-production-(\\d+).ogg")]
+    private static partial Regex ProductionLineSoundPathRegex();
 }

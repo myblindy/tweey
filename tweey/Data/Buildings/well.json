@@ -19,9 +19,11 @@
           "resource": "water",
           "quantity": 3
         }
-      ]
+      ],
+      "workTicks": 10
     }
   ],
+  "maxWorkersAmount": 2,
   "width": 1,
   "height": 1
 }

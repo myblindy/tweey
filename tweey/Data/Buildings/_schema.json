@@ -33,6 +33,10 @@
           "outputs": {
             "type": "array",
             "items": { "$ref": "../BaseSchemas/resource_quantity.json#/definitions/resourceQuantity" }
+          },
+          "workTicks": {
+            "type": "number",
+            "minimum": 0
           }
         },
         "required": [ "inputs", "outputs" ]
@@ -50,6 +54,10 @@
           "items": { "$ref": "../BaseSchemas/resource_quantity.json#/definitions/resourceQuantity" }
         }
       }
+    },
+    "maxWorkersAmount": {
+      "type": "integer",
+      "minimum": 0
     },
     "emitLight": { "$ref": "../BaseSchemas/light.json#/definitions/light" }
   },

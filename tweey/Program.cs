@@ -43,7 +43,7 @@ class Program : GameWindow
         GL.DebugMessageCallback((src, type, id, severity, len, msg, usr) =>
         {
             if (severity > DebugSeverity.DebugSeverityNotification)
-                Console.WriteLine($"GL ERROR {Encoding.ASCII.GetString((byte*)msg, len)}, type: {type}, severity: {severity}, source: {src}");
+                Console.WriteLine($"GL ERROR {new string((sbyte*)msg)}, type: {type}, severity: {severity}, source: {src}");
         }, IntPtr.Zero);
 #endif
 
@@ -52,9 +52,8 @@ class Program : GameWindow
         GL.Disable(EnableCap.CullFace);
         GL.Enable(EnableCap.Blend);
 
-        var villager = new Villager("Sana", new(5, 1), world.Configuration.Data);
+        var villager = world.SelectedEntity = new Villager("Sana", new(5, 1), world.Configuration.Data);
         world.PlaceEntity(villager);
-        world.SelectedEntity = villager;
         world.PlaceEntity(new Villager("Momo", new(15, 20), world.Configuration.Data));
 
         world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["bread"], 100)) { Location = new(3, 3) });
@@ -68,12 +67,23 @@ class Program : GameWindow
         world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["firewood"], 55)) { Location = new(7, 7) });
 
         world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 24)) { Location = new(17, 20) });
+        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["stone"], 120)) { Location = new(17, 21) });
         world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 83)) { Location = new(19, 19) });
         world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 67)) { Location = new(20, 19) });
         world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 67), new ResourceQuantity(world.Resources["iron"], 125)) { Location = new(20, 20) });
 
         world.PlantForest(world.TreeTemplates["pine"], new(3, 20), 6, .9f, .2f);
         world.PlantForest(world.TreeTemplates["pine"], new(40, 12), 12, .8f, .1f);
+
+        var well = Building.FromTemplate(world.BuildingTemplates["well"], new(8, 12), false);
+        well.FinishBuilding();
+        well.ActiveProductionLines.Add(new()
+        {
+            ProductionLine = well.ProductionLines[0],
+            Type = ActiveProductionLineType.UntilStock,
+            OutputTarget = 20
+        });
+        world.PlaceEntity(well);
 
         worldRenderer = new(world);
         worldRenderer.Resize(Size.X, Size.Y);

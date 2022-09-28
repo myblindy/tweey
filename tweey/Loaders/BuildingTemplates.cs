@@ -6,6 +6,7 @@ public class BuildingProductionLineTemplate
 {
     public ResourceBucket Inputs { get; set; } = null!;
     public ResourceBucket Outputs { get; set; } = null!;
+    public int WorkTicks { get; set; }
 }
 
 public class BuildingLightTemplate
@@ -24,6 +25,7 @@ public class BuildingTemplate : PlaceableEntity, ITemplateFileName
     public string FileName { get; set; } = null!;
     public int BuildWorkTicks { get; set; }
     public ResourceBucket BuildCost { get; set; } = null!;
+    public int MaxWorkersAmount { get; set; }
     public ReadOnlyCollection<BuildingProductionLineTemplate> ProductionLines { get; set; } = null!;
     public BuildingLightTemplate? EmitLight { get; set; }
 }
@@ -32,6 +34,7 @@ public class BuildingProductionLineTemplateIn
 {
     public List<BuildingResouceQuantityTemplateIn> Inputs { get; set; } = null!;
     public List<BuildingResouceQuantityTemplateIn> Outputs { get; set; } = null!;
+    public int WorkTicks { get; set; }
 }
 
 public class BuildingResouceQuantityTemplateIn
@@ -53,6 +56,7 @@ public class BuildingTemplateIn
     public int Width { get; set; }
     public int Height { get; set; }
     public BuildingCostTemplateIn? BuildCost { get; set; }
+    public int MaxWorkersAmount { get; set; }
     public List<BuildingProductionLineTemplateIn>? ProductionLines { get; set; }
     public BuildingLightTemplate? EmitLight { get; set; }
 }
@@ -60,7 +64,7 @@ public class BuildingTemplateIn
 public class BuildingTemplates : BaseTemplates<BuildingTemplateIn, BuildingTemplate>
 {
     public BuildingTemplates(ILoader loader, ResourceTemplates resourceTemplates)
-        : base(loader, "Buildings", x => x.Name!, resourceTemplates)
+        : base(loader, "Buildings", x => x.FileName!, resourceTemplates)
     {
     }
 }

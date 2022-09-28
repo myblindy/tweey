@@ -10,7 +10,7 @@ public class ShaderPrograms : IEnumerable<ShaderProgram>
         GraphicsEngine.MaxShaderCompilerThreads(uint.MaxValue);
     }
 
-    public void Add(ShaderProgram shaderProgram) =>
+    internal void Add(ShaderProgram shaderProgram) =>
         programs.Add(shaderProgram);
 
     public IEnumerator<ShaderProgram> GetEnumerator() => programs.GetEnumerator();

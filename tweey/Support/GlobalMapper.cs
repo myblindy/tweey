@@ -20,6 +20,7 @@ internal static class GlobalMapper
                 {
                     Inputs = new(pl.Inputs.Select(rq => new ResourceQuantity(((ResourceTemplates)resources!)[rq.Resource!], rq.Quantity))),
                     Outputs = new(pl.Outputs.Select(rq => new ResourceQuantity(((ResourceTemplates)resources!)[rq.Resource!], rq.Quantity))),
+                    WorkTicks = pl.WorkTicks
                 })
                 .ToArray()));
         Mapper.CreateMap<ResourceIn, Resource>();
