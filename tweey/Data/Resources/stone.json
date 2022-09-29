@@ -1,0 +1,6 @@
+{
+  "$schema": "./_schema.json",
+  "name": "Stone",
+  "weight": 0.6,
+  "pickupSpeedMultiplier": 1.5
+}

@@ -1,40 +1,32 @@
-﻿namespace Tweey.Renderer;
+﻿namespace Twee.Renderer.VertexArrayObjects;
 
-interface IVertexArrayObject { }
-
-class StreamingVertexArrayObject<TVertex> : IVertexArrayObject where TVertex : unmanaged
+public class StreamingVertexArrayObject<TVertex> : BaseVertexArrayObject where TVertex : unmanaged
 {
     public unsafe StreamingVertexArrayObject(int initialVertexCapacity = ushort.MaxValue)
     {
         newVertexCapacity = vertexCapacity = initialVertexCapacity;
 
-        vertexBufferHandle = GL.GenBuffer();
+        vertexBufferHandle = GL.CreateBuffer();
         OrphanVertexBuffer();
 
         vertexArrayHandle = GL.CreateVertexArray();
         GL.VertexArrayVertexBuffer(vertexArrayHandle, 0, vertexBufferHandle, IntPtr.Zero, Unsafe.SizeOf<TVertex>());
 
-        VertexDefinitionSetup.Setup(typeof(TVertex), vertexArrayHandle);
+        VertexDefinitionSetup?.Invoke(typeof(TVertex), vertexArrayHandle);
 
-        tempVertices = new(initialVertexCapacity);
+        Vertices = new(initialVertexCapacity);
     }
 
-    static IVertexArrayObject? lastBoundVertexArray;
-
-    void OrphanVertexBuffer()
-    {
-        GL.BindBuffer(BufferTargetARB.ArrayBuffer, vertexBufferHandle);
-        GL.BufferData(BufferTargetARB.ArrayBuffer, Unsafe.SizeOf<TVertex>() * vertexCapacity, IntPtr.Zero, BufferUsageARB.StreamDraw);
-        GL.BindBuffer(BufferTargetARB.ArrayBuffer, BufferHandle.Zero);
-    }
+    unsafe void OrphanVertexBuffer() =>
+        GL.NamedBufferData(vertexBufferHandle, Unsafe.SizeOf<TVertex>() * vertexCapacity, null, VertexBufferObjectUsage.StreamDraw);
 
     public unsafe void UploadNewData()
     {
         const int minBufferMultiplier = 10, maxBufferMultiplier = 15;
-        if (tempVertices.Length * minBufferMultiplier > newVertexCapacity)
-            newVertexCapacity = tempVertices.Length * maxBufferMultiplier;
+        if (Vertices.Count * minBufferMultiplier > newVertexCapacity)
+            newVertexCapacity = Vertices.Count * maxBufferMultiplier;
 
-        if (vertexCurrentOffset + tempVertices.Length >= vertexCapacity)
+        if (vertexCurrentOffset + Vertices.Count >= vertexCapacity)
         {
             // orphan the buffer
             vertexCapacity = newVertexCapacity;
@@ -43,15 +35,14 @@ class StreamingVertexArrayObject<TVertex> : IVertexArrayObject where TVertex : u
         }
 
         // copy the temp vertex data to the driver
-        var destLength = vertexCapacity * Unsafe.SizeOf<TVertex>();
-        var dest = GL.MapNamedBufferRange(vertexBufferHandle, new(vertexCurrentOffset * Unsafe.SizeOf<TVertex>()), tempVertices.Length * Unsafe.SizeOf<TVertex>(),
+        // TODO: perhaps implement the Add() directly to this mapped memory
+        var dest = GL.MapNamedBufferRange(vertexBufferHandle, vertexCurrentOffset * Unsafe.SizeOf<TVertex>(), Vertices.Count * Unsafe.SizeOf<TVertex>(),
             MapBufferAccessMask.MapWriteBit | MapBufferAccessMask.MapUnsynchronizedBit | MapBufferAccessMask.MapInvalidateBufferBit | MapBufferAccessMask.MapInvalidateRangeBit);
-        fixed (TVertex* src = &tempVertices[0])
-            System.Buffer.MemoryCopy(src, dest, destLength, tempVertices.Length * Unsafe.SizeOf<TVertex>());
+        CollectionsMarshal.AsSpan(Vertices).CopyTo(new Span<TVertex>(dest, Vertices.Count));
         GL.UnmapNamedBuffer(vertexBufferHandle);
 
-        vertexCurrentOffset += lastUploadedVertexLength = tempVertices.Length;
-        tempVertices.Clear();
+        vertexCurrentOffset += lastUploadedVertexLength = Vertices.Count;
+        Vertices.Clear();
     }
 
     /// <summary>
@@ -60,24 +51,24 @@ class StreamingVertexArrayObject<TVertex> : IVertexArrayObject where TVertex : u
     /// <param name="primitiveType">The primitive type of the draw call.</param>
     /// <param name="vertexOrIndexOffset">The offset into the vertex or index buffers, in element units. Ie, <c>1</c> is the second element, regardless of vertex or index size. By default, it starts at the beginning of the buffer.</param>
     /// <param name="vertexOrIndexCount">The element count to draw. <c>1</c> is one element, regardless of vertex or index size. By default, it draws the entire array, taking into account the offset parameter.</param>
-    public void Draw(PrimitiveType primitiveType, int vertexOrIndexOffset = 0, int vertexOrIndexCount = -1)
+    public override void Draw(PrimitiveType primitiveType, int vertexOrIndexOffset = 0, int vertexOrIndexCount = -1)
     {
         var vertexCount = vertexOrIndexCount >= 0 ? vertexOrIndexCount : lastUploadedVertexLength - vertexOrIndexOffset;
         if (vertexCount <= 0) return;
 
-        if (lastBoundVertexArray != this)
+        if (LastBoundVertexArray != this)
         {
             GL.BindVertexArray(vertexArrayHandle);
-            lastBoundVertexArray = this;
+            LastBoundVertexArray = this;
         }
 
         GL.DrawArrays(primitiveType, vertexCurrentOffset - lastUploadedVertexLength + vertexOrIndexOffset, vertexCount);
+        AddFrameData(primitiveType, (ulong)vertexCount);
     }
 
     readonly BufferHandle vertexBufferHandle;
     readonly VertexArrayHandle vertexArrayHandle;
     int vertexCapacity, newVertexCapacity, vertexCurrentOffset, lastUploadedVertexLength;
 
-    RefGrowableArray<TVertex> tempVertices;
-    public ref RefGrowableArray<TVertex> Vertices => ref tempVertices;
+    public List<TVertex> Vertices { get; }
 }

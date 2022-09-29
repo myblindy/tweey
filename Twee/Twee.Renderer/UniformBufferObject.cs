@@ -1,6 +1,6 @@
-﻿namespace Tweey.Renderer;
+﻿namespace Twee.Renderer;
 
-class UniformBufferObject<T> where T : unmanaged
+public class UniformBufferObject<T> where T : unmanaged
 {
     public BufferHandle Handle { get; }
 
@@ -13,7 +13,7 @@ class UniformBufferObject<T> where T : unmanaged
         GL.NamedBufferData(Handle, Unsafe.SizeOf<T>(), IntPtr.Zero, VertexBufferObjectUsage.DynamicDraw);
     }
 
-    public void Update() =>
+    public void UploadData() =>
         GL.NamedBufferSubData(Handle, IntPtr.Zero, Unsafe.SizeOf<T>(), data);
 
     public void Bind(uint bindingPoint) =>

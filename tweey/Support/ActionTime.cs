@@ -13,14 +13,14 @@ public class ActionTime
 
     public void AdvanceTime(double deltaSec) => timerSec += deltaSec;
 
-    public int ConsumeActions()
+    public (int actions, double fractionalRemainder) ConsumeActions()
     {
         var actionCount = (int)(timerSec * ActionsPerSecond);
         timerSec -= actionCount / ActionsPerSecond;
-        return actionCount;
+        return (actionCount, timerSec * ActionsPerSecond);
     }
 
-    public int AdvanceTimeAndConsumeActions(double deltaSec)
+    public (int actions, double fractionalRemainder) AdvanceTimeAndConsumeActions(double deltaSec)
     {
         AdvanceTime(deltaSec);
         return ConsumeActions();

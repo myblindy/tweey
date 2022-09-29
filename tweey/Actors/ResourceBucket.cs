@@ -11,6 +11,8 @@ public class ResourceBucket : PlaceableEntity
     }
 
     public override string Name { get => ResourceQuantities.FirstOrDefault()?.Resource.Name ?? "Empty Resource"; set => throw new NotImplementedException(); }
+    public override Box2 InterpolatedBox => Box;
+    public override Vector2 InterpolatedLocation { get => Location; set => Location = value; }
 
     readonly List<ResourceQuantity> resourceQuantities = new(), availableResourceQuantities = new();
 

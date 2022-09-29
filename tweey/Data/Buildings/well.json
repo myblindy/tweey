@@ -1,0 +1,29 @@
+{
+  "$schema": "./_schema.json",
+  "name": "Well",
+  "type": "production",
+  "buildCost": {
+    "workTicks": 60,
+    "resources": [
+      {
+        "resource": "stone",
+        "quantity": 10
+      }
+    ]
+  },
+  "productionLines": [
+    {
+      "inputs": [],
+      "outputs": [
+        {
+          "resource": "water",
+          "quantity": 3
+        }
+      ],
+      "workTicks": 10
+    }
+  ],
+  "maxWorkersAmount": 2,
+  "width": 1,
+  "height": 1
+}

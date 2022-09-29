@@ -1,11 +1,13 @@
-﻿namespace Tweey.Renderer;
+﻿using Tweey.Actors;
+
+namespace Tweey.Renderer;
 
 partial class WorldRenderer
 {
     void InitializeGui()
     {
         var descriptionColor = new Vector4(.8f, .8f, .8f, 1);
-        var highlightColor = Colors.Aqua;
+        var highlightColor = Colors4.Aqua;
         var defaultFontSize = 18;
 
         gui.RootViewDescriptions.Add(new(
@@ -58,17 +60,17 @@ partial class WorldRenderer
                                 MinHeight = () => 35,
                                 ForegroundColor = () => descriptionColor
                             },
-                            new LabelView
-                            {
-                                Text = () => "Needs:",
-                                FontSize = defaultFontSize,
-                                ForegroundColor = () => descriptionColor
-                            },
                             new StackView(StackType.Horizontal)
                             {
                                 Visible = () => world.SelectedEntity is Villager,
                                 Children =
                                 {
+                                    new LabelView
+                                    {
+                                        Text = () => "Needs:",
+                                        FontSize = defaultFontSize,
+                                        ForegroundColor = () => descriptionColor
+                                    },
                                     // hunger block
                                     new LabelView
                                     {
@@ -83,10 +85,41 @@ partial class WorldRenderer
                                         Maximum = () => ((Villager)world.SelectedEntity!).Needs.HungerMax,
                                         StringFormat = () => "{0:0.0}%",
                                         ForegroundColor = () => ((Villager)world.SelectedEntity!).Needs.Hunger / ((Villager)world.SelectedEntity!).Needs.HungerMax < ((Villager)world.SelectedEntity!).HungerThreshold
-                                            ? Colors.DarkGreen : Colors.DarkRed,
+                                            ? Colors4.DarkGreen : Colors4.DarkRed,
                                         TextColor = descriptionColor,
                                         FontSize = defaultFontSize - 2,
                                         MinWidth = () => 120
+                                    }
+                                }
+                            },
+                            new StackView(StackType.Horizontal)
+                            {
+                                Visible = () => world.SelectedEntity is Building { IsBuilt: true, AssignedWorkers.Length: >0 },
+                                Children =
+                                {
+                                    new LabelView
+                                    {
+                                        Text = () => "Assigned workers: ",
+                                        FontSize = defaultFontSize,
+                                        ForegroundColor = () => descriptionColor
+                                    },
+                                    new RepeaterView<AssignedWorker>
+                                    {
+                                        Source = () => ((Building)world.SelectedEntity!).AssignedWorkers,
+                                        ContainerView = new StackView(StackType.Horizontal),
+                                        ItemView = aw => new StackView(StackType.Horizontal)
+                                        {
+                                            Children =
+                                            {
+                                                new LabelView
+                                                {
+                                                    Text = () => aw.Villager is { } assignedVillager ? assignedVillager.Name + (aw.VillagerWorking ? "" : "[SLK]") :"--",
+                                                    FontSize = defaultFontSize,
+                                                    ForegroundColor = () => highlightColor,
+                                                    Padding = new(10, 0, 0, 0)
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             },
@@ -157,16 +190,20 @@ partial class WorldRenderer
                             },
                             Child = new StackView(StackType.Vertical)
                             {
+                                Margin = new(0, 0, 20, 0),
                                 Children =
                                 {
                                     new ImageView
                                     {
                                         Source = () => GetImagePath(world.BuildingTemplates[key]),
-                                        InheritParentSize = true,
+                                        MinWidth = () => 0,
                                     },
                                     new LabelView
                                     {
                                         Text = () => world.BuildingTemplates[key].Name,
+                                        Margin = new(0, 5, 0, 0),
+                                        FontSize = defaultFontSize,
+                                        HorizontalTextAlignment = HorizontalAlignment.Center
                                     },
                                 }
                             }
@@ -183,12 +220,12 @@ partial class WorldRenderer
                     new LabelView
                     {
                         Text = () => $"""
-                            FPS: {Math.Round(frameData.Rate, 1, MidpointRounding.ToPositiveInfinity):0.0}, Update: {frameData.UpdateTimePercentage * 100:0.00}%, Render: {frameData.RenderTimePercentage * 100:0.00}%
-                            Draw calls: {frameData.DrawCallCount}, Triangles: {frameData.TriangleCount}, Lines: {frameData.LineCount}
+                            FPS: {Math.Round(FrameData.Rate, 0, MidpointRounding.ToPositiveInfinity):0}, Update: {FrameData.UpdateTimePercentage * 100:0.00}%, Render: {FrameData.RenderTimePercentage * 100:0.00}%
+                            Draw calls: {FrameData.DrawCallCount}, Triangles: {FrameData.TriangleCount}, Lines: {FrameData.LineCount}
                             """,
                         FontSize = 22,
                         Padding = new(2),
-                        ForegroundColor = () => Colors.White,
+                        ForegroundColor = () => Colors4.White,
                         BackgroundColor = new(0,0,0,.4f)
                     },
                     new LabelView
@@ -197,7 +234,7 @@ partial class WorldRenderer
                         Visible = () => world.Paused,
                         FontSize = 22,
                         Padding = new(2, 0),
-                        ForegroundColor = () => Colors.Red,
+                        ForegroundColor = () => Colors4.Red,
                     },
                 }
             }));

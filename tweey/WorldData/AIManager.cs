@@ -1,4 +1,6 @@
-﻿namespace Tweey.WorldData;
+﻿using Tweey.Actors;
+
+namespace Tweey.WorldData;
 
 public enum AIPlanStepResult { Stay, NextStep, End }
 public record AIPlanStep(Func<double, AIPlanStepResult> Update, Action? DoneAction = null);
@@ -29,7 +31,6 @@ public abstract class AIPlan
 
     public void Update(double deltaSec)
     {
-        //if (Targets.Count == 0) { Done = true; return; }
         var step = Steps[CurrentStep];
 
         switch (step.Update(deltaSec))
@@ -37,25 +38,37 @@ public abstract class AIPlan
             case AIPlanStepResult.NextStep: step.DoneAction?.Invoke(); CurrentStep = (CurrentStep + 1) % Steps.Count; break;
             case AIPlanStepResult.End: step.DoneAction?.Invoke(); Done = true; break;
         }
-
-        //if (Targets.Count == 0) Done = true;
     }
 
     public abstract string Description { get; }
 
     protected bool StepToPlaceable(PlaceableEntity entity, double deltaSec)
     {
+        // already next to the resource?
+        if (entity.Box.Intersects(Villager.Box.WithExpand(Vector2.One)))
+        {
+            Villager.InterpolateToTarget(entity, 0);
+            return true;
+        }
+
         Villager.MovementActionTime.AdvanceTime(deltaSec);
 
-        for (int movements = Villager.MovementActionTime.ConsumeActions(); movements > 0; --movements)
+        var (movements, fractionalRemainderMovement) = Villager.MovementActionTime.ConsumeActions();
+        for (; movements > 0; --movements)
         {
-            // reached the resource?
-            if (entity!.Box.Intersects(Villager.Box.WithExpand(Vector2.One)))
-                return true;
-
             // if not, move towards it
-            Villager.Location += (entity!.Location - Villager.Location).Sign();
+            Villager.Location += (entity.Location - Villager.Location).Sign();
+
+            // reached the resource?
+            if (entity.Box.Intersects(Villager.Box.WithExpand(Vector2.One)))
+            {
+                Villager.InterpolateToTarget(entity, 0);
+                return true;
+            }
         }
+
+        // partial movement
+        Villager.InterpolateToTarget(entity, fractionalRemainderMovement);
 
         return false;
     }
@@ -89,7 +102,7 @@ public class ResourcePickupAIPlan : TypedAIPlan<ResourceBucket>
         Steps.Add(CreateMoveToPlaceableAIPlanStep(() => Villager.PickupActionTime.Reset(Villager.PickupActionsPerSecond / PeekTarget()!.GetPlannedResource(this).PickupSpeedMultiplier)));
         Steps.Add(new(deltaSec =>
         {
-            if (Villager.PickupActionTime.AdvanceTimeAndConsumeActions(deltaSec) > 0)
+            if (Villager.PickupActionTime.AdvanceTimeAndConsumeActions(deltaSec).actions > 0)
             {
                 // remove the resource from the world and from our list of targets to hit and place it in our inventory
                 var worldRB = DequeueTarget();
@@ -118,7 +131,7 @@ public class StoreInventoryAIPlan : TypedAIPlan<Building>
         Steps.Add(CreateMoveToPlaceableAIPlanStep(() => Villager.PickupActionTime.Reset(Villager.PickupActionsPerSecond / Villager.Inventory.PickupSpeedMultiplier)));
         Steps.Add(new(deltaSec =>
         {
-            if (Villager.PickupActionTime.AdvanceTimeAndConsumeActions(deltaSec) > 0)
+            if (Villager.PickupActionTime.AdvanceTimeAndConsumeActions(deltaSec).actions > 0)
             {
                 PeekTarget()!.Inventory.Add(Villager.Inventory, true);
                 return AIPlanStepResult.End;
@@ -142,9 +155,8 @@ public class BuildAIPlan : TypedAIPlan<Building>
         Steps.Add(new(deltaSec =>
         {
             var building = PeekTarget()!;
-            if (Villager.WorkActionTime.AdvanceTimeAndConsumeActions(deltaSec) > 0 && --building.BuildWorkTicks <= 0)
+            if (Villager.WorkActionTime.AdvanceTimeAndConsumeActions(deltaSec).actions > 0 && --building.BuildWorkTicks <= 0)
             {
-                building.IsBuilt = true;
                 World.EndWork(building, Villager);
                 building.Inventory.Clear();
                 return AIPlanStepResult.End;
@@ -167,7 +179,7 @@ public class ChopTreeAIPlan : TypedAIPlan<Tree>
         }));
         Steps.Add(new(deltaSec =>
         {
-            if (Villager.WorkActionTime.AdvanceTimeAndConsumeActions(deltaSec) > 0 && --tree.WorkTicks <= 0)
+            if (Villager.WorkActionTime.AdvanceTimeAndConsumeActions(deltaSec).actions > 0 && --tree.WorkTicks <= 0)
             {
                 World.EndWork(tree, Villager);
                 tree.Inventory.Location = tree.Location;
@@ -182,12 +194,55 @@ public class ChopTreeAIPlan : TypedAIPlan<Tree>
     public override string Description => $"Chopping {PeekTarget()?.Name} tree.";
 }
 
+public class WorkAIPlan : TypedAIPlan<Building>
+{
+    public WorkAIPlan(World world, Villager villager, Building building) : base(world, villager, false, building)
+    {
+        Steps.Add(CreateMoveToPlaceableAIPlanStep(() =>
+        {
+            Villager.WorkActionTime.Reset(Villager.WorkActionsPerSecond);
+            World.StartWork(building, Villager);
+        }));
+        Steps.Add(new(deltaSec =>
+        {
+            if (Villager.WorkActionTime.AdvanceTimeAndConsumeActions(deltaSec).actions > 0
+                && building.GetAssignedWorkerSlot(Villager) is { } assignedWorkerSlot
+                && --assignedWorkerSlot.ActiveProductionLineWorkTicksLeft <= 0)
+            {
+                // create the resources from the line output and drop them on the ground
+                var outputResources = assignedWorkerSlot.ActiveProductionLine!.ProductionLine!.Outputs.Clone();
+                outputResources.Location = building.Center;
+                world.PlaceEntity(outputResources);
+
+                // find a new production line to work on, if any
+                foreach (var activeProductionLine in building.ActiveProductionLines)
+                    if (activeProductionLine.ProductionLine is { } productionLine)
+                        if (activeProductionLine.Type is ActiveProductionLineType.UntilStock
+                            && world.GetTotalResourceAmount(productionLine.Outputs.ResourceQuantities[0].Resource) < activeProductionLine.OutputTarget)
+                        {
+                            // work on this next
+                            assignedWorkerSlot.ActiveProductionLine = activeProductionLine;
+
+                            return AIPlanStepResult.Stay;
+                        }
+
+                // we're done with this building's active production lines, look for something else
+                World.EndWork(building, Villager);
+                return AIPlanStepResult.End;
+            }
+            return AIPlanStepResult.Stay;
+        }));
+    }
+
+    public override string Description => $"Working at {PeekTarget()?.Name}.";
+}
+
 public class EatAIPlan : AIPlan
 {
     public EatAIPlan(World world, Villager villager) : base(world, villager, true) =>
         Steps.Add(new(deltaSec =>
         {
-            if (Villager.EatActionTime.AdvanceTimeAndConsumeActions(deltaSec) > 0)
+            if (Villager.EatActionTime.AdvanceTimeAndConsumeActions(deltaSec).actions > 0)
             {
                 Villager.Needs.UpdateWithChanges(new() { Hunger = -Villager.Inventory.AvailableResourceQuantities.Sum(rq => rq.Resource.Nourishment * rq.Quantity) });
                 Villager.Inventory.Clear();
@@ -207,14 +262,13 @@ class AIManager
 
     bool TryBuildingPlan(Villager villager)
     {
-        var availableBuildingSite = world.GetEntities<Building>().Where(b => !b.IsBuilt && b.BuildCost.IsAllEmpty && b.AssignedWorkers[0] is null)
-            .OrderBy(b => (b.Center - villager.Center).LengthSquared())
+        var availableBuildingSite = world.GetEntities<Building>().Where(b => !b.IsBuilt && b.BuildCost.IsAllEmpty && b.AssignedWorkers[0].Villager is null)
+            .OrderByDistanceFrom(villager)
             .FirstOrDefault();
         if (availableBuildingSite == null)
             return false;
 
-        availableBuildingSite.AssignedWorkers[0] = villager;
-        availableBuildingSite.AssignedWorkersWorking[0] = false;
+        world.PlanWork(availableBuildingSite, villager);
 
         if (villager.AIPlan?.Done == false)
             villager.AIPlan.Cancel();
@@ -224,13 +278,12 @@ class AIManager
 
     bool TryCuttingTreesPlan(Villager villager)
     {
-        var availableTree = world.GetEntities<Tree>().Where(t => t.AssignedVillager is null).OrderBy(t => (t.Center - villager.Center).LengthSquared())
+        var availableTree = world.GetEntities<Tree>().Where(t => t.AssignedVillager is null).OrderByDistanceFrom(villager)
             .FirstOrDefault();
         if (availableTree == null)
             return false;
 
-        availableTree.AssignedVillager = villager;
-        availableTree.AssignedVillagerWorking = false;
+        world.PlanWork(availableTree, villager);
 
         if (villager.AIPlan?.Done == false)
             villager.AIPlan.Cancel();
@@ -243,11 +296,12 @@ class AIManager
         var pickupPlan = new ResourcePickupAIPlan(world, villager);
         var availableCarryWeight = world.Configuration.Data.BaseCarryWeight - villager.Inventory.AvailableWeight;
 
-        foreach (var buildingSite in world.GetEntities<Building>().Where(b => !b.IsBuilt && !b.BuildCost.IsAvailableEmpty).OrderBy(b => (b.Center - villager.Center).LengthSquared()))
+        foreach (var buildingSite in world.GetEntities<Building>().Where(b => !b.IsBuilt && !b.BuildCost.IsAvailableEmpty).OrderByDistanceFrom(villager))
         {
-            foreach (var rb in world.GetEntities().Where(e => (e is ResourceBucket rb && !rb.IsAvailableEmpty) || (e is Building { Type: BuildingType.Storage, IsBuilt: true } building && !building.Inventory.IsAvailableEmpty))
+            foreach (var rb in world.GetEntities()
+                .Where(e => (e is ResourceBucket rb && !rb.IsAvailableEmpty) || (e is Building { Type: BuildingType.Storage, IsBuilt: true } building && !building.Inventory.IsAvailableEmpty))
                 .Select(e => e is ResourceBucket rb ? rb : ((Building)e).Inventory)
-                .OrderBy(rb => (rb.Center - villager.Center).LengthSquared()))
+                .OrderByDistanceFrom(villager))
             {
                 if (rb.PlanResouces(pickupPlan, ref availableCarryWeight, buildingSite.BuildCost))
                     pickupPlan.EnqueueTarget(rb);
@@ -276,14 +330,14 @@ class AIManager
         world.GetEntities().ForEach(e => { anyRB = anyRB || e is ResourceBucket; anyStorage = anyStorage || (e is Building building && building.IsBuilt && building.Type == BuildingType.Storage); });
         if (!anyRB || !anyStorage) return false;
 
-        var closestAvailableStorage = world.GetEntities<Building>().Where(b => b.IsBuilt).OrderBy(rb => (rb.Center - villager.Center).LengthSquared()).FirstOrDefault(b => b.Type == BuildingType.Storage);
+        var closestAvailableStorage = world.GetEntities<Building>().Where(b => b.IsBuilt).OrderByDistanceFrom(villager).FirstOrDefault(b => b.Type == BuildingType.Storage);
         if (closestAvailableStorage is not null)
         {
             var plan = new ResourcePickupAIPlan(world, villager);
 
             // plan the resource acquisition
             var availableCarryWeight = world.Configuration.Data.BaseCarryWeight - villager.Inventory.AvailableWeight;
-            foreach (var rb in world.GetEntities<ResourceBucket>().OrderBy(rb => (rb.Center - closestAvailableStorage.Center).LengthSquared()))
+            foreach (var rb in world.GetEntities<ResourceBucket>().OrderByDistanceFrom(closestAvailableStorage))
                 if (availableCarryWeight > 0 && rb.PlanResouces(plan, ref availableCarryWeight))
                     plan.EnqueueTarget(rb);
 
@@ -346,6 +400,27 @@ class AIManager
         return false;
     }
 
+    bool TryProductionPlan(Villager villager)
+    {
+        foreach (var building in world.GetEntities<Building>().OrderByDistanceFrom(villager))
+            if (building.GetEmptyAssignedWorkerSlot() is { } emptyAssignedWorkerSlot)
+                foreach (var activeProductionLine in building.ActiveProductionLines)
+                    if (activeProductionLine.ProductionLine is { } productionLine)
+                        if (activeProductionLine.Type is ActiveProductionLineType.UntilStock
+                            && world.GetTotalResourceAmount(productionLine.Outputs.ResourceQuantities[0].Resource) < activeProductionLine.OutputTarget)
+                        {
+                            emptyAssignedWorkerSlot.ActiveProductionLine = activeProductionLine;
+                            world.PlanWork(building, villager);
+
+                            if (villager.AIPlan?.Done == false)
+                                villager.AIPlan.Cancel();
+                            villager.AIPlan = new WorkAIPlan(world, villager, building);
+                            return true;
+                        }
+
+        return false;
+    }
+
     static bool IsEmergencyPlan(AIPlan? aIPlan)
     {
         while (aIPlan is not null)
@@ -378,7 +453,7 @@ class AIManager
             }
 
             if (villager.AIPlan is null)
-                _ = TryBuildingPlan(villager) || TryBuildingSiteHaulingPlan(villager) || TryHaulingPlan(villager) || TryCuttingTreesPlan(villager);
+                _ = TryProductionPlan(villager) || TryBuildingPlan(villager) || TryBuildingSiteHaulingPlan(villager) || TryHaulingPlan(villager) || TryCuttingTreesPlan(villager);
 
             villager.AIPlan?.Update(deltaSec);
         }

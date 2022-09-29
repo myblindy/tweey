@@ -12,12 +12,10 @@ namespace Tweey.Support;
 public class Needs
 {
     <# foreach(var need in needs) { #>
-        [RequiredProperty]
-        public double <#= need #>Max { get; set; }
+        public required double <#= need #>Max { get; set; }
         public double <#= need #> { get; set; }
         public double <#= need #>Percentage => <#= need #> / <#= need #>Max;
-        [RequiredProperty]
-        public double <#= need #>PerSecond { get; set; }
+        public required double <#= need #>PerSecond { get; set; }
     <# } #>
 
     public void UpdateWithChanges(NeedsChange change)

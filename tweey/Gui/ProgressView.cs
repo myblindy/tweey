@@ -4,16 +4,13 @@ public class ProgressView : View, IContentView
 {
     public ProgressView() : base(new()) { }
 
-    [RequiredProperty]
-    public Func<double>? Maximum { get; set; }
-    [RequiredProperty]
-    public Func<double>? Value { get; set; }
+    public required Func<double> Maximum { get; set; }
+    public required Func<double> Value { get; set; }
 
     public float FontSize { get; set; } = 12;
     public HorizontalAlignment HorizontalTextAlignment { get; set; } = HorizontalAlignment.Left;
-    [RequiredProperty]
-    public Func<string?>? StringFormat { get; set; }
-    public Vector4 TextColor { get; set; } = Colors.White;
-    public Func<Vector4> ForegroundColor { get; set; } = () => Colors.Gray;
-    public Vector4 BorderColor { get; set; } = Colors.Black;
+    public required Func<string?> StringFormat { get; set; }
+    public Vector4 TextColor { get; set; } = Colors4.White;
+    public Func<Vector4> ForegroundColor { get; set; } = () => Colors4.Gray;
+    public Vector4 BorderColor { get; set; } = Colors4.Black;
 }

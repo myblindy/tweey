@@ -1,6 +1,4 @@
-﻿using Tweey.Gui;
-
-namespace Tweey.Renderer;
+﻿namespace Tweey.Renderer;
 
 partial class WorldRenderer
 {
@@ -9,16 +7,27 @@ partial class WorldRenderer
 
     void ScreenFillQuad(Box2 box, Vector4 color, AtlasEntry entry, bool useScale = true)
     {
+        if (color.W == 0) return;
+
         var zoom = useScale ? pixelZoom : 1;
         var br = box.BottomRight + Vector2.One;
-        vaoGui.Vertices.Add(new(box.TopLeft * zoom, color, entry.TextureCoordinate0));
-        vaoGui.Vertices.Add(new(br * zoom, color, entry.TextureCoordinate1));
-        vaoGui.Vertices.Add(new(new((box.Right + 1) * zoom, box.Top * zoom), color, new(entry.TextureCoordinate1.X, entry.TextureCoordinate0.Y, entry.TextureCoordinate0.Z)));
+        guiVAO.Vertices.Add(new(box.TopLeft * zoom, color, entry.TextureCoordinate0));
+        guiVAO.Vertices.Add(new(br * zoom, color, entry.TextureCoordinate1));
+        guiVAO.Vertices.Add(new(new((box.Right + 1) * zoom, box.Top * zoom), color, new(entry.TextureCoordinate1.X, entry.TextureCoordinate0.Y, entry.TextureCoordinate0.Z)));
 
-        vaoGui.Vertices.Add(new(new(box.Left * zoom, (box.Bottom + 1) * zoom), color, new(entry.TextureCoordinate0.X, entry.TextureCoordinate1.Y, entry.TextureCoordinate0.Z)));
-        vaoGui.Vertices.Add(new(br * zoom, color, entry.TextureCoordinate1));
-        vaoGui.Vertices.Add(new(box.TopLeft * zoom, color, entry.TextureCoordinate0));
+        guiVAO.Vertices.Add(new(new(box.Left * zoom, (box.Bottom + 1) * zoom), color, new(entry.TextureCoordinate0.X, entry.TextureCoordinate1.Y, entry.TextureCoordinate0.Z)));
+        guiVAO.Vertices.Add(new(br * zoom, color, entry.TextureCoordinate1));
+        guiVAO.Vertices.Add(new(box.TopLeft * zoom, color, entry.TextureCoordinate0));
     }
+
+    void ScreenString(string? s, FontDescription fontDescription, Box2 box, Vector4 fgColor, Vector4 bgColor, HorizontalAlignment horizontalAlignment = HorizontalAlignment.Left) =>
+        ScreenString(s, fontDescription, horizontalAlignment switch
+        {
+            HorizontalAlignment.Left => box.TopLeft,
+            HorizontalAlignment.Right => box.TopRight,
+            HorizontalAlignment.Center => new(box.Left + box.Size.X / 2, box.Top),
+            _ => throw new NotImplementedException()
+        }, fgColor, bgColor, horizontalAlignment);
 
     void ScreenString(string? s, FontDescription fontDescription, Vector2 location, Vector4 fgColor, Vector4 bgColor, HorizontalAlignment horizontalAlignment = HorizontalAlignment.Left)
     {
@@ -27,30 +36,34 @@ partial class WorldRenderer
                 box =>
                 {
                     if (bgColor.W > 0)
-                        ScreenFillQuad(box, bgColor, blankAtlasEntry!, false);
+                        ScreenFillQuad(box, bgColor, blankAtlasEntry, false);
                 },
                 (box, atlasEntry) => ScreenFillQuad(box, fgColor, atlasEntry, false), horizontalAlignment);
     }
 
     void ScreenLine(Box2 box1, Box2 box2, Vector4 color)
     {
-        vaoGui.Vertices.Add(new((box1.Center + new Vector2(.5f, .5f)) * pixelZoom, color, blankAtlasEntry!.TextureCoordinate0));
-        vaoGui.Vertices.Add(new((box2.Center + new Vector2(.5f, .5f)) * pixelZoom, color, blankAtlasEntry!.TextureCoordinate1));
+        if (color.W == 0) return;
+
+        guiVAO.Vertices.Add(new((box1.Center + new Vector2(.5f, .5f)) * pixelZoom, color, blankAtlasEntry.TextureCoordinate0));
+        guiVAO.Vertices.Add(new((box2.Center + new Vector2(.5f, .5f)) * pixelZoom, color, blankAtlasEntry.TextureCoordinate1));
     }
 
     void ScreenLineQuad(Box2 box, Vector4 color, bool useScale = true)
     {
+        if (color.W == 0) return;
+
         var zoom = useScale ? pixelZoom : 1;
         var br = box.BottomRight + Vector2.One;
 
-        vaoGui.Vertices.Add(new(box.TopLeft * zoom, color, blankAtlasEntry!.TextureCoordinate0));
-        vaoGui.Vertices.Add(new(new((box.Right + 1) * zoom, box.Top * zoom), color, new(blankAtlasEntry.TextureCoordinate1.X, blankAtlasEntry.TextureCoordinate0.Y, blankAtlasEntry.TextureCoordinate0.Z)));
-        vaoGui.Vertices.Add(new(new(box.Left * zoom, (box.Bottom + 1) * zoom), color, new(blankAtlasEntry.TextureCoordinate0.X, blankAtlasEntry.TextureCoordinate1.Y, blankAtlasEntry.TextureCoordinate0.Z)));
-        vaoGui.Vertices.Add(new(br * zoom, color, blankAtlasEntry.TextureCoordinate1));
-        vaoGui.Vertices.Add(new(box.TopLeft * zoom, color, blankAtlasEntry.TextureCoordinate0));
-        vaoGui.Vertices.Add(new(new(box.Left * zoom, (box.Bottom + 1) * zoom), color, new(blankAtlasEntry.TextureCoordinate0.X, blankAtlasEntry.TextureCoordinate1.Y, blankAtlasEntry.TextureCoordinate0.Z)));
-        vaoGui.Vertices.Add(new(new((box.Right + 1) * zoom, box.Top * zoom), color, new(blankAtlasEntry.TextureCoordinate1.X, blankAtlasEntry.TextureCoordinate0.Y, blankAtlasEntry.TextureCoordinate0.Z)));
-        vaoGui.Vertices.Add(new(br * zoom, color, blankAtlasEntry.TextureCoordinate1));
+        guiVAO.Vertices.Add(new(box.TopLeft * zoom, color, blankAtlasEntry.TextureCoordinate0));
+        guiVAO.Vertices.Add(new(new((box.Right + 1) * zoom, box.Top * zoom), color, new(blankAtlasEntry.TextureCoordinate1.X, blankAtlasEntry.TextureCoordinate0.Y, blankAtlasEntry.TextureCoordinate0.Z)));
+        guiVAO.Vertices.Add(new(new(box.Left * zoom, (box.Bottom + 1) * zoom), color, new(blankAtlasEntry.TextureCoordinate0.X, blankAtlasEntry.TextureCoordinate1.Y, blankAtlasEntry.TextureCoordinate0.Z)));
+        guiVAO.Vertices.Add(new(br * zoom, color, blankAtlasEntry.TextureCoordinate1));
+        guiVAO.Vertices.Add(new(box.TopLeft * zoom, color, blankAtlasEntry.TextureCoordinate0));
+        guiVAO.Vertices.Add(new(new(box.Left * zoom, (box.Bottom + 1) * zoom), color, new(blankAtlasEntry.TextureCoordinate0.X, blankAtlasEntry.TextureCoordinate1.Y, blankAtlasEntry.TextureCoordinate0.Z)));
+        guiVAO.Vertices.Add(new(new((box.Right + 1) * zoom, box.Top * zoom), color, new(blankAtlasEntry.TextureCoordinate1.X, blankAtlasEntry.TextureCoordinate0.Y, blankAtlasEntry.TextureCoordinate0.Z)));
+        guiVAO.Vertices.Add(new(br * zoom, color, blankAtlasEntry.TextureCoordinate1));
     }
 
     View GetTemplatedView(View view) => view.ViewData.TemplatedView ?? view;
@@ -152,8 +165,8 @@ partial class WorldRenderer
                 break;
 
             case ProgressView progressView:
-                if (progressView.StringFormat?.Invoke() is { } stringFormat && !string.IsNullOrWhiteSpace(stringFormat)
-                    && progressView.Maximum?.Invoke() is var maximum && progressView.Value?.Invoke() is var value)
+                if (progressView.StringFormat() is { } stringFormat && !string.IsNullOrWhiteSpace(stringFormat)
+                    && progressView.Maximum() is var maximum && progressView.Value() is var value)
                 {
                     size += fontRenderer.Measure(string.Format(stringFormat, value / maximum * 100), new FontDescription { Size = progressView.FontSize });
                     if (progressView.BorderColor.W != 0) size += new Vector2(2, 2);
@@ -262,7 +275,7 @@ partial class WorldRenderer
 
         var box = view.ViewData.Box;
         if (view is not LabelView && view.BackgroundColor.W > 0)
-            ScreenFillQuad(box.WithExpand(view.Padding), view.BackgroundColor, atlas[GrowableTextureAtlas3D.BlankName], false);
+            ScreenFillQuad(box.WithExpand(view.Padding), view.BackgroundColor, blankAtlasEntry, false);
 
         switch (view)
         {
@@ -272,32 +285,26 @@ partial class WorldRenderer
                 break;
             case LabelView labelView:
                 if (labelView.Text?.Invoke() is { } text && !string.IsNullOrEmpty(text) && labelView.ForegroundColor.Invoke() is { } labelForegroundColor)
-                    ScreenString(text, new() { Size = labelView.FontSize }, labelView.HorizontalTextAlignment switch
-                    {
-                        HorizontalAlignment.Left => box.TopLeft + new Vector2(view.Margin.Left, view.Margin.Top),
-                        HorizontalAlignment.Right => new(box.Right - view.Margin.Right, box.Top - view.Margin.Top),
-                        _ => throw new NotImplementedException()
-                    }, labelForegroundColor, labelView.BackgroundColor, labelView.HorizontalTextAlignment);
+                    ScreenString(text, new() { Size = labelView.FontSize },
+                        new Box2 { TopLeft = box.TopLeft + new Vector2(view.Margin.Left, view.Margin.Top), BottomRight = box.BottomRight - new Vector2(view.Margin.Right, view.Margin.Bottom) },
+                        labelForegroundColor, labelView.BackgroundColor, labelView.HorizontalTextAlignment);
                 break;
             case ProgressView progressView:
-                if (progressView.StringFormat?.Invoke() is { } stringFormat && !string.IsNullOrEmpty(stringFormat)
-                    && progressView.Maximum?.Invoke() is { } maximum && progressView.Value?.Invoke() is { } value
+                if (progressView.StringFormat() is { } stringFormat && !string.IsNullOrEmpty(stringFormat)
+                    && progressView.Maximum() is { } maximum && progressView.Value() is { } value
                     && progressView.ForegroundColor?.Invoke() is { } progressForegroundColor)
                 {
                     var borderOffset = progressView.BorderColor.W > 0;
                     if (borderOffset)
-                        ScreenFillQuad(box, progressView.BorderColor, atlas[GrowableTextureAtlas3D.BlankName], false);
+                        ScreenFillQuad(box, progressView.BorderColor, blankAtlasEntry, false);
 
                     box = box.WithExpand(new Thickness(-1));
                     if (progressView.BackgroundColor.W > 0)
-                        ScreenFillQuad(box, progressView.BackgroundColor, atlas[GrowableTextureAtlas3D.BlankName], false);
-                    ScreenFillQuad(Box2.FromCornerSize(box.TopLeft, (float)(box.Size.X * value / maximum), box.Size.Y), progressForegroundColor, atlas[GrowableTextureAtlas3D.BlankName], false);
-                    ScreenString(string.Format(stringFormat, value / maximum * 100), new() { Size = progressView.FontSize }, progressView.HorizontalTextAlignment switch
-                    {
-                        HorizontalAlignment.Left => box.TopLeft + new Vector2(view.Margin.Left, view.Margin.Top),
-                        HorizontalAlignment.Right => new(box.Right - view.Margin.Right, box.Top - view.Margin.Top),
-                        _ => throw new NotImplementedException()
-                    }, progressView.TextColor, Colors.Transparent, progressView.HorizontalTextAlignment);
+                        ScreenFillQuad(box, progressView.BackgroundColor, blankAtlasEntry, false);
+                    ScreenFillQuad(Box2.FromCornerSize(box.TopLeft, (float)(box.Size.X * value / maximum), box.Size.Y), progressForegroundColor, blankAtlasEntry, false);
+                    ScreenString(string.Format(stringFormat, value / maximum * 100), new() { Size = progressView.FontSize },
+                        new Box2 { TopLeft = box.TopLeft + new Vector2(view.Margin.Left, view.Margin.Top), BottomRight = box.BottomRight - new Vector2(view.Margin.Right, view.Margin.Bottom) },
+                        progressView.TextColor, Colors4.Transparent, progressView.HorizontalTextAlignment);
                 }
                 break;
             case ImageView imageView:

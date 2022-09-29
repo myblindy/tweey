@@ -1,4 +1,6 @@
-﻿namespace Tweey.Renderer;
+﻿using Twee.Renderer.Textures;
+
+namespace Twee.Renderer;
 
 public struct FontDescription : IEquatable<FontDescription>
 {
@@ -14,23 +16,34 @@ public struct FontDescription : IEquatable<FontDescription>
     public static bool operator !=(FontDescription left, FontDescription right) => !(left == right);
 }
 
+public enum HorizontalAlignment { Left, Center, Right }
+public enum VerticalAlignment { Top, Center, Bottom }
+
 public class FontRenderer : IDisposable
 {
     readonly GrowableTextureAtlas3D backingTextureAtlas;
-    readonly FontCollection fontCollection;
+    readonly PrivateFontCollection fontCollection;
     readonly FontFamily regularFontFamily;
 
-    readonly Dictionary<FontDescription, TextOptions> fonts = new();
+    readonly Dictionary<FontDescription, Font> fonts = new();
     readonly Dictionary<(FontDescription fontDescription, char ch), (AtlasEntry entry, Vector2i pixelSize)> fontAtlasEntries = new();
 
-    Image<Bgra32>? tempImage;
+    Bitmap tempImage = new(60, 60, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+    static readonly StringFormat stringFormat;
     bool disposedValue;
+
+    static FontRenderer()
+    {
+        stringFormat = StringFormat.GenericTypographic;
+        stringFormat.FormatFlags &= ~StringFormatFlags.LineLimit;
+    }
 
     public FontRenderer(GrowableTextureAtlas3D backingTextureAtlas)
     {
         this.backingTextureAtlas = backingTextureAtlas;
         fontCollection = new();
-        regularFontFamily = fontCollection.Add("Data/Fonts/OpenSans-Regular.woff2");
+        fontCollection.AddFontFile("Data/Fonts/OpenSans-Regular.ttf");
+        regularFontFamily = fontCollection.Families[0];
     }
 
     (FontFamily, FontStyle) GetFontFamily(FontDescription fontDescription) => (fontDescription.Bold, fontDescription.Italic) switch
@@ -45,7 +58,7 @@ public class FontRenderer : IDisposable
         if (tempImage is null || tempImage.Width < width || tempImage.Height < height)
         {
             tempImage?.Dispose();
-            tempImage = new Image<Bgra32>(width + 20, height + 20);
+            tempImage = new Bitmap(width + 20, height + 20, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
         }
     }
 
@@ -57,29 +70,45 @@ public class FontRenderer : IDisposable
         if (!fontAtlasEntries.TryGetValue((fontDescription, ch), out var fullAtlasEntry))
         {
             // get the font
-            if (!fonts.TryGetValue(fontDescription, out var textOptions))
+            if (!fonts.TryGetValue(fontDescription, out var font))
             {
                 var (fontfamily, fontStyle) = GetFontFamily(fontDescription);
-                fonts[fontDescription] = textOptions = new(fontfamily.CreateFont(fontDescription.Size, fontStyle))
-                {
-                    HintingMode = HintingMode.None,
-                    KerningMode = KerningMode.Normal,
-                    ColorFontSupport = ColorFontSupport.MicrosoftColrFormat
-                };
+                fonts[fontDescription] = font = new(fontfamily, fontDescription.Size, GraphicsUnit.Pixel);
             }
 
             // measure the character
             var s = ch.ToString();
-            var fontRect = TextMeasurer.Measure(s, textOptions);
-            var (width, height) = ((int)MathF.Ceiling(fontRect.Right), (int)MathF.Ceiling(fontRect.Bottom) + 3);
+
+            Box2 chBox;
+            using (var g = Graphics.FromImage(tempImage))
+            {
+                g.PageUnit = GraphicsUnit.Pixel;
+                SizeF chSize;
+
+                if (s is " ")
+                {
+                    // gdi+ can't measure spaces, so I'm going to use a work around
+                    var tmpSize = g.MeasureString("a a", font, 0, stringFormat);
+                    chSize = g.MeasureString("a", font, 0, stringFormat);
+                    chSize = new(tmpSize.Width - chSize.Width * 2, chSize.Height);
+
+                }
+                else
+                    chSize = g.MeasureString(s, font, 0, stringFormat);
+                chBox = Box2.FromCornerSize(new Vector2(), new(chSize.Width, chSize.Height + 3));
+            }
 
             // draw the character
-            textOptions.Origin = new(fontRect.Left, fontRect.Top);
-            EnsureTempImage(width + (int)MathF.Floor(fontRect.Left), height + (int)MathF.Floor(fontRect.Top));
-            fontAtlasEntries[(fontDescription, ch)] = fullAtlasEntry = (backingTextureAtlas.AddFromImage(tempImage, width, height, atlasPosition =>
-                tempImage.Mutate(ctx => ctx
-                    .Clear(Color.Transparent)
-                    .DrawText(textOptions, s, Color.White))), new(width, height));
+            var chSizei = new Vector2i((int)MathF.Ceiling(chBox.Size.X), (int)MathF.Ceiling(chBox.Size.Y));
+            EnsureTempImage(chSizei.X, chSizei.Y);
+            fontAtlasEntries[(fontDescription, ch)] = fullAtlasEntry = (backingTextureAtlas.AddFromImage(tempImage, chSizei.X, chSizei.Y, atlasPosition =>
+            {
+                using var g = Graphics.FromImage(tempImage);
+                g.Clear(Color.Transparent);
+                g.TextRenderingHint = fontDescription.Size <= 13 ? TextRenderingHint.SingleBitPerPixelGridFit : TextRenderingHint.ClearTypeGridFit;
+                g.PageUnit = GraphicsUnit.Pixel;
+                g.DrawString(s, font, Brushes.White, chBox.Left, chBox.Top, stringFormat);
+            }), chBox.Size.ToVector2i());
         }
 
         return fullAtlasEntry;
@@ -87,14 +116,22 @@ public class FontRenderer : IDisposable
 
     public Vector2 Measure(ReadOnlySpan<char> s, FontDescription fontDescription)
     {
-        Vector2 result = default;
-        foreach (var ch in s)
-        {
-            var charSize = Measure(ch, fontDescription);
-            result = new(result.X + charSize.X, Math.Max(result.Y, charSize.Y));
-        }
+        Vector2 lastLineSize = default, totalSize = default;
 
-        return result;
+        foreach (var ch in s)
+            if (ch is '\n')
+            {
+                totalSize = new(Math.Max(totalSize.X, lastLineSize.X), totalSize.Y + lastLineSize.Y);
+                lastLineSize = default;
+            }
+            else if (ch is not '\r')
+            {
+                var charSize = Measure(ch, fontDescription);
+                lastLineSize.X += charSize.X;
+                lastLineSize.Y = Math.Max(lastLineSize.Y, charSize.Y);
+            }
+
+        return new(Math.Max(totalSize.X, lastLineSize.X), totalSize.Y + lastLineSize.Y);
     }
 
     static readonly List<(char ch, AtlasEntry? entry, Vector2i pixelSize)> renderCache = new();
@@ -155,7 +192,7 @@ public class FontRenderer : IDisposable
 
             // unmanaged state
             tempImage?.Dispose();
-            tempImage = null;
+            fontCollection.Dispose();
 
             disposedValue = true;
         }

@@ -5,17 +5,13 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Simplification;
-using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Composition;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-
+using System.Diagnostics.CodeAnalysis;
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
-namespace tweey.roslyn;
+namespace Twee.Roslyn;
 
 [Generator]
 public class VertexSourceGen : IIncrementalGenerator
@@ -31,7 +27,7 @@ public class VertexSourceGen : IIncrementalGenerator
         var parent = source.Parent;
         while (parent.IsKind(SyntaxKind.ClassDeclaration) || parent.IsKind(SyntaxKind.StructDeclaration))
         {
-            var parentClass = parent as TypeDeclarationSyntax;
+            var parentClass = (TypeDeclarationSyntax)parent;
             items.Add(parentClass.Identifier.Text);
             parent = parent.Parent;
         }
@@ -47,7 +43,7 @@ public class VertexSourceGen : IIncrementalGenerator
         return sb.ToString();
     }
 
-    static bool GetTypeDetails(string typeName, out int fieldCount, out string fieldType, out int byteSize)
+    static bool GetTypeDetails(string typeName, out int fieldCount, [NotNullWhen(true)] out string? fieldType, out int byteSize)
     {
         switch (typeName)
         {
@@ -71,9 +67,9 @@ public class VertexSourceGen : IIncrementalGenerator
 
     public class VertexStructure
     {
-        public StructDeclarationSyntax StructDeclarationSyntax { get; internal set; }
+        public StructDeclarationSyntax StructDeclarationSyntax { get; internal set; } = null!;
         public bool PackingAttributeCorrect { get; internal set; }
-        public List<(int fieldCount, string fieldType, int byteSize, bool error, Location location)> Fields { get; } = new();
+        public List<(int fieldCount, string? fieldType, int byteSize, bool error, Location location)> Fields { get; } = new();
     }
 
     public static IEnumerable<VertexStructure> EnumerateVertexStructures(SyntaxNode rootNode, SemanticModel semanticModel)
@@ -86,7 +82,7 @@ public class VertexSourceGen : IIncrementalGenerator
                 // ensure this structure is packed
                 result.PackingAttributeCorrect = sd.AttributeLists.SelectMany(a => a.Attributes)
                     .Any(a => a.Name is NameSyntax ns
-                        && semanticModel.GetSymbolInfo(ns).Symbol is IMethodSymbol methodSymbol && methodSymbol.ReceiverType.ToDisplayString() is "System.Runtime.InteropServices.StructLayoutAttribute"
+                        && semanticModel.GetSymbolInfo(ns).Symbol is IMethodSymbol methodSymbol && methodSymbol.ReceiverType?.ToDisplayString() is "System.Runtime.InteropServices.StructLayoutAttribute"
                         && a.ArgumentList.Arguments.Count >= 2
                         && a.ArgumentList.Arguments[0].Expression is MemberAccessExpressionSyntax mes0
                         && semanticModel.GetSymbolInfo(mes0.Expression).Symbol is ITypeSymbol mes0TypeSymbol && mes0TypeSymbol.ToDisplayString() is "System.Runtime.InteropServices.LayoutKind"
@@ -136,7 +132,7 @@ public class VertexSourceGen : IIncrementalGenerator
                     {
                         var fullName = GetFullName(vertexStructure.StructDeclarationSyntax);
                         sb.AppendLine($"if(t == typeof({fullName})) {{");
-                        int idx = 0;
+                        var idx = 0;
                         var offset = 0;
                         foreach (var (fieldCount, fieldType, byteSize, error, location) in vertexStructure.Fields)
                             if (!error)
@@ -195,7 +191,7 @@ public class VertexCodeFixProvider : CodeFixProvider
     {
         //Debugger.Launch();
 
-        var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
+        var root = (await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false))!;
         var semanticModel = await context.Document.GetSemanticModelAsync(context.CancellationToken).ConfigureAwait(false);
 
         foreach (var diagnostic in context.Diagnostics)
@@ -217,8 +213,8 @@ public class VertexCodeFixProvider : CodeFixProvider
                     // find the StructLayout attribute, if it's there
                     Document newDocument;
                     if (structNode.AttributeLists.SelectMany(a => a.Attributes).FirstOrDefault(a => a.Name is NameSyntax ns
-                         && semanticModel.GetSymbolInfo(ns).Symbol is IMethodSymbol methodSymbol
-                         && methodSymbol.ReceiverType.ToDisplayString() is "System.Runtime.InteropServices.StructLayoutAttribute") is { } attributeSyntax)
+                        && semanticModel.GetSymbolInfo(ns).Symbol is IMethodSymbol methodSymbol
+                        && methodSymbol.ReceiverType?.ToDisplayString() is "System.Runtime.InteropServices.StructLayoutAttribute") is { } attributeSyntax)
                     {
                         newDocument = context.Document.WithSyntaxRoot(root.ReplaceNode(attributeSyntax, correctAttribute));
                     }

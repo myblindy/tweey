@@ -1,4 +1,6 @@
-﻿namespace Tweey.WorldData;
+﻿using System.Diagnostics.CodeAnalysis;
+
+namespace Tweey.WorldData;
 
 public class World
 {
@@ -16,14 +18,16 @@ public class World
 
     public bool Paused { get; private set; }
     public bool ShowDetails { get; private set; }
+    public bool DebugShowLightAtMouse { get; private set; }
 
     public Vector2i MouseScreenPosition { get; private set; }
     public Vector2i MouseWorldPosition { get; private set; }
 
     public World(ILoader loader)
     {
-        (Resources, Configuration, aiManager, soundManager) = (new(loader), new(loader), new(this), new(this) { Volume = .1f });
+        (Resources, Configuration, aiManager) = (new(loader), new(loader), new(this));
         (BuildingTemplates, TreeTemplates) = (new(loader, Resources), new(loader, Resources));
+        soundManager = new(this) { Volume = .1f };
 
         StartedJob += soundManager.OnStartedJob;
         EndedBuildingJob += soundManager.OnEndedJob;
@@ -84,11 +88,6 @@ public class World
         }
         else
             PlacedEntities.Add(entity);
-
-        if (entity is IResourceNeed resourceNeed)
-        {
-
-        }
     }
 
     public void PlantForest(TreeTemplate treeTemplate, Vector2i center, float radius, float chanceCenter, float chanceEdge)
@@ -109,7 +108,7 @@ public class World
         return PlacedEntities.Remove(entity);
     }
 
-    public event Action<Building>? PlacedBuilding;
+    event Action<Building>? PlacedBuilding;
     public void MouseEvent(Vector2i screenPosition, Vector2i worldLocation, InputAction? inputAction = null, MouseButton? mouseButton = null, KeyModifiers? keyModifiers = null)
     {
         if (inputAction == InputAction.Press && mouseButton == MouseButton.Button1)
@@ -138,37 +137,63 @@ public class World
         (MouseScreenPosition, MouseWorldPosition) = (screenPosition, worldLocation);
     }
 
-    public event Action<PlaceableEntity, Villager>? StartedJob;
+    event Action<PlaceableEntity, Villager>? StartedJob;
+    public void PlanWork<T>(T entity, Villager villager) where T : PlaceableEntity
+    {
+        if (entity is Building building)
+            if (building.GetEmptyAssignedWorkerSlot() is { } emptyAssignedWorker)
+                emptyAssignedWorker.Villager = villager;
+            else
+                ThrowNoEmptyWorkerSlotException(entity, villager);
+        else if (entity is Tree tree)
+            if (tree.AssignedVillager is null)
+                tree.AssignedVillager = villager;
+            else
+                ThrowNoEmptyWorkerSlotException(entity, villager);
+        else
+            throw new NotImplementedException();
+    }
+
+    [DoesNotReturn]
+    static void ThrowNoEmptyWorkerSlotException<T>(T entity, Villager villager) where T : PlaceableEntity =>
+        throw new InvalidOperationException($"Could not find an empty worker slot for {villager} to work on {entity}.");
+
     public void StartWork<T>(T entity, Villager villager) where T : PlaceableEntity
     {
         StartedJob?.Invoke(entity, villager);
-        if (entity is Building building)
-            building.AssignedWorkersWorking[building.AssignedWorkers.FindIndex(v => v == villager)] = true;
+        if (entity is Building building && building.GetAssignedWorkerSlot(villager) is { } assignedWorker)
+            assignedWorker.VillagerWorking = true;
         else if (entity is Tree tree)
             tree.AssignedVillagerWorking = true;
         else
             throw new NotImplementedException();
     }
 
-    public event Action<PlaceableEntity, Villager, bool /* last */>? EndedBuildingJob;
+    event Action<PlaceableEntity, Villager, bool /* last */>? EndedBuildingJob;
     public void EndWork<T>(T entity, Villager villager) where T : PlaceableEntity
     {
         if (entity is Building building)
         {
-            building.AssignedWorkersWorking[building.AssignedWorkers.FindIndex(v => v == villager)] = false;
-            EndedBuildingJob?.Invoke(building, villager, !building.AssignedWorkersWorking.Cast<bool>().Any(b => b));
+            if (building.IsBuilt)
+                if (building.GetAssignedWorkerSlot(villager) is { } assignedWorker)
+                    assignedWorker.Villager = null;
+                else
+                    ThrowNoEmptyWorkerSlotException(entity, villager);
+            else
+                building.FinishBuilding();
+            EndedBuildingJob?.Invoke(building, villager, !building.AssignedWorkers.Any(w => w.VillagerWorking));
         }
         else if (entity is Tree tree)
         {
-            tree.AssignedVillagerWorking = false;
+            tree.AssignedVillager = null;
             EndedBuildingJob?.Invoke(tree, villager, true);
         }
         else
             throw new NotImplementedException();
     }
 
-    public event Action<BuildingTemplate?>? CurrentBuildingTemplateChanged;
-    internal void FireCurrentBuildingTemplateChanged() =>
+    event Action<BuildingTemplate?>? CurrentBuildingTemplateChanged;
+    public void FireCurrentBuildingTemplateChanged() =>
         CurrentBuildingTemplateChanged?.Invoke(CurrentBuildingTemplate);
 
     public void KeyEvent(InputAction inputAction, Keys key, int scanCode, KeyModifiers keyModifiers)
@@ -179,10 +204,15 @@ public class World
             ShowDetails = true;
         else if (inputAction == InputAction.Release && key is Keys.LeftAlt or Keys.RightAlt)
             ShowDetails = false;
+        else if (inputAction == InputAction.Press && key == Keys.F1)
+            DebugShowLightAtMouse = !DebugShowLightAtMouse;
     }
 
+    public TimeSpan TotalTime { get; private set; }
     public void Update(double deltaSec)
     {
+        TotalTime += TimeSpan.FromSeconds(deltaSec);
+
         if (!Paused)
             aiManager.Update(deltaSec);
         soundManager.Update(deltaSec);
@@ -190,6 +220,16 @@ public class World
     }
 
     public IEnumerable<T> GetEntities<T>() where T : PlaceableEntity => PlacedEntities.OfType<T>();
-
     public IEnumerable<PlaceableEntity> GetEntities() => PlacedEntities;
+
+    public double GetTotalResourceAmount(Resource resource)
+    {
+        double total = 0;
+        foreach (var entity in GetEntities())
+            if (entity is ResourceBucket rb)
+                total += (rb.ResourceQuantities.FirstOrDefault(w => w.Resource == resource)?.Quantity ?? 0);
+            else if (entity is Building { IsBuilt: true, Type: BuildingType.Storage, Inventory: { } buildingInventory })
+                total += (buildingInventory.ResourceQuantities.FirstOrDefault(w => w.Resource == resource)?.Quantity ?? 0);
+        return total;
+    }
 }
