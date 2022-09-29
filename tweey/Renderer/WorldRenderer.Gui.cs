@@ -1,4 +1,6 @@
-﻿namespace Tweey.Renderer;
+﻿using Tweey.Actors;
+
+namespace Tweey.Renderer;
 
 partial class WorldRenderer
 {
@@ -51,17 +53,11 @@ partial class WorldRenderer
                             },
                             new LabelView
                             {
-                                Text = () => world.SelectedEntity is Villager villager ? (villager.AIPlan is { } aiPlan ? aiPlan.Description : "Idle.") + $" Heading: {villager.Heading:0.000}"
+                                Text = () => world.SelectedEntity is Villager villager ? villager.AIPlan is { } aiPlan ? aiPlan.Description : "Idle."
                                     : world.SelectedEntity is Building { IsBuilt: false} buildingSite ? $"This is a building site, waiting for {buildingSite.BuildCost} and {buildingSite.BuildWorkTicks} work ticks."
                                     : $"This is a {(world.SelectedEntity switch { Building => "building", Tree => "cute tree", _ => "fluffy resource" })}, it's just existing.",
                                 FontSize = defaultFontSize,
                                 MinHeight = () => 35,
-                                ForegroundColor = () => descriptionColor
-                            },
-                            new LabelView
-                            {
-                                Text = () => "Needs:",
-                                FontSize = defaultFontSize,
                                 ForegroundColor = () => descriptionColor
                             },
                             new StackView(StackType.Horizontal)
@@ -69,6 +65,12 @@ partial class WorldRenderer
                                 Visible = () => world.SelectedEntity is Villager,
                                 Children =
                                 {
+                                    new LabelView
+                                    {
+                                        Text = () => "Needs:",
+                                        FontSize = defaultFontSize,
+                                        ForegroundColor = () => descriptionColor
+                                    },
                                     // hunger block
                                     new LabelView
                                     {
@@ -87,6 +89,37 @@ partial class WorldRenderer
                                         TextColor = descriptionColor,
                                         FontSize = defaultFontSize - 2,
                                         MinWidth = () => 120
+                                    }
+                                }
+                            },
+                            new StackView(StackType.Horizontal)
+                            {
+                                Visible = () => world.SelectedEntity is Building { IsBuilt: true, AssignedWorkers.Length: >0 },
+                                Children =
+                                {
+                                    new LabelView
+                                    {
+                                        Text = () => "Assigned workers: ",
+                                        FontSize = defaultFontSize,
+                                        ForegroundColor = () => descriptionColor
+                                    },
+                                    new RepeaterView<AssignedWorker>
+                                    {
+                                        Source = () => ((Building)world.SelectedEntity!).AssignedWorkers,
+                                        ContainerView = new StackView(StackType.Horizontal),
+                                        ItemView = aw => new StackView(StackType.Horizontal)
+                                        {
+                                            Children =
+                                            {
+                                                new LabelView
+                                                {
+                                                    Text = () => aw.Villager is { } assignedVillager ? assignedVillager.Name + (aw.VillagerWorking ? "" : "[SLK]") :"--",
+                                                    FontSize = defaultFontSize,
+                                                    ForegroundColor = () => highlightColor,
+                                                    Padding = new(10, 0, 0, 0)
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             },

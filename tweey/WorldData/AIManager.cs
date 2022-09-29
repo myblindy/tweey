@@ -262,7 +262,7 @@ class AIManager
 
     bool TryBuildingPlan(Villager villager)
     {
-        var availableBuildingSite = world.GetEntities<Building>().Where(b => !b.IsBuilt && b.BuildCost.IsAllEmpty && b.AssignedWorkers[0] is null)
+        var availableBuildingSite = world.GetEntities<Building>().Where(b => !b.IsBuilt && b.BuildCost.IsAllEmpty && b.AssignedWorkers[0].Villager is null)
             .OrderByDistanceFrom(villager)
             .FirstOrDefault();
         if (availableBuildingSite == null)

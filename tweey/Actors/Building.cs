@@ -18,7 +18,7 @@ public class Building : BuildingTemplate
         if (!built)
         {
             // one spot to work to build this thing
-            b.AssignedWorkers = new AssignedWorker[1];
+            b.AssignedWorkers = new AssignedWorker[] { new() };
         }
         else
         {
