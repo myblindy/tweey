@@ -276,3 +276,4 @@ dotnet_style_namespace_match_folder = true:suggestion
 
 # IDE0220: Add explicit cast
 dotnet_diagnostic.IDE0220.severity = none
+dotnet_diagnostic.CA1416.severity = suggestion

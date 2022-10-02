@@ -41,14 +41,14 @@ partial class WorldRenderer
 
     public WorldRenderer(World world)
     {
-        guiShaderProgram = new(shaderPrograms, "gui");
-        guiLightMapShaderProgram = new(shaderPrograms, "gui-lightmap");
+        guiShaderProgram = new(shaderPrograms, DiskLoader.Instance.VFS, "gui");
+        guiLightMapShaderProgram = new(shaderPrograms, DiskLoader.Instance.VFS, "gui-lightmap");
 
         this.world = world;
 
         var maxTextureSize = Math.Min(2048, GraphicsEngine.MaxTextureSize);
-        atlas = new(maxTextureSize, maxTextureSize, 1);
-        fontRenderer = new(atlas);
+        atlas = new(maxTextureSize, maxTextureSize, 1, DiskLoader.Instance.VFS);
+        fontRenderer = new(atlas, DiskLoader.Instance.VFS);
 
         guiShaderProgram.UniformBlockBind("ubo_window", windowUboBindingPoint);
         guiShaderProgram.Uniform("atlasSampler", 0);

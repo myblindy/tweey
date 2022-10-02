@@ -1,4 +1,6 @@
-﻿namespace Twee.Core;
+﻿using Twee.Core.Support;
+
+namespace Twee.Core;
 
 public static class FrameData
 {

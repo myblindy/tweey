@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net7.0-windows</TargetFramework>
+    <TargetFramework>net7.0</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>Tweey</RootNamespace>
     <Nullable>enable</Nullable>
@@ -23,12 +23,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="Data\**\*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
-  <ItemGroup>
     <None Include="Gui\Colors.cs">
       <DesignTime>True</DesignTime>
       <AutoGen>True</AutoGen>
@@ -38,6 +32,9 @@
       <DesignTime>True</DesignTime>
       <AutoGen>True</AutoGen>
       <DependentUpon>Needs.tt</DependentUpon>
+    </None>
+    <None Update="Data.bin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="Gui\Colors.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
@@ -71,5 +68,9 @@
       <DependentUpon>Needs.tt</DependentUpon>
     </Compile>
   </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="pushd &quot;$(MSBuildProjectDirectory)&quot; &amp;&amp; &quot;..\Twee\Twee.BuildAssetsBundle\$(OutputPath)\Twee.BuildAssetsBundle.exe&quot; Data.bin Data &amp;&amp; popd" />
+  </Target>
 
 </Project>

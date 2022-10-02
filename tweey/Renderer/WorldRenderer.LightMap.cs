@@ -24,8 +24,7 @@ public partial class WorldRenderer
     FrameBuffer lightMapOcclusionFrameBuffer = null!;
     readonly StreamingVertexArrayObject<LightMapOcclusionFBVertex> lightMapOcclusionVAO = new();
     ShaderProgram lightMapOcclusionShaderProgram;
-    readonly Texture2D lightMapOcclusionCircleTexture =
-        new(@"Data\Misc\large-circle.png", SizedInternalFormat.R8, minFilter: TextureMinFilter.NearestMipmapNearest, magFilter: TextureMagFilter.Nearest);
+    Texture2D lightMapOcclusionCircleTexture;
 
     const int lightsUboBindingPoint = 2;
     Texture2D lightMapTexture = null!;
@@ -95,8 +94,12 @@ public partial class WorldRenderer
     [MemberNotNull(nameof(lightMapFBShaderProgram), nameof(lightMapOcclusionShaderProgram))]
     void InitializeLightMap()
     {
-        lightMapFBShaderProgram = new(shaderPrograms, "lightmap");
-        lightMapOcclusionShaderProgram = new(shaderPrograms, "lightmap-occlusion");
+        using var lightMapOcclusionCircleTextureStream = DiskLoader.Instance.VFS.OpenRead(@"Data\Misc\large-circle.png")!;
+        lightMapOcclusionCircleTexture = new(lightMapOcclusionCircleTextureStream,
+            SizedInternalFormat.R8, minFilter: TextureMinFilter.NearestMipmapNearest, magFilter: TextureMagFilter.Nearest);
+
+        lightMapFBShaderProgram = new(shaderPrograms, DiskLoader.Instance.VFS, "lightmap");
+        lightMapOcclusionShaderProgram = new(shaderPrograms, DiskLoader.Instance.VFS, "lightmap-occlusion");
 
         lightMapFBShaderProgram.UniformBlockBind("ubo_window", windowUboBindingPoint);
         lightMapFBShaderProgram.UniformBlockBind("ubo_lights", lightsUboBindingPoint);

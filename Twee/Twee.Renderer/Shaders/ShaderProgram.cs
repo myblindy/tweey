@@ -1,7 +1,4 @@
-﻿using System.IO;
-using System.Xml.Linq;
-
-namespace Twee.Renderer.Shaders;
+﻿namespace Twee.Renderer.Shaders;
 
 public class ShaderProgram
 {
@@ -11,12 +8,12 @@ public class ShaderProgram
 
     public bool Loaded => shaderHandles is null;
 
-    public ShaderProgram(ShaderPrograms shaderPrograms, string vsPath, string fsPath)
+    public ShaderProgram(ShaderPrograms shaderPrograms, VFSReader vfs, string vsPath, string fsPath)
     {
-        static ShaderHandle CompileShader(ShaderType type, string path)
+        ShaderHandle CompileShader(ShaderType type, string path)
         {
             var handle = GL.CreateShader(type);
-            GL.ShaderSource(handle, File.ReadAllText(path));
+            GL.ShaderSource(handle, vfs.ReadAllText(path));
             GL.CompileShader(handle);
 
             var status = 0;
@@ -48,7 +45,10 @@ public class ShaderProgram
         shaderPrograms.Add(this);
     }
 
-    public ShaderProgram(ShaderPrograms shaderPrograms, string path) : this(shaderPrograms, path + ".vert", path + ".frag") { }
+    public ShaderProgram(ShaderPrograms shaderPrograms, VFSReader vfs, string path)
+        : this(shaderPrograms, vfs, path + ".vert", path + ".frag")
+    {
+    }
 
     void EnsureIsLoaded()
     {

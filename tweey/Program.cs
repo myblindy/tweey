@@ -1,4 +1,6 @@
-﻿namespace Tweey;
+﻿using Twee.Core.Support;
+
+namespace Tweey;
 
 class Program : GameWindow
 {
