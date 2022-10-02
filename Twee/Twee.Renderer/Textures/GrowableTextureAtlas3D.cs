@@ -8,7 +8,7 @@ public class GrowableTextureAtlas3D : BaseTexture
 
     public const string BlankName = "::blank";
 
-    public GrowableTextureAtlas3D(int width, int height, int initialPages)
+    public GrowableTextureAtlas3D(int width, int height, int initialPages, VFSReader vfs)
     {
         handle = GL.CreateTexture(TextureTarget.Texture2dArray);
         GL.TextureStorage3D(handle, 1, SizedInternalFormat.Rgba8, width, height, pages = initialPages);
@@ -22,6 +22,7 @@ public class GrowableTextureAtlas3D : BaseTexture
 
         size = new(width, height);
         used.Add(new(width * height));
+        this.vfs = vfs;
     }
 
     public override void Bind(int unit = 0)
@@ -118,7 +119,8 @@ public class GrowableTextureAtlas3D : BaseTexture
             }
             else
             {
-                using var image = new Bitmap(path);
+                using var stream = vfs.OpenRead(path)!;
+                using var image = new Bitmap(stream);
                 (width, height) = (image.Width, image.Height);
 
                 BitmapData? bmpData = null;
@@ -146,5 +148,6 @@ public class GrowableTextureAtlas3D : BaseTexture
     readonly List<BitArray> used = new();
     readonly Dictionary<string, AtlasEntry> map = new();
     readonly Vector2i size;
+    private readonly VFSReader vfs;
     int pages;
 }

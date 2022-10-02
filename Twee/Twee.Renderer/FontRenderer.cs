@@ -1,4 +1,5 @@
-﻿using Twee.Renderer.Textures;
+﻿using Twee.Core.Support;
+using Twee.Renderer.Textures;
 
 namespace Twee.Renderer;
 
@@ -22,7 +23,7 @@ public enum VerticalAlignment { Top, Center, Bottom }
 public class FontRenderer : IDisposable
 {
     readonly GrowableTextureAtlas3D backingTextureAtlas;
-    readonly PrivateFontCollection fontCollection;
+    readonly PrivateFontCollection fontCollection = new();
     readonly FontFamily regularFontFamily;
 
     readonly Dictionary<FontDescription, Font> fonts = new();
@@ -38,11 +39,10 @@ public class FontRenderer : IDisposable
         stringFormat.FormatFlags &= ~StringFormatFlags.LineLimit;
     }
 
-    public FontRenderer(GrowableTextureAtlas3D backingTextureAtlas)
+    public FontRenderer(GrowableTextureAtlas3D backingTextureAtlas, VFSReader reader)
     {
         this.backingTextureAtlas = backingTextureAtlas;
-        fontCollection = new();
-        fontCollection.AddFontFile("Data/Fonts/OpenSans-Regular.ttf");
+        fontCollection.AddFontFile(reader.WriteToTemporaryFile("Data/Fonts/OpenSans-Regular.ttf"));
         regularFontFamily = fontCollection.Families[0];
     }
 

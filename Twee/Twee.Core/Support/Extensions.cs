@@ -1,4 +1,6 @@
-﻿namespace Twee.Core;
+﻿using System.Runtime.CompilerServices;
+
+namespace Twee.Core.Support;
 
 public static class Extensions
 {
@@ -52,5 +54,25 @@ public static class Extensions
         foreach (var item in source)
             sum += transform(item);
         return sum;
+    }
+
+    public static IEnumerable<string> GetDirectoryParts(this string path, string? pathIsRelativeTo = null)
+    {
+        var dirRelativeToFullPath = pathIsRelativeTo is null ? null : Path.GetFullPath(pathIsRelativeTo);
+        var dirPath = new DirectoryInfo(path);
+        while (dirPath is { })
+        {
+            yield return dirPath.Name;
+            dirPath = dirPath.Parent;
+            if (dirPath?.FullName == dirRelativeToFullPath)
+                break;
+        }
+    }
+
+    public static Stream CopyToMemoryStream(this Stream sourceStream)
+    {
+        var memoryStream = new MemoryStream();
+        sourceStream.CopyTo(memoryStream);
+        return memoryStream;
     }
 }
