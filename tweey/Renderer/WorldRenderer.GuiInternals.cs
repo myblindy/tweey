@@ -5,19 +5,35 @@ partial class WorldRenderer
     int WidthPercentage(float p) => (int)(windowUbo.Data.WindowSize.X * p / 100f);
     int HeightPercentage(float p) => (int)(windowUbo.Data.WindowSize.Y * p / 100f);
 
-    void ScreenFillQuad(Box2 box, Vector4 color, AtlasEntry entry, bool useScale = true)
+    const float ButtonBorderTextureWidth = 10;
+
+    enum GuiTransformType { None, Rotate90, Rotate180, Rotate270, MirrorH, MirrorV }
+
+    void ScreenFillQuad(Box2 box, Vector4 color, AtlasEntry entry, bool useScale = true, GuiTransformType transform = GuiTransformType.None)
     {
         if (color.W == 0) return;
 
+        var uv0 = entry.TextureCoordinate0;
+        var uv1 = entry.TextureCoordinate1;
+        var uv2 = new Vector3(uv1.X, uv0.Y, uv0.Z);
+        var uv3 = new Vector3(uv0.X, uv1.Y, uv0.Z);
+
+        if (transform is GuiTransformType.Rotate90)
+            (uv0, uv1, uv2, uv3) = (uv3, uv2, uv0, uv1);
+        else if (transform is GuiTransformType.Rotate270)
+            (uv0, uv1, uv2, uv3) = (uv2, uv3, uv1, uv0);
+        else if (transform is GuiTransformType.Rotate180)
+            (uv0, uv1, uv2, uv3) = (uv1, uv0, uv3, uv2);
+
         var zoom = useScale ? pixelZoom : 1;
         var br = box.BottomRight + Vector2.One;
-        guiVAO.Vertices.Add(new(box.TopLeft * zoom, color, entry.TextureCoordinate0));
-        guiVAO.Vertices.Add(new(br * zoom, color, entry.TextureCoordinate1));
-        guiVAO.Vertices.Add(new(new((box.Right + 1) * zoom, box.Top * zoom), color, new(entry.TextureCoordinate1.X, entry.TextureCoordinate0.Y, entry.TextureCoordinate0.Z)));
+        guiVAO.Vertices.Add(new(box.TopLeft * zoom, color, uv0));
+        guiVAO.Vertices.Add(new(br * zoom, color, uv1));
+        guiVAO.Vertices.Add(new(new(br.X * zoom, box.Top * zoom), color, uv2));
 
-        guiVAO.Vertices.Add(new(new(box.Left * zoom, (box.Bottom + 1) * zoom), color, new(entry.TextureCoordinate0.X, entry.TextureCoordinate1.Y, entry.TextureCoordinate0.Z)));
-        guiVAO.Vertices.Add(new(br * zoom, color, entry.TextureCoordinate1));
-        guiVAO.Vertices.Add(new(box.TopLeft * zoom, color, entry.TextureCoordinate0));
+        guiVAO.Vertices.Add(new(new(box.Left * zoom, br.Y * zoom), color, uv3));
+        guiVAO.Vertices.Add(new(br * zoom, color, uv1));
+        guiVAO.Vertices.Add(new(box.TopLeft * zoom, color, uv0));
     }
 
     void ScreenString(string? s, FontDescription fontDescription, Box2 box, Vector4 fgColor, Vector4 bgColor, HorizontalAlignment horizontalAlignment = HorizontalAlignment.Left) =>
@@ -162,6 +178,8 @@ partial class WorldRenderer
                     var childSize = MeasureView(buttonView.Child);
                     size += childSize;
                 }
+                size.X += 2 * ButtonBorderTextureWidth;
+                size.Y += 2 * ButtonBorderTextureWidth;
                 break;
 
             case ProgressView progressView:
@@ -251,6 +269,9 @@ partial class WorldRenderer
 
             case ISingleChildContainerView { Child: not null } singleChildContainerView:
                 {
+                    if (singleChildContainerView is ButtonView)
+                        boxStart += new Vector2(ButtonBorderTextureWidth);
+
                     var extraSize = LayoutView(singleChildContainerView.Child, boxStart, new(1, 1));
 
                     if (extraSize != default)
@@ -312,6 +333,29 @@ partial class WorldRenderer
                     ScreenFillQuad(box.WithExpand(-view.Margin), imageForegroundColor, atlas[src], false);
                 break;
             case ButtonView buttonView:
+                var cornerTexture = atlas["Data/Misc/button-corner.png"];
+                var edgeTexture = atlas["Data/Misc/button-edge.png"];
+
+                ScreenFillQuad(Box2.FromCornerSize(box.TopLeft, new(ButtonBorderTextureWidth)),
+                    Colors4.White, cornerTexture, false);
+                ScreenFillQuad(Box2.FromCornerSize(box.TopLeft + new Vector2(ButtonBorderTextureWidth, 0), new(box.Size.X - 2 * ButtonBorderTextureWidth, ButtonBorderTextureWidth)),
+                    Colors4.White, edgeTexture, false);
+
+                ScreenFillQuad(Box2.FromCornerSize(box.TopRight - new Vector2(ButtonBorderTextureWidth, 0), new(ButtonBorderTextureWidth)),
+                    Colors4.White, cornerTexture, false, GuiTransformType.Rotate90);
+                ScreenFillQuad(Box2.FromCornerSize(box.TopRight - new Vector2(ButtonBorderTextureWidth, -ButtonBorderTextureWidth), new(ButtonBorderTextureWidth, box.Size.Y - 2 * ButtonBorderTextureWidth)),
+                    Colors4.White, edgeTexture, false, GuiTransformType.Rotate90);
+
+                ScreenFillQuad(Box2.FromCornerSize(box.BottomRight - new Vector2(ButtonBorderTextureWidth), new(ButtonBorderTextureWidth)),
+                    Colors4.White, cornerTexture, false, GuiTransformType.Rotate180);
+                ScreenFillQuad(Box2.FromCornerSize(box.BottomLeft + new Vector2(ButtonBorderTextureWidth, -ButtonBorderTextureWidth), new(box.Size.X - 2 * ButtonBorderTextureWidth, ButtonBorderTextureWidth)),
+                    Colors4.White, edgeTexture, false, GuiTransformType.Rotate180);
+
+                ScreenFillQuad(Box2.FromCornerSize(box.BottomLeft - new Vector2(0, ButtonBorderTextureWidth), new(ButtonBorderTextureWidth)),
+                    Colors4.White, cornerTexture, false, GuiTransformType.Rotate270);
+                ScreenFillQuad(Box2.FromCornerSize(box.TopLeft + new Vector2(0, ButtonBorderTextureWidth), new(ButtonBorderTextureWidth, box.Size.Y - 2 * ButtonBorderTextureWidth)),
+                    Colors4.White, edgeTexture, false, GuiTransformType.Rotate270);
+
                 if (buttonView.Child is not null)
                     RenderView(buttonView.Child);
                 break;
