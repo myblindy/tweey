@@ -1,4 +1,6 @@
-﻿namespace Twee.Core;
+﻿using Twee.Core.Support;
+
+namespace Twee.Core;
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 public struct Box2 : IEquatable<Box2>

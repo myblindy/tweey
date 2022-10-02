@@ -1,6 +1,6 @@
 ﻿using System.Globalization;
 using System.Text.RegularExpressions;
-using Twee.Core;
+using Twee.Core.Support;
 
 namespace Tweey.WorldData;
 
@@ -53,7 +53,9 @@ partial class SoundManager
     int GetSoundBufferHandle(string path) => soundBuffers.TryGetValue(path, out var soundBufferHandle) ? soundBufferHandle : soundBuffers[path] = LoadBufferFromFile(path);
     static int LoadBufferFromFile(string path)
     {
-        using var vorbis = new NVorbis.VorbisReader(path);
+        using var stream = DiskLoader.Instance.VFS.OpenRead(path)!;
+        using var memoryStream = stream.CopyToMemoryStream();
+        using var vorbis = new NVorbis.VorbisReader(memoryStream, false);
         var buffer = new float[(int)Math.Floor(vorbis.Channels * vorbis.SampleRate * vorbis.TotalTime.TotalSeconds)];
         var samplesRead = vorbis.ReadSamples(buffer);
         var castBuffer = buffer.Select(f => (short)Math.Clamp((int)(short.MaxValue * f), short.MinValue, short.MaxValue)).ToArray(buffer.Length);

@@ -16,7 +16,7 @@ public abstract class BaseTemplates<TIn, TVal> : IEnumerable<string> where TVal 
             .Select(sgen =>
             {
                 var (stream, fileName) = sgen();
-                using var streamReader = new StreamReader(stream);
+                using var streamReader = new StreamReader(stream!);
                 var @in = JsonSerializer.Deserialize<TIn>(streamReader.ReadToEnd(), options)!;
                 var result = GlobalMapper.Mapper.Map<TVal>(@in, mapperParameter) ?? (TVal)(object)@in;
                 result.FileName = Path.GetFileNameWithoutExtension(fileName);

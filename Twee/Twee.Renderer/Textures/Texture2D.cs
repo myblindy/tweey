@@ -25,12 +25,12 @@ public class Texture2D : BaseTexture, IDisposable
         GL.TextureParameteri(Handle, TextureParameterName.TextureMagFilter, (int)magFilter);
     }
 
-    public Texture2D(string path, SizedInternalFormat sizedInternalFormat,
+    public Texture2D(Stream stream, SizedInternalFormat sizedInternalFormat,
         TextureWrapMode wrapS = TextureWrapMode.ClampToEdge, TextureWrapMode wrapT = TextureWrapMode.ClampToEdge,
         TextureMinFilter minFilter = TextureMinFilter.Linear, TextureMagFilter magFilter = TextureMagFilter.Linear,
         bool generateMipMaps = false)
     {
-        using var bmp = new Bitmap(path);
+        using var bmp = new Bitmap(stream);
 
         var bmpData = bmp.LockBits(new Rectangle(0, 0, bmp.Width, bmp.Height), ImageLockMode.ReadOnly,
             System.Drawing.Imaging.PixelFormat.Format32bppArgb);
