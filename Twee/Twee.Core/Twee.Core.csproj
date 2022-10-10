@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="OpenTK.Mathematics" Version="5.0.0-pre.7" />
-    <PackageReference Include="SuperLinq" Version="4.2.0" />
+    <PackageReference Include="SuperLinq" Version="4.4.0" />
   </ItemGroup>
 
 </Project>
