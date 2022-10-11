@@ -107,7 +107,7 @@ partial class SoundManager
         tempDoneNonLoopingSoundSources.Clear();
         tempDoneNonLoopingSoundSources.AddRange(nonLoopingSoundSources.Where(sourceHandle => AL.GetSourceState(sourceHandle) == ALSourceState.Stopped));
 
-        nonLoopingSoundSources.RemoveAll(sourceHandle => tempDoneNonLoopingSoundSources.Contains(sourceHandle));
+        nonLoopingSoundSources.RemoveAll(tempDoneNonLoopingSoundSources.Contains);
         foreach (var soundSource in tempDoneNonLoopingSoundSources)
             AL.DeleteSource(soundSource);
     }
@@ -115,6 +115,6 @@ partial class SoundManager
     float volume = 1f;
     public float Volume { get => volume; set => AL.Listener(ALListenerf.Gain, volume = value); }
 
-    [RegexGenerator("^(.*)-production-(\\d+).ogg")]
+    [GeneratedRegex("^(.*)-production-(\\d+).ogg")]
     private static partial Regex ProductionLineSoundPathRegex();
 }

@@ -38,6 +38,35 @@ partial class WorldRenderer
         guiVAO.Vertices.Add(new(box.TopLeft * zoom, color, uv0));
     }
 
+    void ScreenFillFrame(Box2 box, string textureName, float elementWidth)
+    {
+        var cornerTexture = atlas[$"Data/Misc/{textureName}-corner.png"];
+        var edgeTexture = atlas[$"Data/Misc/{textureName}-edge.png"];
+
+        ScreenFillQuad(Box2.FromCornerSize(box.TopLeft, new(elementWidth)),
+            Colors4.White, cornerTexture, false);
+        ScreenFillQuad(Box2.FromCornerSize(box.TopLeft + new Vector2(elementWidth, 0), new(box.Size.X - 2 * elementWidth + 2, elementWidth)),
+            Colors4.White, edgeTexture, false);
+
+        ScreenFillQuad(Box2.FromCornerSize(box.TopRight - new Vector2(elementWidth + 1, -1), new(elementWidth)),
+            Colors4.White, cornerTexture, false, GuiTransformType.Rotate90);
+        ScreenFillQuad(Box2.FromCornerSize(box.TopRight - new Vector2(elementWidth + 1, -elementWidth), new(elementWidth, box.Size.Y - 2 * elementWidth + 2)),
+            Colors4.White, edgeTexture, false, GuiTransformType.Rotate90);
+
+        ScreenFillQuad(Box2.FromCornerSize(box.BottomRight - new Vector2(elementWidth + 2), new(elementWidth)),
+            Colors4.White, cornerTexture, false, GuiTransformType.Rotate180);
+        ScreenFillQuad(Box2.FromCornerSize(box.BottomLeft + new Vector2(elementWidth - 4, -elementWidth - 2), new(box.Size.X - 2 * elementWidth + 2, elementWidth)),
+            Colors4.White, edgeTexture, false, GuiTransformType.Rotate180);
+
+        ScreenFillQuad(Box2.FromCornerSize(box.BottomLeft - new Vector2(1, elementWidth + 3), new(elementWidth)),
+            Colors4.White, cornerTexture, false, GuiTransformType.Rotate270);
+        ScreenFillQuad(Box2.FromCornerSize(box.TopLeft + new Vector2(-1, elementWidth - 4), new(elementWidth, box.Size.Y - 2 * elementWidth)),
+            Colors4.White, edgeTexture, false, GuiTransformType.Rotate270);
+
+        ScreenFillQuad(Box2.FromCornerSize(box.TopLeft + new Vector2(elementWidth - 1), new(box.Size.X - 2 * elementWidth, box.Size.Y - 2 * elementWidth)),
+            edgeTexture.EdgeColor, blankAtlasEntry, false);
+    }
+
     void ScreenString(string? s, FontDescription fontDescription, Box2 box, Vector4 fgColor, Vector4 bgColor, HorizontalAlignment horizontalAlignment = HorizontalAlignment.Left) =>
         ScreenString(s, fontDescription, horizontalAlignment switch
         {
@@ -335,28 +364,7 @@ partial class WorldRenderer
                     ScreenFillQuad(box.WithExpand(-view.Margin), imageForegroundColor, atlas[src], false);
                 break;
             case ButtonView buttonView:
-                var cornerTexture = atlas["Data/Misc/button-corner.png"];
-                var edgeTexture = atlas["Data/Misc/button-edge.png"];
-
-                ScreenFillQuad(Box2.FromCornerSize(box.TopLeft, new(ButtonBorderTextureWidth)),
-                    Colors4.White, cornerTexture, false);
-                ScreenFillQuad(Box2.FromCornerSize(box.TopLeft + new Vector2(ButtonBorderTextureWidth, 0), new(box.Size.X - 2 * ButtonBorderTextureWidth, ButtonBorderTextureWidth)),
-                    Colors4.White, edgeTexture, false);
-
-                ScreenFillQuad(Box2.FromCornerSize(box.TopRight - new Vector2(ButtonBorderTextureWidth, 0), new(ButtonBorderTextureWidth)),
-                    Colors4.White, cornerTexture, false, GuiTransformType.Rotate90);
-                ScreenFillQuad(Box2.FromCornerSize(box.TopRight - new Vector2(ButtonBorderTextureWidth, -ButtonBorderTextureWidth), new(ButtonBorderTextureWidth, box.Size.Y - 2 * ButtonBorderTextureWidth)),
-                    Colors4.White, edgeTexture, false, GuiTransformType.Rotate90);
-
-                ScreenFillQuad(Box2.FromCornerSize(box.BottomRight - new Vector2(ButtonBorderTextureWidth), new(ButtonBorderTextureWidth)),
-                    Colors4.White, cornerTexture, false, GuiTransformType.Rotate180);
-                ScreenFillQuad(Box2.FromCornerSize(box.BottomLeft + new Vector2(ButtonBorderTextureWidth, -ButtonBorderTextureWidth), new(box.Size.X - 2 * ButtonBorderTextureWidth, ButtonBorderTextureWidth)),
-                    Colors4.White, edgeTexture, false, GuiTransformType.Rotate180);
-
-                ScreenFillQuad(Box2.FromCornerSize(box.BottomLeft - new Vector2(0, ButtonBorderTextureWidth), new(ButtonBorderTextureWidth)),
-                    Colors4.White, cornerTexture, false, GuiTransformType.Rotate270);
-                ScreenFillQuad(Box2.FromCornerSize(box.TopLeft + new Vector2(0, ButtonBorderTextureWidth), new(ButtonBorderTextureWidth, box.Size.Y - 2 * ButtonBorderTextureWidth)),
-                    Colors4.White, edgeTexture, false, GuiTransformType.Rotate270);
+                ScreenFillFrame(box, "button", ButtonBorderTextureWidth);
 
                 if (buttonView.Child is not null)
                     RenderView(buttonView.Child);
