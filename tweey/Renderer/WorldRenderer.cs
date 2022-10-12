@@ -46,7 +46,7 @@ partial class WorldRenderer
 
         this.world = world;
 
-        var maxTextureSize = Math.Min(4096, GraphicsEngine.MaxTextureSize);
+        var maxTextureSize = Math.Min(2048, GraphicsEngine.MaxTextureSize);
         atlas = new(maxTextureSize, maxTextureSize, 1, DiskLoader.Instance.VFS);
         fontRenderer = new(atlas, DiskLoader.Instance.VFS);
 

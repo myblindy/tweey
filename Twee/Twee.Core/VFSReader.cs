@@ -34,11 +34,11 @@ public class VFSReader : IDisposable
                 var pathPart = reader.ReadString();
 
                 if (entry is null)
-                    if (directories.FirstOrDefault(d => d.Name == pathPart) is { } nextDirectory)
+                    if (directories.FirstOrDefault(d => d.Name.Equals(pathPart, StringComparison.InvariantCultureIgnoreCase)) is { } nextDirectory)
                         entry = nextDirectory;
                     else
                         directories.Add(entry = new(pathPart, null));
-                else if (entry.Entries.FirstOrDefault(d => d.Name == pathPart) is { } nextDirectory)
+                else if (entry.Entries.FirstOrDefault(d => d.Name.Equals(pathPart, StringComparison.InvariantCultureIgnoreCase)) is { } nextDirectory)
                     entry = nextDirectory;
                 else
                     entry.Entries.Add(entry = new(pathPart, entry));
@@ -55,11 +55,11 @@ public class VFSReader : IDisposable
         foreach (var pathPart in path.GetDirectoryParts(".").Reverse())
         {
             if (entry is null)
-                if (directories.FirstOrDefault(d => d.Name == pathPart) is { } nextDirectory)
+                if (directories.FirstOrDefault(d => d.Name.Equals(pathPart, StringComparison.InvariantCultureIgnoreCase)) is { } nextDirectory)
                     entry = nextDirectory;
                 else
                     return null;
-            else if (entry.Entries.FirstOrDefault(d => d.Name == pathPart) is { } nextDirectory)
+            else if (entry.Entries.FirstOrDefault(d => d.Name.Equals(pathPart, StringComparison.InvariantCultureIgnoreCase)) is { } nextDirectory)
                 entry = nextDirectory;
             else
                 return null;

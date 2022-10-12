@@ -91,7 +91,7 @@ public partial class WorldRenderer
         }
     }
 
-    [MemberNotNull(nameof(lightMapFBShaderProgram), nameof(lightMapOcclusionShaderProgram))]
+    [MemberNotNull(nameof(lightMapFBShaderProgram), nameof(lightMapOcclusionShaderProgram), nameof(lightMapOcclusionCircleTexture))]
     void InitializeLightMap()
     {
         using var lightMapOcclusionCircleTextureStream = DiskLoader.Instance.VFS.OpenRead(@"Data\Misc\large-circle.png")!;

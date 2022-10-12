@@ -13,7 +13,9 @@ public class ShaderProgram
         ShaderHandle CompileShader(ShaderType type, string path)
         {
             var handle = GL.CreateShader(type);
-            GL.ShaderSource(handle, vfs.ReadAllText(path));
+            if (vfs.ReadAllText(path) is not { } shaderText)
+                throw new FileNotFoundException("Shader file not found", path);
+            GL.ShaderSource(handle, shaderText);
             GL.CompileShader(handle);
 
             var status = 0;

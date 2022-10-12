@@ -201,7 +201,7 @@ partial class WorldRenderer
                                         Text = () => world.BuildingTemplates[key].Name,
                                         Margin = new(0, 5, 0, 0),
                                         FontSize = defaultFontSize,
-                                        HorizontalTextAlignment = HorizontalAlignment.Center
+                                        HorizontalTextAlignment = HorizontalAlignment.Center,
                                     },
                                 }
                             }
