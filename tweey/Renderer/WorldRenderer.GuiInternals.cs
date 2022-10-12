@@ -38,10 +38,22 @@ partial class WorldRenderer
         guiVAO.Vertices.Add(new(box.TopLeft * zoom, color, uv0));
     }
 
-    void ScreenFillFrame(Box2 box, string textureName, float elementWidth)
+    enum FrameType { Normal, Hover }
+    /// <summary>
+    /// Fills a quad with a frame made by two textures, the corner and the edge textures respectively. 
+    /// <para>Naming conventions:</para>
+    /// <list type="bullet">
+    /// <item><see cref="FrameType.Hover"/> appends <c>-hover</c> to the file name.</item>
+    /// <item>Corner textures append <c>-corner</c> to the file name.</item>
+    /// <item>Edge textures append <c>-edge</c> to the file name.</item>
+    /// </list>
+    /// Some examples: <c>button-corner.png</c>, <c>button-hover-edge.png</c>, etc.
+    /// </summary>
+    /// <param name="elementWidth">The width of the corner &amp; edge textures, in pixels. Looks best with the pixel width, but it scales as needed.</param>
+    void ScreenFillFrame(Box2 box, string baseTextureName, float elementWidth, FrameType frameType = FrameType.Normal)
     {
-        var cornerTexture = atlas[$"Data/Misc/{textureName}-corner.png"];
-        var edgeTexture = atlas[$"Data/Misc/{textureName}-edge.png"];
+        var cornerTexture = atlas[$"Data/Misc/{baseTextureName}{(frameType is FrameType.Hover ? "-hover" : "")}-corner.png"];
+        var edgeTexture = atlas[$"Data/Misc/{baseTextureName}{(frameType is FrameType.Hover ? "-hover" : "")}-edge.png"];
 
         ScreenFillQuad(Box2.FromCornerSize(box.TopLeft, new(elementWidth)),
             Colors4.White, cornerTexture, false);
@@ -364,7 +376,8 @@ partial class WorldRenderer
                     ScreenFillQuad(box.WithExpand(-view.Margin), imageForegroundColor, atlas[src], false);
                 break;
             case ButtonView buttonView:
-                ScreenFillFrame(box, "button", ButtonBorderTextureWidth);
+                ScreenFillFrame(box, "button", ButtonBorderTextureWidth,
+                    box.Contains(world.MouseScreenPosition) ? FrameType.Hover : FrameType.Normal);
 
                 if (buttonView.Child is not null)
                     RenderView(buttonView.Child);
