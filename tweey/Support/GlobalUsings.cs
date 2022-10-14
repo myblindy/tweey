@@ -3,6 +3,7 @@ global using System.Collections;
 global using System.Collections.Generic;
 global using System.Collections.Immutable;
 global using System.Collections.ObjectModel;
+global using System.Diagnostics.CodeAnalysis;
 global using System.IO;
 global using System.Linq;
 global using System.Numerics;
@@ -17,6 +18,7 @@ global using System.Text.Json.Serialization;
 //global using SixLabors.Fonts;
 
 global using Twee.Core;
+global using Twee.Core.Support;
 global using Twee.Renderer;
 global using Twee.Renderer.Textures;
 global using Twee.Renderer.VertexArrayObjects;

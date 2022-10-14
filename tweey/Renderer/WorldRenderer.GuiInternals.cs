@@ -11,7 +11,7 @@ partial class WorldRenderer
 
     enum GuiTransformType { None, Rotate90, Rotate180, Rotate270, MirrorH, MirrorV }
 
-    void ScreenFillQuad(Box2 box, Vector4 color, AtlasEntry entry, bool useScale = true, GuiTransformType transform = GuiTransformType.None)
+    void ScreenFillQuad(Box2 box, Vector4 color, AtlasEntry entry, bool asWorldCoords = true, GuiTransformType transform = GuiTransformType.None)
     {
         if (color.W == 0) return;
 
@@ -27,15 +27,16 @@ partial class WorldRenderer
         else if (transform is GuiTransformType.Rotate180)
             (uv0, uv1, uv2, uv3) = (uv1, uv0, uv3, uv2);
 
-        var zoom = useScale ? pixelZoom : 1;
+        var zoom = asWorldCoords ? world.Zoom : 1;
+        var offset = asWorldCoords ? world.Offset : Vector2.Zero;
         var br = box.BottomRight + Vector2.One;
-        guiVAO.Vertices.Add(new(box.TopLeft * zoom, color, uv0));
-        guiVAO.Vertices.Add(new(br * zoom, color, uv1));
-        guiVAO.Vertices.Add(new(new(br.X * zoom, box.Top * zoom), color, uv2));
+        guiVAO.Vertices.Add(new((box.TopLeft - offset) * zoom, color, uv0));
+        guiVAO.Vertices.Add(new((br - offset) * zoom, color, uv1));
+        guiVAO.Vertices.Add(new(new((br.X - offset.X) * zoom, (box.Top - offset.Y) * zoom), color, uv2));
 
-        guiVAO.Vertices.Add(new(new(box.Left * zoom, br.Y * zoom), color, uv3));
-        guiVAO.Vertices.Add(new(br * zoom, color, uv1));
-        guiVAO.Vertices.Add(new(box.TopLeft * zoom, color, uv0));
+        guiVAO.Vertices.Add(new(new((box.Left - offset.X) * zoom, (br.Y - offset.Y) * zoom), color, uv3));
+        guiVAO.Vertices.Add(new((br - offset) * zoom, color, uv1));
+        guiVAO.Vertices.Add(new((box.TopLeft - offset) * zoom, color, uv0));
     }
 
     enum FrameType { Normal, Hover }
@@ -104,25 +105,26 @@ partial class WorldRenderer
     {
         if (color.W == 0) return;
 
-        guiVAO.Vertices.Add(new((box1.Center + new Vector2(.5f, .5f)) * pixelZoom, color, blankAtlasEntry.TextureCoordinate0));
-        guiVAO.Vertices.Add(new((box2.Center + new Vector2(.5f, .5f)) * pixelZoom, color, blankAtlasEntry.TextureCoordinate1));
+        guiVAO.Vertices.Add(new((box1.Center + new Vector2(.5f, .5f) - world.Offset) * world.Zoom, color, blankAtlasEntry.TextureCoordinate0));
+        guiVAO.Vertices.Add(new((box2.Center + new Vector2(.5f, .5f) - world.Offset) * world.Zoom, color, blankAtlasEntry.TextureCoordinate1));
     }
 
-    void ScreenLineQuad(Box2 box, Vector4 color, bool useScale = true)
+    void ScreenLineQuad(Box2 box, Vector4 color, bool asWorldCoords = true)
     {
         if (color.W == 0) return;
 
-        var zoom = useScale ? pixelZoom : 1;
+        var zoom = asWorldCoords ? world.Zoom : 1;
+        var offset = asWorldCoords ? world.Offset : default;
         var br = box.BottomRight + Vector2.One;
 
-        guiVAO.Vertices.Add(new(box.TopLeft * zoom, color, blankAtlasEntry.TextureCoordinate0));
-        guiVAO.Vertices.Add(new(new((box.Right + 1) * zoom, box.Top * zoom), color, new(blankAtlasEntry.TextureCoordinate1.X, blankAtlasEntry.TextureCoordinate0.Y, blankAtlasEntry.TextureCoordinate0.Z)));
-        guiVAO.Vertices.Add(new(new(box.Left * zoom, (box.Bottom + 1) * zoom), color, new(blankAtlasEntry.TextureCoordinate0.X, blankAtlasEntry.TextureCoordinate1.Y, blankAtlasEntry.TextureCoordinate0.Z)));
-        guiVAO.Vertices.Add(new(br * zoom, color, blankAtlasEntry.TextureCoordinate1));
-        guiVAO.Vertices.Add(new(box.TopLeft * zoom, color, blankAtlasEntry.TextureCoordinate0));
-        guiVAO.Vertices.Add(new(new(box.Left * zoom, (box.Bottom + 1) * zoom), color, new(blankAtlasEntry.TextureCoordinate0.X, blankAtlasEntry.TextureCoordinate1.Y, blankAtlasEntry.TextureCoordinate0.Z)));
-        guiVAO.Vertices.Add(new(new((box.Right + 1) * zoom, box.Top * zoom), color, new(blankAtlasEntry.TextureCoordinate1.X, blankAtlasEntry.TextureCoordinate0.Y, blankAtlasEntry.TextureCoordinate0.Z)));
-        guiVAO.Vertices.Add(new(br * zoom, color, blankAtlasEntry.TextureCoordinate1));
+        guiVAO.Vertices.Add(new((box.TopLeft - offset) * zoom, color, blankAtlasEntry.TextureCoordinate0));
+        guiVAO.Vertices.Add(new(new((box.Right + 1 - offset.X) * zoom, (box.Top - offset.Y) * zoom), color, new(blankAtlasEntry.TextureCoordinate1.X, blankAtlasEntry.TextureCoordinate0.Y, blankAtlasEntry.TextureCoordinate0.Z)));
+        guiVAO.Vertices.Add(new(new((box.Left - offset.X) * zoom, (box.Bottom + 1 - offset.Y) * zoom), color, new(blankAtlasEntry.TextureCoordinate0.X, blankAtlasEntry.TextureCoordinate1.Y, blankAtlasEntry.TextureCoordinate0.Z)));
+        guiVAO.Vertices.Add(new((br - offset) * zoom, color, blankAtlasEntry.TextureCoordinate1));
+        guiVAO.Vertices.Add(new((box.TopLeft - offset) * zoom, color, blankAtlasEntry.TextureCoordinate0));
+        guiVAO.Vertices.Add(new(new((box.Left - offset.X) * zoom, (box.Bottom + 1 - offset.Y) * zoom), color, new(blankAtlasEntry.TextureCoordinate0.X, blankAtlasEntry.TextureCoordinate1.Y, blankAtlasEntry.TextureCoordinate0.Z)));
+        guiVAO.Vertices.Add(new(new((box.Right + 1 - offset.X) * zoom, (box.Top - offset.Y) * zoom), color, new(blankAtlasEntry.TextureCoordinate1.X, blankAtlasEntry.TextureCoordinate0.Y, blankAtlasEntry.TextureCoordinate0.Z)));
+        guiVAO.Vertices.Add(new((br - offset) * zoom, color, blankAtlasEntry.TextureCoordinate1));
     }
 
     View GetTemplatedView(View view) => view.ViewData.TemplatedView ?? view;

@@ -75,8 +75,6 @@ partial class WorldRenderer
         ResizeLightMap(width, height);
     }
 
-    float pixelZoom = 35;
-
     static string GetImagePath(BuildingTemplate building) => $"Data/Buildings/{building.FileName}.png";
     static string GetImagePath(Resource resource) => $"Data/Resources/{resource.FileName}.png";
     static string GetImagePath(Villager _) => $"Data/Misc/villager.png";
@@ -103,8 +101,8 @@ partial class WorldRenderer
 
         // render the background (tri0)
         var grassTileSize = 6;
-        for (int y = 0; y < windowUbo.Data.WindowSize.Y / pixelZoom; y += grassTileSize)
-            for (int x = 0; x < windowUbo.Data.WindowSize.X / pixelZoom; x += grassTileSize)
+        for (int y = 0; y < windowUbo.Data.WindowSize.Y / world.Zoom; y += grassTileSize)
+            for (int x = 0; x < windowUbo.Data.WindowSize.X / world.Zoom; x += grassTileSize)
                 ScreenFillQuad(Box2.FromCornerSize(new Vector2i(x, y), new(grassTileSize, grassTileSize)), new(.8f, .8f, .8f, 1), grassAtlasEntry);
 
         // store the actual entities' vertices(tri0)
@@ -153,10 +151,10 @@ partial class WorldRenderer
             switch (entity)
             {
                 case Villager villager:
-                    ScreenString(villager.Name, new() { Size = 16 }, new Vector2((villager.InterpolatedLocation.X + .5f) * pixelZoom, villager.InterpolatedLocation.Y * pixelZoom - 20),
+                    ScreenString(villager.Name, new() { Size = 16 }, new Vector2((villager.InterpolatedLocation.X + .5f) * world.Zoom, villager.InterpolatedLocation.Y * world.Zoom - 20),
                         Colors4.White, new(0, 0, 0, .4f), HorizontalAlignment.Center);
                     if (world.ShowDetails)
-                        ScreenString(villager.AIPlan?.Description, new() { Size = 13 }, new Vector2((villager.InterpolatedLocation.X + .5f) * pixelZoom, (villager.InterpolatedLocation.Y + 1) * pixelZoom),
+                        ScreenString(villager.AIPlan?.Description, new() { Size = 13 }, new Vector2((villager.InterpolatedLocation.X + .5f) * world.Zoom, (villager.InterpolatedLocation.Y + 1) * world.Zoom),
                             Colors4.White, new(0, 0, 0, .4f), HorizontalAlignment.Center);
                     break;
             }
@@ -196,5 +194,5 @@ partial class WorldRenderer
         FrameData.NewFrame(TimeSpan.FromSeconds(deltaSec), TimeSpan.FromSeconds(deltaUpdateTimeSec), TimeSpan.FromSeconds(deltaRenderTimeSec));
     }
 
-    public Vector2i GetLocationFromScreenPoint(Vector2i screenPoint) => screenPoint / (int)pixelZoom;
+    public Vector2i GetLocationFromScreenPoint(Vector2i screenPoint) => screenPoint / (int)world.Zoom;
 }
