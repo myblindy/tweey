@@ -100,20 +100,20 @@ class Program : GameWindow
     {
         var position = MousePosition.ToVector2i();
         if (!worldRenderer!.MouseEvent(position, e.Action, e.Button, e.Modifiers))
-            world.MouseEvent(position, worldRenderer!.GetLocationFromScreenPoint(position), e.Action, e.Button, e.Modifiers);
+            world.MouseEvent(position, world.GetWorldLocationFromScreenPoint(position), e.Action, e.Button, e.Modifiers);
     }
 
     protected override void OnMouseUp(MouseButtonEventArgs e)
     {
         var position = MousePosition.ToVector2i();
         if (!worldRenderer!.MouseEvent(position, e.Action, e.Button, e.Modifiers))
-            world.MouseEvent(position, worldRenderer!.GetLocationFromScreenPoint(position), e.Action, e.Button, e.Modifiers);
+            world.MouseEvent(position, world.GetWorldLocationFromScreenPoint(position), e.Action, e.Button, e.Modifiers);
     }
 
     protected override void OnMouseMove(MouseMoveEventArgs e)
     {
         var position = MousePosition.ToVector2i();
-        world.MouseEvent(position, worldRenderer!.GetLocationFromScreenPoint(position));
+        world.MouseEvent(position, world.GetWorldLocationFromScreenPoint(position));
     }
 
     protected override void OnKeyDown(KeyboardKeyEventArgs e) =>

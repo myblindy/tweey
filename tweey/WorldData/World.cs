@@ -32,7 +32,7 @@ public class World
     public float Zoom { get; set; } = 35;
 
     Vector2 deltaOffsetNextFrame;
-    static readonly Vector2 deltaOffsetPerSecond = new(10);
+    static readonly Vector2 deltaOffsetPerSecond = new(10f);
     float deltaZoomNextFrame;
 
     public World(ILoader loader)
@@ -119,6 +119,9 @@ public class World
         if (SelectedEntity == entity) SelectedEntity = null;
         return PlacedEntities.Remove(entity);
     }
+
+    public Vector2i GetWorldLocationFromScreenPoint(Vector2i screenPoint) =>
+        new((int)MathF.Floor(((screenPoint.X) / Zoom + Offset.X)), (int)MathF.Floor(((screenPoint.Y) / Zoom + Offset.Y)));
 
     event Action<Building>? PlacedBuilding;
     public void MouseEvent(Vector2i screenPosition, Vector2i worldLocation, InputAction? inputAction = null, MouseButton? mouseButton = null, KeyModifiers? keyModifiers = null)

@@ -28,7 +28,7 @@ partial class WorldRenderer
             (uv0, uv1, uv2, uv3) = (uv1, uv0, uv3, uv2);
 
         var zoom = asWorldCoords ? world.Zoom : 1;
-        var offset = asWorldCoords ? world.Offset : Vector2.Zero;
+        var offset = asWorldCoords ? world.Offset : default;
         var br = box.BottomRight + Vector2.One;
         guiVAO.Vertices.Add(new((box.TopLeft - offset) * zoom, color, uv0));
         guiVAO.Vertices.Add(new((br - offset) * zoom, color, uv1));
