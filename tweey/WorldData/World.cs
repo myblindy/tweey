@@ -1,7 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using Twee.Core.Support;
-
-namespace Tweey.WorldData;
+﻿namespace Tweey.WorldData;
 
 public class World
 {
@@ -21,8 +18,22 @@ public class World
     public bool ShowDetails { get; private set; }
     public bool DebugShowLightAtMouse { get; private set; }
 
+    /// <summary>
+    /// The position of the mouse in screen coordinates.
+    /// </summary>
     public Vector2i MouseScreenPosition { get; private set; }
+
+    /// <summary>
+    /// The position of the mouse in world coordinates.
+    /// </summary>
     public Vector2i MouseWorldPosition { get; private set; }
+
+    public Vector2 Offset { get; set; }
+    public float Zoom { get; set; } = 35;
+
+    Vector2 deltaOffsetNextFrame;
+    static readonly Vector2 deltaOffsetPerSecond = new(10f);
+    float deltaZoomNextFrame;
 
     public World(ILoader loader)
     {
@@ -108,6 +119,9 @@ public class World
         if (SelectedEntity == entity) SelectedEntity = null;
         return PlacedEntities.Remove(entity);
     }
+
+    public Vector2i GetWorldLocationFromScreenPoint(Vector2i screenPoint) =>
+        new((int)MathF.Floor(((screenPoint.X) / Zoom + Offset.X)), (int)MathF.Floor(((screenPoint.Y) / Zoom + Offset.Y)));
 
     event Action<Building>? PlacedBuilding;
     public void MouseEvent(Vector2i screenPosition, Vector2i worldLocation, InputAction? inputAction = null, MouseButton? mouseButton = null, KeyModifiers? keyModifiers = null)
@@ -207,6 +221,22 @@ public class World
             ShowDetails = false;
         else if (inputAction == InputAction.Press && key == Keys.F1)
             DebugShowLightAtMouse = !DebugShowLightAtMouse;
+        else if (inputAction == InputAction.Press && key is Keys.W)
+            deltaOffsetNextFrame.Y = -1;
+        else if (inputAction == InputAction.Release && key is Keys.W)
+            deltaOffsetNextFrame.Y = 0;
+        else if (inputAction == InputAction.Press && key is Keys.S)
+            deltaOffsetNextFrame.Y = 1;
+        else if (inputAction == InputAction.Release && key is Keys.S)
+            deltaOffsetNextFrame.Y = 0;
+        else if (inputAction == InputAction.Press && key is Keys.A)
+            deltaOffsetNextFrame.X = -1;
+        else if (inputAction == InputAction.Release && key is Keys.A)
+            deltaOffsetNextFrame.X = 0;
+        else if (inputAction == InputAction.Press && key is Keys.D)
+            deltaOffsetNextFrame.X = 1;
+        else if (inputAction == InputAction.Release && key is Keys.D)
+            deltaOffsetNextFrame.X = 0;
     }
 
     public TimeSpan TotalTime { get; private set; }
@@ -215,7 +245,10 @@ public class World
         TotalTime += TimeSpan.FromSeconds(deltaSec);
 
         if (!Paused)
+        {
+            Offset += deltaOffsetNextFrame * (float)deltaSec * deltaOffsetPerSecond;
             aiManager.Update(deltaSec);
+        }
         soundManager.Update(deltaSec);
         GetEntities<Villager>().ForEach(villager => villager.Update(deltaSec));
     }

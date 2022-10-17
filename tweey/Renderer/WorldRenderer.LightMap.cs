@@ -127,10 +127,10 @@ public partial class WorldRenderer
         // setup the occlusion map for rendering and build the occlusions
         void markOcclusionBox(Box2 box, bool circle = false, float scale = 1f)
         {
-            var zoom = pixelZoom;
-            var uvHalf = new Vector2(.5f, .5f);         // the center of the circle texture is white, use that for the box case
+            var zoom = world.Zoom;
+            var uvHalf = new Vector2(.5f);         // the center of the circle texture is white, use that for the box case
 
-            var center = box.Center + new Vector2(.5f, .5f);
+            var center = box.Center + new Vector2(.5f) - world.Offset;
             var rx = box.Size.X / 2 * scale;
             var ry = box.Size.Y / 2 * scale;
 
@@ -201,7 +201,7 @@ public partial class WorldRenderer
         // call the engine once for each light
         foreach (var entity in world.GetEntities())
             if (entity is Villager villager)
-                addLight(new Vector2(entity.InterpolatedLocation.X + .5f, entity.InterpolatedLocation.Y + .5f) * pixelZoom, 12 * pixelZoom,
+                addLight(new Vector2(entity.InterpolatedLocation.X + .5f - world.Offset.X, entity.InterpolatedLocation.Y + .5f - world.Offset.Y) * world.Zoom, 12 * world.Zoom,
                     lightCount == 1 ? new(.5f, .5f, .9f) : new(.9f, .5f, .5f), getAngleMinMaxFromHeading(villager.Heading, .1));
             else if (entity is Building { IsBuilt: true, Name: "Siren" })
             {
@@ -211,18 +211,18 @@ public partial class WorldRenderer
 
                 var red = new Vector3(.6f, .1f, .1f);
                 var blue = new Vector3(.1f, .1f, .6f);
-                addLight((entity.Center + new Vector2(.5f)) * pixelZoom, range * pixelZoom, red, getAngleMinMaxFromHeading(heading, coneAngle));
-                addLight((entity.Center + new Vector2(.5f)) * pixelZoom, range * pixelZoom, blue, getAngleMinMaxFromHeading(heading + .25f, coneAngle));
-                addLight((entity.Center + new Vector2(.5f)) * pixelZoom, range * pixelZoom, red, getAngleMinMaxFromHeading(heading + .5f, coneAngle));
-                addLight((entity.Center + new Vector2(.5f)) * pixelZoom, range * pixelZoom, blue, getAngleMinMaxFromHeading(heading + .75f, coneAngle));
+                addLight((entity.Center + new Vector2(.5f) - world.Offset) * world.Zoom, range * world.Zoom, red, getAngleMinMaxFromHeading(heading, coneAngle));
+                addLight((entity.Center + new Vector2(.5f) - world.Offset) * world.Zoom, range * world.Zoom, blue, getAngleMinMaxFromHeading(heading + .25f, coneAngle));
+                addLight((entity.Center + new Vector2(.5f) - world.Offset) * world.Zoom, range * world.Zoom, red, getAngleMinMaxFromHeading(heading + .5f, coneAngle));
+                addLight((entity.Center + new Vector2(.5f) - world.Offset) * world.Zoom, range * world.Zoom, blue, getAngleMinMaxFromHeading(heading + .75f, coneAngle));
             }
             else if (entity is Building { IsBuilt: true, EmitLight: { } emitLight })
-                addLight((entity.Center + new Vector2(.5f)) * pixelZoom, emitLight.Range * pixelZoom, emitLight.Color, LightMapFBUbo.Light.FullAngle);
+                addLight((entity.Center + new Vector2(.5f) - world.Offset) * world.Zoom, emitLight.Range * world.Zoom, emitLight.Color, LightMapFBUbo.Light.FullAngle);
 
         if (world.DebugShowLightAtMouse)
         {
             var totalTimeSec = (float)world.TotalTime.TotalSeconds;
-            addLight(new Vector2(world.MouseScreenPosition.X, world.MouseScreenPosition.Y), 16 * pixelZoom,
+            addLight(new Vector2(world.MouseScreenPosition.X, world.MouseScreenPosition.Y) - world.Offset * world.Zoom, 16 * world.Zoom,
                 new(MathF.Sin(totalTimeSec / 2f) / 2 + 1, MathF.Sin(totalTimeSec / 4f) / 2 + 1, MathF.Sin(totalTimeSec / 6f) / 2 + 1),
                 LightMapFBUbo.Light.FullAngle);
         }
