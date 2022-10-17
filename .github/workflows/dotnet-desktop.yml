@@ -39,11 +39,12 @@ jobs:
     # Execute all unit tests in the solution
     # - name: Execute unit tests
     #   run: dotnet test
+    
+    - name: List .Net SDKs
+      run: dotnet --list-sdks
 
     # Restore the application to populate the obj folder with RuntimeIdentifiers
     - name: Restore the application
-      run: 
-        where msbuild && 
-        msbuild $env:Solution_Name /t:Restore /p:Configuration=$env:Configuration
+      run: msbuild $env:Solution_Name /t:Restore /p:Configuration=$env:Configuration
       env:
         Configuration: ${{ matrix.configuration }}
