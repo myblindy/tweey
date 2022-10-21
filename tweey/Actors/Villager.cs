@@ -1,6 +1,4 @@
-﻿using Twee.Core.Support;
-
-namespace Tweey.Actors;
+﻿namespace Tweey.Actors;
 
 public class Villager : PlaceableEntity
 {

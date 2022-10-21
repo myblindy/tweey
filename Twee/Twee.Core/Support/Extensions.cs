@@ -1,6 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-
-namespace Twee.Core.Support;
+﻿namespace Twee.Core.Support;
 
 public static class Extensions
 {

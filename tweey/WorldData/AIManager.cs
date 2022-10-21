@@ -1,6 +1,4 @@
-﻿using Twee.Core.Support;
-
-namespace Tweey.WorldData;
+﻿namespace Tweey.WorldData;
 
 public enum AIPlanStepResult { Stay, NextStep, End }
 public record AIPlanStep(Func<double, AIPlanStepResult> Update, Action? DoneAction = null);

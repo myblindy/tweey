@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using Twee.Renderer.Shaders;
 
 namespace Tweey.Renderer;

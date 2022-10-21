@@ -14,7 +14,7 @@ using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 namespace Twee.Roslyn;
 
 [Generator]
-public class VertexSourceGen : IIncrementalGenerator
+public sealed class VertexSourceGen : IIncrementalGenerator
 {
     internal static readonly DiagnosticDescriptor InvalidFieldTypeDiagnosticDescriptor =
         new("MBVS001", "InvalidField", "Invalid field type for vertex definition type {0}", "Functionality", DiagnosticSeverity.Error, true);

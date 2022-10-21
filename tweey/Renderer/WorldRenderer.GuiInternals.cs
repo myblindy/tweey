@@ -1,6 +1,4 @@
-﻿using Twee.Core.Support;
-
-namespace Tweey.Renderer;
+﻿namespace Tweey.Renderer;
 
 partial class WorldRenderer
 {
