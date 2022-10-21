@@ -60,7 +60,9 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                 namespace Twee.Ecs;
 
                 {{Common.GeneratedCodeAttributeText}}
-                internal enum Components { {{string.Join(", ", components.Select(c => c!.RootName))}} }
+                [Flags]
+                internal enum Components: ulong { {{string.Join(", ",
+                    components.Select((c, idx) => $"{c!.RootName} = 1ul << {idx}"))}} }
                 """);
 
             spc.AddSource("ECS.g.cs", sb.ToString());
