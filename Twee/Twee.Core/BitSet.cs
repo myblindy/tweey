@@ -1,6 +1,6 @@
 ﻿namespace Twee.Core;
 
-public class BitSet<T> where T : struct, IUnsignedNumber<T>, IShiftOperators<T, T, T>, INumberBase<T>, IBitwiseOperators<T, T, T>
+public struct BitSet<T> where T : struct, IUnsignedNumber<T>, IShiftOperators<T, T, T>, INumberBase<T>, IBitwiseOperators<T, T, T>
 {
     T bits;
 

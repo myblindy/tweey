@@ -19,6 +19,7 @@ global using System.Text.Json.Serialization;
 
 global using Twee.Core;
 global using Twee.Core.Support;
+global using Twee.Ecs;
 global using Twee.Renderer;
 global using Twee.Renderer.Textures;
 global using Twee.Renderer.VertexArrayObjects;

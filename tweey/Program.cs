@@ -1,4 +1,7 @@
-﻿namespace Tweey;
+﻿using System.ComponentModel;
+using Tweey.Components;
+
+namespace Tweey;
 
 class Program : GameWindow
 {
@@ -134,6 +137,13 @@ class Program : GameWindow
 
     static unsafe void Main()
     {
+        EcsCoordinator.ConstructRenderSystem(() => new());
+
+        var entity = EcsCoordinator.CreateEntity();
+        EcsCoordinator.AddLocationComponent(entity);
+
+        EcsCoordinator.RunSystems(0);
+
         using var program = new Program();
         program.Run();
     }

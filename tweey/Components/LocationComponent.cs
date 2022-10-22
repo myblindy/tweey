@@ -1,6 +1,7 @@
 ﻿namespace Tweey.Components;
 
-[Component]
+[EcsComponent]
 struct LocationComponent
 {
+    public Vector2 Location { get; set; }
 }
