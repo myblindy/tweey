@@ -3,5 +3,5 @@
 [EcsComponent]
 struct LocationComponent
 {
-    public Vector2 Location { get; set; }
+    public Box2 Box { get; set; }
 }

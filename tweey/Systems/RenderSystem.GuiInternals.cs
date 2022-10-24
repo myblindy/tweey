@@ -1,6 +1,6 @@
-﻿namespace Tweey.Renderer;
+﻿namespace Tweey.Systems;
 
-partial class WorldRenderer
+partial class RenderSystem
 {
     int WidthPercentage(float p) => (int)(windowUbo.Data.WindowSize.X * p / 100f);
     int HeightPercentage(float p) => (int)(windowUbo.Data.WindowSize.Y * p / 100f);
@@ -153,7 +153,8 @@ partial class WorldRenderer
         return false;
     }
 
-    public bool MouseEvent(Vector2i position, InputAction inputAction, MouseButton mouseButton, KeyModifiers keyModifiers)
+    [Message]
+    public bool MouseEventMessage(Vector2i position, InputAction inputAction, MouseButton mouseButton, KeyModifiers keyModifiers)
     {
         // use the old view boxes to calculate hit testing
         foreach (var rootViewDescription in gui.RootViewDescriptions)

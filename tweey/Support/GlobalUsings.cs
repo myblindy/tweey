@@ -21,15 +21,16 @@ global using Twee.Core;
 global using Twee.Core.Support;
 global using Twee.Ecs;
 global using Twee.Renderer;
+global using Twee.Renderer.Shaders;
 global using Twee.Renderer.Textures;
 global using Twee.Renderer.VertexArrayObjects;
 
 global using Tweey.Actors;
 global using Tweey.Actors.Interfaces;
+global using Tweey.Components;
 global using Tweey.Gui;
 global using Tweey.Gui.Base;
 global using Tweey.Loaders;
-global using Tweey.Renderer;
 global using Tweey.Support;
 global using Tweey.WorldData;
 

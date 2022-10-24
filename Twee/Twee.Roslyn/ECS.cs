@@ -15,9 +15,11 @@ public sealed class ECSSourceGen : IIncrementalGenerator
     const string TweeCoreAssemblyName = "Twee.Core";
     const string ComponentAttributeFullName = "Twee.Ecs.EcsComponentAttribute";
     const string SystemAttributeFullName = "Twee.Ecs.EcsSystemAttribute";
-    const string UsesAttributeFullName = "Twee.Ecs.UsesAttribute";
+    const string MessageAttributeFullName = "Twee.Ecs.MessageAttribute";
 
-    static readonly Regex typeRootNameRegex = new(@"^.*?([^.]+?)(?:Component|System)?$");
+    static readonly Regex typeRootNameRegex = new(@"^.*?([^.]+?)(?:Component|System|Message)?$");
+    static string GetTypeRootName(string name) =>
+        typeRootNameRegex.Match(name) is { Success: true } m ? m.Groups[1].Value : name;
 
     class EcsClass
     {
@@ -28,8 +30,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
 
         public EcsClass(string name)
         {
-            (FullName, TypeRootName) =
-                (name, typeRootNameRegex.Match(name) is { Success: true } m ? m.Groups[1].Value : name);
+            (FullName, TypeRootName) = (name, GetTypeRootName(name));
 
             (Namespace, TypeName) = Regex.Match(name, @"^(?:(.*?)\.)?([^.]+)$") is { Success: true } m2
                 ? (m2.Groups[1].Value, m2.Groups[2].Value) : (null, name);
@@ -39,17 +40,24 @@ public sealed class ECSSourceGen : IIncrementalGenerator
     class EcsSystemClass : EcsClass
     {
         public ImmutableHashSet<string> UsedComponents { get; }
+        public ImmutableArray<(string FullReturnTypeName, string Name, string RootName, ImmutableArray<(string FullTypeName, string Name)> Parameters)> Messages { get; }
 
-        public EcsSystemClass(string name, IEnumerable<string> usedComponents) : base(name) =>
+        public EcsSystemClass(string name, IEnumerable<string> usedComponents,
+            IEnumerable<(string FullReturnTypeName, string Name, IEnumerable<(string FullTypeName, string Name)> Parameters)> messages)
+            : base(name)
+        {
             UsedComponents = ImmutableHashSet.CreateRange(usedComponents.Select(c =>
                 typeRootNameRegex.Match(c) is { Success: true } match ? match.Groups[1].Value : c));
+
+            Messages = ImmutableArray.CreateRange(messages.Select(m => (m.FullReturnTypeName, m.Name, GetTypeRootName(m.Name), ImmutableArray.CreateRange(m.Parameters))));
+        }
     }
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // Debugger.Launch();
+        //Debugger.Launch();
 
-        IncrementalValuesProvider<TEcsClass> getDeclarations<TEcsClass>(string fullAttributeTypeName, Func<string, SemanticModel, IEnumerable<AttributeListSyntax>, TEcsClass> generator)
+        IncrementalValuesProvider<TEcsClass> getDeclarations<TEcsClass>(string fullAttributeTypeName, Func<string, SemanticModel, TypeDeclarationSyntax, TEcsClass> generator)
             where TEcsClass : EcsClass =>
                 context.SyntaxProvider
                     .CreateSyntaxProvider(
@@ -67,7 +75,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                                         if (ctx.SemanticModel.GetSymbolInfo(attributeSyntax).Symbol is IMethodSymbol attributeSymbol
                                             && attributeSymbol.ContainingType.ToDisplayString() == fullAttributeTypeName)
                                         {
-                                            return generator(structDeclarationSymbol.ToDisplayString(), ctx.SemanticModel, structDeclarationSyntax.AttributeLists);
+                                            return generator(structDeclarationSymbol.ToDisplayString(), ctx.SemanticModel, structDeclarationSyntax);
                                         }
 
                             return null;
@@ -76,10 +84,10 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                     .Select(static (m, _) => m!);
 
         var componentDeclarations = getDeclarations(ComponentAttributeFullName, static (structName, _, _) => new EcsClass(structName));
-        var systemDeclarations = getDeclarations(SystemAttributeFullName, static (className, semanticModel, attrs) =>
+        var systemDeclarations = getDeclarations(SystemAttributeFullName, static (className, semanticModel, sds) =>
         {
             var components = new List<string>();
-            foreach (var attributeListSyntax in attrs)
+            foreach (var attributeListSyntax in sds.AttributeLists)
                 foreach (var attributeSyntax in attributeListSyntax.Attributes)
                     if (semanticModel.GetSymbolInfo(attributeSyntax).Symbol is IMethodSymbol attributeSymbol
                         && Regex.Match(attributeSymbol.ContainingType.ToDisplayString(), @"^Twee\.Ecs\.UsesAttribute<(.*)>$") is { Success: true } match)
@@ -87,7 +95,17 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         components.Add(match.Groups[1].Value);
                     }
 
-            return new EcsSystemClass(className, components);
+            var messages = new List<(string FullReturnTypeName, string Name, IEnumerable<(string FullTypeName, string Name)> Parameters)>();
+            if (semanticModel.GetDeclaredSymbol(sds) is { } classSymbol)
+                foreach (var memberSymbol in classSymbol.GetMembers().OfType<IMethodSymbol>())
+                    foreach (var attribute in memberSymbol.GetAttributes())
+                        if (attribute.AttributeClass?.ToDisplayString() is MessageAttributeFullName)
+                        {
+                            messages.Add((memberSymbol.ReturnType.ToDisplayString(), memberSymbol.Name, memberSymbol.Parameters.Select(p => (p.Type.ToDisplayString(), p.Name))));
+                            break;
+                        }
+
+            return new EcsSystemClass(className, components, messages);
         });
 
         context.RegisterPostInitializationOutput(ctx =>
@@ -118,8 +136,14 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                 }
                 
                 {{Common.GeneratedCodeAttributeText}}
-                [AttributeUsage(AttributeTargets.Class)]
+                [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
                 internal sealed class UsesAttribute<T> : Attribute
+                {
+                }
+
+                {{Common.GeneratedCodeAttributeText}}
+                [AttributeUsage(AttributeTargets.Method)]
+                internal sealed class MessageAttribute : Attribute
                 {
                 }
                 
@@ -159,7 +183,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             public IterationResult(Entity entity {{string.Concat(components.Select(c =>
                                 $", ref {c!.FullName} {c!.TypeRootName}Component"))}})
                             {
-                                this.Entity = Entity;
+                                Entity = entity;
                                 {{string.Join(Environment.NewLine, components.Select(c => $$"""
                                     this.{{c!.TypeRootName}}Component = ref {{c!.TypeRootName}}Component;
                                     """))}}
@@ -265,12 +289,18 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         static {{s!.FullName}} {{s!.TypeRootName}}System;
                         public static void Construct{{s!.TypeRootName}}System(Func<{{s!.FullName}}> generator) => 
                             {{s!.TypeRootName}}System = generator();
+
+                        {{string.Join(Environment.NewLine, s.Messages.Select(m => $$"""
+                            public static {{m.FullReturnTypeName}} Send{{m.RootName}}MessageTo{{s.TypeRootName}}System(
+                                {{string.Join(", ", m.Parameters.Select(p => $"{p.FullTypeName} {p.Name}"))}}) =>
+                                {{s!.TypeRootName}}System.{{m.Name}}({{string.Join(", ", m.Parameters.Select(p => p.Name))}});
+                            """))}}
                         """))}}
 
-                    public static void RunSystems(double deltaSec)
+                    public static void RunSystems(double deltaSec, double updateDeltaSec, double renderDeltaSec)
                     {
                         {{string.Join(Environment.NewLine, systems.Select(s => $$"""
-                            {{s!.TypeRootName}}System?.Run(deltaSec);
+                            {{s!.TypeRootName}}System?.Run(deltaSec, updateDeltaSec, renderDeltaSec);
                             """))}}
                     }
                 }

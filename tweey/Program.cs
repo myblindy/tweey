@@ -1,7 +1,4 @@
-﻿using System.ComponentModel;
-using Tweey.Components;
-
-namespace Tweey;
+﻿namespace Tweey;
 
 class Program : GameWindow
 {
@@ -32,7 +29,6 @@ class Program : GameWindow
     }
 
     readonly World world = new(DiskLoader.Instance);
-    WorldRenderer? worldRenderer;
 
     protected override unsafe void OnLoad()
     {
@@ -88,26 +84,26 @@ class Program : GameWindow
         });
         world.PlaceEntity(well);
 
-        worldRenderer = new(world);
-        worldRenderer.Resize(Size.X, Size.Y);
+        EcsCoordinator.ConstructRenderSystem(() => new(world));
+        EcsCoordinator.SendResizeMessageToRenderSystem(Size.X, Size.Y);
     }
 
     protected override void OnResize(ResizeEventArgs e)
     {
-        worldRenderer?.Resize(e.Width, e.Height);
+        EcsCoordinator.SendResizeMessageToRenderSystem(e.Width, e.Height);
     }
 
     protected override void OnMouseDown(MouseButtonEventArgs e)
     {
         var position = MousePosition.ToVector2i();
-        if (!worldRenderer!.MouseEvent(position, e.Action, e.Button, e.Modifiers))
+        if (!EcsCoordinator.SendMouseEventMessageToRenderSystem(position, e.Action, e.Button, e.Modifiers))
             world.MouseEvent(position, world.GetWorldLocationFromScreenPoint(position), e.Action, e.Button, e.Modifiers);
     }
 
     protected override void OnMouseUp(MouseButtonEventArgs e)
     {
         var position = MousePosition.ToVector2i();
-        if (!worldRenderer!.MouseEvent(position, e.Action, e.Button, e.Modifiers))
+        if (!EcsCoordinator.SendMouseEventMessageToRenderSystem(position, e.Action, e.Button, e.Modifiers))
             world.MouseEvent(position, world.GetWorldLocationFromScreenPoint(position), e.Action, e.Button, e.Modifiers);
     }
 
@@ -131,19 +127,12 @@ class Program : GameWindow
 
     protected override void OnRenderFrame(FrameEventArgs args)
     {
-        worldRenderer!.Render(args.Time, UpdateTime, RenderTime);
+        EcsCoordinator.RunSystems(args.Time, UpdateTime, RenderTime);
         SwapBuffers();
     }
 
     static unsafe void Main()
     {
-        EcsCoordinator.ConstructRenderSystem(() => new());
-
-        var entity = EcsCoordinator.CreateEntity();
-        EcsCoordinator.AddLocationComponent(entity);
-
-        EcsCoordinator.RunSystems(0);
-
         using var program = new Program();
         program.Run();
     }
