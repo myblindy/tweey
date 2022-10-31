@@ -25,8 +25,6 @@ global using Twee.Renderer.Shaders;
 global using Twee.Renderer.Textures;
 global using Twee.Renderer.VertexArrayObjects;
 
-global using Tweey.Actors;
-global using Tweey.Actors.Interfaces;
 global using Tweey.Components;
 global using Tweey.Gui;
 global using Tweey.Gui.Base;

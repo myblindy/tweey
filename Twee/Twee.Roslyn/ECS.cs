@@ -157,7 +157,11 @@ public sealed class ECSSourceGen : IIncrementalGenerator
 
                     public override bool Equals(object? obj) => obj is Entity entity && Equals(entity);
                     public bool Equals(Entity other) => ID == other.ID;
+                    public static bool operator ==(Entity a, Entity b) => a.Equals(b);
+                    public static bool operator !=(Entity a, Entity b) => !a.Equals(b);
                     public override int GetHashCode() => ID;
+
+                    public static implicit operator int(Entity entity) => entity.ID;
                 }
                 
                 {{Common.GeneratedCodeAttributeText}}
@@ -184,6 +188,17 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                     static int maxGeneratedEntityID;
                     static readonly SortedSet<int> extraAvailableEntityIDs = new();
                     static readonly Dictionary<(Entity, Twee.Ecs.Components), int> entityComponentMapping = new();
+                    static readonly List<Twee.Ecs.Components> entityComponents = new();
+
+                    static readonly List<Entity> entities = new();
+                    public static ReadOnlyCollection<Entities> Entities { get; } = new(entities);
+
+                    static void EnsureEntityComponentsListEntityExists(Entity entity)
+                    {
+                        int idx = entity;
+                        while(entityComponents.Length <= idx)
+                            entityComponents.Add(0);
+                    }
                 }
                 """);
             });
@@ -258,6 +273,8 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                 
                             {{string.Join(Environment.NewLine, components.Select(c => $$"""
                                 entityComponentMapping.Remove((entity, Twee.Ecs.Components.{{c!.TypeRootName}}));
+                                EnsureEntityComponentsListEntityExists(entity);
+                                entityComponents[entity] = 0;
                                 """))}}
                                 
                             return entity;
@@ -267,6 +284,8 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                 
                         {{string.Join(Environment.NewLine, components.Select(c => $$"""
                             entityComponentMapping.Remove((entity0, Twee.Ecs.Components.{{c!.TypeRootName}}));
+                            EnsureEntityComponentsListEntityExists(entity0);
+                            entityComponents[entity0] = 0;
                             """))}}
                                 
                         return entity0;
@@ -281,10 +300,12 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                                 extraAvailable{{c!.TypeName}}IDs.Remove(componentId);
                                 {{c!.TypeName}}s[(int)componentId] = new();
                                 entityComponentMapping[(entity, Twee.Ecs.Components.{{c!.TypeRootName}})] = componentId;
+                                entityComponents[entity] |= Twee.Ecs.Components.{{c!.TypeRootName}};
                             }
                             else
                             {
                                 entityComponentMapping[(entity, Twee.Ecs.Components.{{c!.TypeRootName}})] = {{c!.TypeName}}s.Count;
+                                entityComponents[entity] |= Twee.Ecs.Components.{{c!.TypeRootName}};
                                 {{c!.TypeName}}s.Add(new());
                             }
 
@@ -308,7 +329,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             """)}}
 
                         public static bool Has{{c!.TypeRootName}}Component(Entity entity) =>
-                            entityComponentMapping.ContainsKey((entity, Twee.Ecs.Components.{{c!.TypeRootName}}));
+                            entityComponents[entity].HasFlag(Twee.Ecs.Components.{{c!.TypeRootName}});
 
                         public static ref {{c!.FullName}} Get{{c!.TypeRootName}}Component(Entity entity) 
                         {
@@ -320,6 +341,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         public static bool Remove{{c!.TypeRootName}}Component(Entity entity) 
                         {
                             var result = entityComponentMapping.Remove((entity, Twee.Ecs.Components.{{c!.TypeRootName}}));
+                            entityComponents[entity] &= ~Twee.Ecs.Components.{{c!.TypeRootName}};
 
                             {{string.Join(Environment.NewLine, systems.Select(s => !s.UsedComponents.Contains(c.TypeRootName) ? null : $$"""
                                 {{s!.TypeRootName}}System.Entities.Remove(entity);

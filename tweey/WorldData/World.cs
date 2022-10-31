@@ -12,7 +12,6 @@ internal class World
     readonly AIManager aiManager;
     readonly SoundManager soundManager;
 
-    List<Entity> Entities { get; } = new();
     internal Entity? SelectedEntity { get; set; }
     public BuildingTemplate? CurrentBuildingTemplate { get; set; }
 
@@ -85,7 +84,7 @@ internal class World
             }
     }
 
-    public Entity AddResourceEntity(ResourceBucket resourceBucket, Vector2 location)
+    public void AddResourceEntity(ResourceBucket resourceBucket, Vector2 location)
     {
         // obey the maximum ground stack weight
         List<(Vector2i pt, ResourceBucket? rb)> availableNeighbours = new();
@@ -127,8 +126,17 @@ internal class World
             var chosenNeighbour = availableNeighbours[chosenNeighbourIndex];
             availableNeighbours.Remove(chosenNeighbour);
 
-            var newRB = chosenNeighbour.rb ?? new() { Location = chosenNeighbour.pt.ToNumericsVector2() };
-            if (chosenNeighbour.rb is null) PlacedEntities.Add(newRB);
+            var newRB = chosenNeighbour.rb;
+            if (newRB is null)
+            {
+                var entity = EcsCoordinator.CreateEntity();
+                EcsCoordinator.AddRenderableComponent(entity, null);
+                EcsCoordinator.AddLocationComponent(entity, Box2.FromCornerSize(chosenNeighbour.pt, new(1, 1)));
+                EcsCoordinator.AddResourceComponent(entity);
+                newRB = EcsCoordinator.AddInventoryComponent(entity).Inventory;
+
+                Entities.Add(entity);
+            }
             var newRBWeight = newRB.AvailableWeight;
             int resourceIndex = 0;
             for (; resourceIndex < resourceBucket.ResourceQuantities.Count && resourceBucket.ResourceQuantities[resourceIndex].Quantity == 0; resourceIndex++) { }
