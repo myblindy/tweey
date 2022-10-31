@@ -51,25 +51,27 @@ class Program : GameWindow
         GL.Disable(EnableCap.CullFace);
         GL.Enable(EnableCap.Blend);
 
-        var villager = world.SelectedEntity = new Villager("Sana", new(5, 1), world.Configuration.Data);
-        world.PlaceEntity(villager);
-        world.PlaceEntity(new Villager("Momo", new(15, 20), world.Configuration.Data));
+        var villager = world.SelectedEntity = world.AddVillagerEntity("Sana", new(5, 1));
+        world.AddVillagerEntity("Momo", new(15, 20));
 
-        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["bread"], 100)) { Location = new(3, 3) });
+        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["bread"], 100)), new(3, 3));
 
-        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["firewood"], 5)) { Location = new(3, 4) });
-        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["iron"], 2)) { Location = new(7, 4) });
+        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["firewood"], 5)), new(3, 4));
+        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["iron"], 2)), new(7, 4));
 
-        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 3)) { Location = new(4, 5) });
-        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["iron"], 4)) { Location = new(5, 5) });
-        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 4)) { Location = new(6, 5) });
-        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["firewood"], 55)) { Location = new(7, 7) });
+        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 3)), new(4, 5));
+        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["iron"], 4)), new(5, 5));
+        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 4)), new(6, 5));
+        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["firewood"], 55)), new(7, 7));
 
-        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 24)) { Location = new(17, 20) });
-        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["stone"], 120)) { Location = new(17, 21) });
-        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 83)) { Location = new(19, 19) });
-        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 67)) { Location = new(20, 19) });
-        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 67), new ResourceQuantity(world.Resources["iron"], 125)) { Location = new(20, 20) });
+        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 24)), new(17, 20));
+        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["stone"], 120)), new(17, 21));
+        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 83)), new(19, 19));
+        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 67)), new(20, 19));
+        world.AddResourceEntity(new ResourceBucket(
+            new ResourceQuantity(world.Resources["wood"], 67),
+            new ResourceQuantity(world.Resources["iron"], 125)),
+            new(20, 20));
 
         world.PlantForest(world.TreeTemplates["pine"], new(3, 20), 6, .9f, .2f);
         world.PlantForest(world.TreeTemplates["pine"], new(40, 12), 12, .8f, .1f);

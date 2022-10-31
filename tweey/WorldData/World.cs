@@ -1,6 +1,8 @@
-﻿namespace Tweey.WorldData;
+﻿using System.Xml.Linq;
 
-public class World
+namespace Tweey.WorldData;
+
+internal class World
 {
     public ResourceTemplates Resources { get; }
     public TreeTemplates TreeTemplates { get; }
@@ -10,8 +12,8 @@ public class World
     readonly AIManager aiManager;
     readonly SoundManager soundManager;
 
-    List<PlaceableEntity> PlacedEntities { get; } = new();
-    public PlaceableEntity? SelectedEntity { get; set; }
+    List<Entity> Entities { get; } = new();
+    internal Entity? SelectedEntity { get; set; }
     public BuildingTemplate? CurrentBuildingTemplate { get; set; }
 
     public bool Paused { get; private set; }
@@ -47,59 +49,28 @@ public class World
         CurrentBuildingTemplateChanged += soundManager.OnCurrentBuildingTemplateChanged;
     }
 
-    public void PlaceEntity(PlaceableEntity entity)
+    internal Entity AddVillagerEntity(string name, Vector2 location)
     {
-        if (entity is ResourceBucket resourceBucket)
-        {
-            // obey the maximum ground stack weight
-            List<(Vector2i pt, ResourceBucket? rb)> availableNeighbours = new();
-            int availableNeighboursSearchRadius = -1;
-            while (resourceBucket.AvailableWeight > 0)
-            {
-                // take any spill-over and put it in a random direction, up to maximumGroundDropSpillOverRange range
-                while (availableNeighbours.Count == 0)
-                {
-                    ++availableNeighboursSearchRadius;
-                    availableNeighbours.AddRange(
-                        GameUtilities.EnumerateNeighbourLocations(resourceBucket.Location, radiusMin: availableNeighboursSearchRadius, radiusMax: availableNeighboursSearchRadius)
-                            .Select(l => (l, rb: GetEntities<ResourceBucket>().FirstOrDefault(e => e.Contains(l))))
-                            .Where(l => l.rb is null || l.rb.AvailableWeight < Configuration.Data.GroundStackMaximumWeight));
-                }
+        var entity = EcsCoordinator.CreateEntity();
+        EcsCoordinator.AddLocationComponent(entity, Box2.FromCornerSize(location, new(1, 1)));
+        EcsCoordinator.AddRenderableComponent(entity, "Data/Misc/villager.png",
+            LightEmission: Colors4.White, LightRange: 12, LightAngleRadius: .1f);
+        EcsCoordinator.AddHeadingComponent(entity);
+        EcsCoordinator.AddVillagerComponent(entity, name);
 
-                var chosenNeighbourIndex = Random.Shared.Next(availableNeighbours.Count);
-                var chosenNeighbour = availableNeighbours[chosenNeighbourIndex];
-                availableNeighbours.Remove(chosenNeighbour);
+        Entities.Add(entity);
+        return entity;
+    }
 
-                var newRB = chosenNeighbour.rb ?? new() { Location = chosenNeighbour.pt.ToNumericsVector2() };
-                if (chosenNeighbour.rb is null) PlacedEntities.Add(newRB);
-                var newRBWeight = newRB.AvailableWeight;
-                int resourceIndex = 0;
-                for (; resourceIndex < resourceBucket.ResourceQuantities.Count && resourceBucket.ResourceQuantities[resourceIndex].Quantity == 0; resourceIndex++) { }
+    internal Entity AddTreeEntity(TreeTemplate treeTemplate, Vector2 location)
+    {
+        var entity = EcsCoordinator.CreateEntity();
+        EcsCoordinator.AddLocationComponent(entity, Box2.FromCornerSize(location, new(1, 1)));
+        EcsCoordinator.AddRenderableComponent(entity, $"Data/Trees/{treeTemplate.Name}.png",
+            OcclusionCircle: true, OcclusionScale: .3f);
 
-                while (resourceIndex < resourceBucket.ResourceQuantities.Count)
-                {
-                    var resQ = resourceBucket.ResourceQuantities[resourceIndex];
-
-                    // only allow one resource kind on the ground
-                    if (!newRB.ResourceQuantities.Any() || newRB.ResourceQuantities.Any(rq => rq.Resource == resQ.Resource))
-                    {
-                        var maxNewWeight = Configuration.Data.GroundStackMaximumWeight - newRBWeight;
-                        var quantityToMove = (int)Math.Floor(Math.Min(maxNewWeight, resQ.Weight) / resQ.Resource.Weight);
-
-                        var newResQ = new ResourceQuantity(resQ.Resource, quantityToMove);
-                        newRB.Add(newResQ);
-                        resourceBucket.Remove(newResQ);
-                        if (resQ.Quantity > 0)
-                            break;  // couldn't finish the stack
-                        newRBWeight += resQ.Resource.Weight * quantityToMove;
-                    }
-
-                    for (++resourceIndex; resourceIndex < resourceBucket.ResourceQuantities.Count && resourceBucket.ResourceQuantities[resourceIndex].Quantity == 0; resourceIndex++) { }
-                }
-            }
-        }
-        else
-            PlacedEntities.Add(entity);
+        Entities.Add(entity);
+        return entity;
     }
 
     public void PlantForest(TreeTemplate treeTemplate, Vector2i center, float radius, float chanceCenter, float chanceEdge)
@@ -110,14 +81,85 @@ public class World
                 var distanceFromCenter = new Vector2i(Math.Abs(y - center.Y), Math.Abs(y - center.Y)).EuclideanLength;
                 var chance = chanceCenter * (radius - distanceFromCenter) / radius + chanceEdge * distanceFromCenter / radius;
                 if (Random.Shared.NextDouble() < chance)
-                    PlaceEntity(Tree.FromTemplate(treeTemplate, new(x, y)));
+                    AddTreeEntity(treeTemplate, new(x, y));
             }
     }
 
-    public bool RemoveEntity(PlaceableEntity entity)
+    public Entity AddResourceEntity(ResourceBucket resourceBucket, Vector2 location)
+    {
+        // obey the maximum ground stack weight
+        List<(Vector2i pt, ResourceBucket? rb)> availableNeighbours = new();
+        int availableNeighboursSearchRadius = -1;
+        while (resourceBucket.AvailableWeight > 0)
+        {
+            // take any spill-over and put it in a random direction, up to maximumGroundDropSpillOverRange range
+            while (availableNeighbours.Count == 0)
+            {
+                ++availableNeighboursSearchRadius;
+
+                foreach (var dv in GameUtilities.EnumerateNeighbourLocations(location, radiusMin: availableNeighboursSearchRadius, radiusMax: availableNeighboursSearchRadius))
+                {
+                    var okay = true;
+                    ResourceBucket? foundResourceBucket = default;
+
+                    foreach (var entity in Entities)
+                    {
+                        if (EcsCoordinator.GetLocationComponent(entity).Box.Contains(location + dv.ToNumericsVector2()))
+                            if (EcsCoordinator.HasResourceComponent(entity))
+                            {
+                                ref var inventoryComponent = ref EcsCoordinator.GetInventoryComponent(entity);
+                                if (inventoryComponent.Inventory.AvailableWeight < Configuration.Data.GroundStackMaximumWeight)
+                                {
+                                    okay = false;
+                                    break;
+                                }
+                                else
+                                    foundResourceBucket = inventoryComponent.Inventory;
+                            }
+                    }
+
+                    if (okay)
+                        availableNeighbours.Add((dv, foundResourceBucket));
+                }
+            }
+
+            var chosenNeighbourIndex = Random.Shared.Next(availableNeighbours.Count);
+            var chosenNeighbour = availableNeighbours[chosenNeighbourIndex];
+            availableNeighbours.Remove(chosenNeighbour);
+
+            var newRB = chosenNeighbour.rb ?? new() { Location = chosenNeighbour.pt.ToNumericsVector2() };
+            if (chosenNeighbour.rb is null) PlacedEntities.Add(newRB);
+            var newRBWeight = newRB.AvailableWeight;
+            int resourceIndex = 0;
+            for (; resourceIndex < resourceBucket.ResourceQuantities.Count && resourceBucket.ResourceQuantities[resourceIndex].Quantity == 0; resourceIndex++) { }
+
+            while (resourceIndex < resourceBucket.ResourceQuantities.Count)
+            {
+                var resQ = resourceBucket.ResourceQuantities[resourceIndex];
+
+                // only allow one resource kind on the ground
+                if (!newRB.ResourceQuantities.Any() || newRB.ResourceQuantities.Any(rq => rq.Resource == resQ.Resource))
+                {
+                    var maxNewWeight = Configuration.Data.GroundStackMaximumWeight - newRBWeight;
+                    var quantityToMove = (int)Math.Floor(Math.Min(maxNewWeight, resQ.Weight) / resQ.Resource.Weight);
+
+                    var newResQ = new ResourceQuantity(resQ.Resource, quantityToMove);
+                    newRB.Add(newResQ);
+                    resourceBucket.Remove(newResQ);
+                    if (resQ.Quantity > 0)
+                        break;  // couldn't finish the stack
+                    newRBWeight += resQ.Resource.Weight * quantityToMove;
+                }
+
+                for (++resourceIndex; resourceIndex < resourceBucket.ResourceQuantities.Count && resourceBucket.ResourceQuantities[resourceIndex].Quantity == 0; resourceIndex++) { }
+            }
+        }
+    }
+
+    internal bool RemoveEntity(Entity entity)
     {
         if (SelectedEntity == entity) SelectedEntity = null;
-        return PlacedEntities.Remove(entity);
+        return Entities.Remove(entity);
     }
 
     public Vector2i GetWorldLocationFromScreenPoint(Vector2i screenPoint) =>
@@ -253,8 +295,7 @@ public class World
         GetEntities<Villager>().ForEach(villager => villager.Update(deltaSec));
     }
 
-    public IEnumerable<T> GetEntities<T>() where T : PlaceableEntity => PlacedEntities.OfType<T>();
-    public IEnumerable<PlaceableEntity> GetEntities() => PlacedEntities;
+    public IEnumerable<Entity> GetEntities() => Entities;
 
     public double GetTotalResourceAmount(Resource resource)
     {

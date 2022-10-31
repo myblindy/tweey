@@ -37,6 +37,17 @@ public sealed class ECSSourceGen : IIncrementalGenerator
         }
     }
 
+    class EcsComponentClass : EcsClass
+    {
+        public ImmutableArray<(string FullTypeName, string Name, string? Default)> Parameters { get; }
+
+        public EcsComponentClass(string name, IEnumerable<(string FullTypeName, string Name, string? Default)> parameters)
+            : base(name)
+        {
+            Parameters = ImmutableArray.CreateRange(parameters);
+        }
+    }
+
     class EcsSystemClass : EcsClass
     {
         public ImmutableHashSet<string> UsedComponents { get; }
@@ -61,7 +72,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
             where TEcsClass : EcsClass =>
                 context.SyntaxProvider
                     .CreateSyntaxProvider(
-                        static (node, _) => (node.IsKind(SyntaxKind.StructDeclaration) || node.IsKind(SyntaxKind.ClassDeclaration))
+                        static (node, _) => (node.IsKind(SyntaxKind.StructDeclaration) || node.IsKind(SyntaxKind.ClassDeclaration) || node.IsKind(SyntaxKind.RecordStructDeclaration))
                             && ((TypeDeclarationSyntax)node).AttributeLists.Count > 0,
                         (ctx, _) =>
                         {
@@ -83,11 +94,30 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                     .Where(static m => m is not null)
                     .Select(static (m, _) => m!);
 
-        var componentDeclarations = getDeclarations(ComponentAttributeFullName, static (structName, _, _) => new EcsClass(structName));
-        var systemDeclarations = getDeclarations(SystemAttributeFullName, static (className, semanticModel, sds) =>
+        var componentDeclarations = getDeclarations(ComponentAttributeFullName, static (structName, semanticModel, sds) =>
+        {
+            static string fixDefaultValue(object? s) => s switch
+            {
+                true => "true",
+                false => "false",
+                null => "default",
+                _ => s.ToString()
+            };
+
+            var constructorParameters = new List<(string FullTypeName, string Name, string? Default)>();
+            if (semanticModel.GetDeclaredSymbol(sds) is { } classSymbol)
+                if (classSymbol.Constructors.OrderByDescending(w => w.Parameters.Length).FirstOrDefault()?.Parameters is { } parameterSymbols)
+                    foreach (var parameterSymbol in parameterSymbols)
+                        constructorParameters.Add((parameterSymbol.Type.ToDisplayString(), parameterSymbol.Name,
+                            parameterSymbol.HasExplicitDefaultValue ? fixDefaultValue(parameterSymbol.ExplicitDefaultValue) : null));
+
+            return new EcsComponentClass(structName, constructorParameters);
+        });
+
+        var systemDeclarations = getDeclarations(SystemAttributeFullName, static (className, semanticModel, tds) =>
         {
             var components = new List<string>();
-            foreach (var attributeListSyntax in sds.AttributeLists)
+            foreach (var attributeListSyntax in tds.AttributeLists)
                 foreach (var attributeSyntax in attributeListSyntax.Attributes)
                     if (semanticModel.GetSymbolInfo(attributeSyntax).Symbol is IMethodSymbol attributeSymbol
                         && Regex.Match(attributeSymbol.ContainingType.ToDisplayString(), @"^Twee\.Ecs\.UsesAttribute<(.*)>$") is { Success: true } match)
@@ -96,12 +126,13 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                     }
 
             var messages = new List<(string FullReturnTypeName, string Name, IEnumerable<(string FullTypeName, string Name)> Parameters)>();
-            if (semanticModel.GetDeclaredSymbol(sds) is { } classSymbol)
+            if (semanticModel.GetDeclaredSymbol(tds) is { } classSymbol)
                 foreach (var memberSymbol in classSymbol.GetMembers().OfType<IMethodSymbol>())
                     foreach (var attribute in memberSymbol.GetAttributes())
                         if (attribute.AttributeClass?.ToDisplayString() is MessageAttributeFullName)
                         {
-                            messages.Add((memberSymbol.ReturnType.ToDisplayString(), memberSymbol.Name, memberSymbol.Parameters.Select(p => (p.Type.ToDisplayString(), p.Name))));
+                            messages.Add((memberSymbol.ReturnType.ToDisplayString(), memberSymbol.Name,
+                                memberSymbol.Parameters.Select(p => (p.Type.ToDisplayString(), p.Name))));
                             break;
                         }
 
@@ -242,7 +273,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                     }
 
                     {{string.Join(Environment.NewLine, components.Select(c => $$"""
-                        public static void Add{{c!.TypeRootName}}Component(Entity entity)
+                        public static ref {{c!.FullName}} Add{{c!.TypeRootName}}Component(Entity entity)
                         {
                             if (extraAvailable{{c!.TypeName}}IDs.Count > 0)
                             {
@@ -261,7 +292,20 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                                 if(true {{string.Concat(s.UsedComponents.Select(uc => $" && Has{uc}Component(entity)"))}})
                                     {{s!.TypeRootName}}System.Entities.Add(entity);
                                 """))}}
+
+                            return ref CollectionsMarshal.AsSpan({{c!.TypeName}}s)[{{c!.TypeName}}s.Count]; 
                         }
+
+                        {{(c.Parameters.Length == 0 ? "" : $$"""
+                            public static ref {{c!.FullName}} Add{{c!.TypeRootName}}Component(Entity entity,
+                                {{string.Join(", ", c.Parameters.Select(p =>
+                                    $"{p.FullTypeName} {p.Name} {(p.Default is null ? "" : $" = {p.Default}")}"))}})
+                            {
+                                ref var component = ref Add{{c!.TypeRootName}}Component(entity);
+                                {{string.Join(Environment.NewLine, c.Parameters.Select(p => $"component.{p.Name} = {p.Name};"))}}
+                                return ref component;
+                            }
+                            """)}}
 
                         public static bool Has{{c!.TypeRootName}}Component(Entity entity) =>
                             entityComponentMapping.ContainsKey((entity, Twee.Ecs.Components.{{c!.TypeRootName}}));

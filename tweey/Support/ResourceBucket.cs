@@ -1,18 +1,13 @@
-﻿namespace Tweey.Actors;
+﻿namespace Tweey.Support;
 
-public class ResourceBucket : PlaceableEntity
+internal class ResourceBucket
 {
     public ResourceBucket(params ResourceQuantity[] rq) : this(rq.AsEnumerable()) { }
     public ResourceBucket(IEnumerable<ResourceQuantity> rq)
     {
         (ResourceQuantities, AvailableResourceQuantities) = (new(resourceQuantities), new(availableResourceQuantities));
-        (Width, Height) = (1, 1);
         AddRange(rq);
     }
-
-    public override string Name { get => ResourceQuantities.FirstOrDefault()?.Resource.Name ?? "Empty Resource"; set => throw new NotImplementedException(); }
-    public override Box2 InterpolatedBox => Box;
-    public override Vector2 InterpolatedLocation { get => Location; set => Location = value; }
 
     readonly List<ResourceQuantity> resourceQuantities = new(), availableResourceQuantities = new();
 
@@ -20,7 +15,7 @@ public class ResourceBucket : PlaceableEntity
     public ReadOnlyCollection<ResourceQuantity> AvailableResourceQuantities { get; }
     readonly Dictionary<AIPlan, ResourceBucket> PlannedResourceBucket = new();
 
-    public Building? Building { get; set; }
+    public Entity? Building { get; set; }
 
     public ResourceBucket Clone()
     {

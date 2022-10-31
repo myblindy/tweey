@@ -3,7 +3,7 @@
 public enum AIPlanStepResult { Stay, NextStep, End }
 public record AIPlanStep(Func<double, AIPlanStepResult> Update, Action? DoneAction = null);
 
-public abstract class AIPlan
+internal abstract class AIPlan
 {
     protected Villager Villager { get; }
     protected World World { get; }
@@ -77,7 +77,7 @@ public abstract class AIPlan
         FirstTarget is { } && StepToPlaceable(FirstTarget, deltaSec) ? AIPlanStepResult.NextStep : AIPlanStepResult.Stay, stepDoneAction);
 }
 
-public abstract class TypedAIPlan<T> : AIPlan where T : PlaceableEntity
+internal abstract class TypedAIPlan<T> : AIPlan where T : PlaceableEntity
 {
     protected TypedAIPlan(World world, Villager villager, bool isEmergency, IEnumerable<T>? targets = null) : base(world, villager, isEmergency, targets)
     {
@@ -92,7 +92,7 @@ public abstract class TypedAIPlan<T> : AIPlan where T : PlaceableEntity
     protected T DequeueTarget() => (T)Targets.Dequeue();
 }
 
-public class ResourcePickupAIPlan : TypedAIPlan<ResourceBucket>
+internal class ResourcePickupAIPlan : TypedAIPlan<ResourceBucket>
 {
     public ResourcePickupAIPlan(World world, Villager villager)
         : base(world, villager, false)
@@ -122,7 +122,7 @@ public class ResourcePickupAIPlan : TypedAIPlan<ResourceBucket>
     public override string Description => "Gathering resources to haul.";
 }
 
-public class StoreInventoryAIPlan : TypedAIPlan<Building>
+internal class StoreInventoryAIPlan : TypedAIPlan<Building>
 {
     public StoreInventoryAIPlan(World world, Villager villager, Building storage) : base(world, villager, false, storage)
     {
@@ -141,7 +141,7 @@ public class StoreInventoryAIPlan : TypedAIPlan<Building>
     public override string Description => $"Dropping resources off to {PeekTarget()!.Name}.";
 }
 
-public class BuildAIPlan : TypedAIPlan<Building>
+internal class BuildAIPlan : TypedAIPlan<Building>
 {
     public BuildAIPlan(World world, Villager villager, Building building) : base(world, villager, false, building)
     {
@@ -166,7 +166,7 @@ public class BuildAIPlan : TypedAIPlan<Building>
     public override string Description => $"Building {PeekTarget()?.Name}.";
 }
 
-public class ChopTreeAIPlan : TypedAIPlan<Tree>
+internal class ChopTreeAIPlan : TypedAIPlan<Tree>
 {
     public ChopTreeAIPlan(World world, Villager villager, Tree tree) : base(world, villager, false, tree)
     {
@@ -192,7 +192,7 @@ public class ChopTreeAIPlan : TypedAIPlan<Tree>
     public override string Description => $"Chopping {PeekTarget()?.Name} tree.";
 }
 
-public class WorkAIPlan : TypedAIPlan<Building>
+internal class WorkAIPlan : TypedAIPlan<Building>
 {
     public WorkAIPlan(World world, Villager villager, Building building) : base(world, villager, false, building)
     {
@@ -235,7 +235,7 @@ public class WorkAIPlan : TypedAIPlan<Building>
     public override string Description => $"Working at {PeekTarget()?.Name}.";
 }
 
-public class EatAIPlan : AIPlan
+internal class EatAIPlan : AIPlan
 {
     public EatAIPlan(World world, Villager villager) : base(world, villager, true) =>
         Steps.Add(new(deltaSec =>
