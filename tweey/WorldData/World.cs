@@ -101,7 +101,7 @@ internal class World
                     var okay = true;
                     ResourceBucket? foundResourceBucket = default;
 
-                    foreach (var entity in Entities)
+                    foreach (var entity in EcsCoordinator.Entities)
                     {
                         if (EcsCoordinator.GetLocationComponent(entity).Box.Contains(location + dv.ToNumericsVector2()))
                             if (EcsCoordinator.HasResourceComponent(entity))

@@ -2,7 +2,7 @@
 
 namespace Tweey.Systems;
 
-[EcsSystem, Uses<LocationComponent>, Uses<RenderableComponent>]
+[EcsSystem(Archetypes.Render)]
 partial class RenderSystem
 {
     readonly World world;

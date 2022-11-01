@@ -2,6 +2,7 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Text;
@@ -16,6 +17,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
     const string ComponentAttributeFullName = "Twee.Ecs.EcsComponentAttribute";
     const string SystemAttributeFullName = "Twee.Ecs.EcsSystemAttribute";
     const string MessageAttributeFullName = "Twee.Ecs.MessageAttribute";
+    const string ArchetypeAttributeFullName = "Twee.Ecs.EcsArchetypesAttribute";
 
     static readonly Regex typeRootNameRegex = new(@"^.*?([^.]+?)(?:Component|System|Message)?$");
     static string GetTypeRootName(string name) =>
@@ -50,23 +52,33 @@ public sealed class ECSSourceGen : IIncrementalGenerator
 
     class EcsSystemClass : EcsClass
     {
-        public ImmutableHashSet<string> UsedComponents { get; }
+        public string? UsedArchetypeName { get; }
         public ImmutableArray<(string FullReturnTypeName, string Name, string RootName, ImmutableArray<(string FullTypeName, string Name)> Parameters)> Messages { get; }
 
-        public EcsSystemClass(string name, IEnumerable<string> usedComponents,
+        public EcsSystemClass(string name, string? usedArchetypeName,
             IEnumerable<(string FullReturnTypeName, string Name, IEnumerable<(string FullTypeName, string Name)> Parameters)> messages)
             : base(name)
         {
-            UsedComponents = ImmutableHashSet.CreateRange(usedComponents.Select(c =>
-                typeRootNameRegex.Match(c) is { Success: true } match ? match.Groups[1].Value : c));
+            UsedArchetypeName = usedArchetypeName;
 
             Messages = ImmutableArray.CreateRange(messages.Select(m => (m.FullReturnTypeName, m.Name, GetTypeRootName(m.Name), ImmutableArray.CreateRange(m.Parameters))));
         }
     }
 
+    class EcsArchetypesClass : EcsClass
+    {
+        public ImmutableArray<(string Name, ulong Components)> Archetypes { get; }
+
+        public EcsArchetypesClass(string name, IEnumerable<(string Name, ulong Components)> archetypes)
+            : base(name)
+        {
+            Archetypes = ImmutableArray.CreateRange(archetypes);
+        }
+    }
+
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        //Debugger.Launch();
+        // Debugger.Launch();
 
         IncrementalValuesProvider<TEcsClass> getDeclarations<TEcsClass>(string fullAttributeTypeName, Func<string, SemanticModel, TypeDeclarationSyntax, TEcsClass> generator)
             where TEcsClass : EcsClass =>
@@ -116,13 +128,19 @@ public sealed class ECSSourceGen : IIncrementalGenerator
 
         var systemDeclarations = getDeclarations(SystemAttributeFullName, static (className, semanticModel, tds) =>
         {
-            var components = new List<string>();
+            string? usedArchetypeName = null;
             foreach (var attributeListSyntax in tds.AttributeLists)
                 foreach (var attributeSyntax in attributeListSyntax.Attributes)
                     if (semanticModel.GetSymbolInfo(attributeSyntax).Symbol is IMethodSymbol attributeSymbol
-                        && Regex.Match(attributeSymbol.ContainingType.ToDisplayString(), @"^Twee\.Ecs\.UsesAttribute<(.*)>$") is { Success: true } match)
+                        && attributeSymbol.ContainingType.ToDisplayString() is SystemAttributeFullName
+                        && attributeSymbol.Parameters.Length == 1
+                        && attributeSyntax.ArgumentList?.Arguments.Count == 1
+                        && attributeSyntax.ArgumentList.Arguments[0] is { } argumentSyntax
+                        && argumentSyntax.Expression is MemberAccessExpressionSyntax argumentExpressionSyntax
+                        && argumentExpressionSyntax.Name is IdentifierNameSyntax { } argumentIdentifierNameSyntax)
                     {
-                        components.Add(match.Groups[1].Value);
+                        usedArchetypeName = argumentIdentifierNameSyntax.Identifier.ValueText;
+                        break;
                     }
 
             var messages = new List<(string FullReturnTypeName, string Name, IEnumerable<(string FullTypeName, string Name)> Parameters)>();
@@ -136,7 +154,18 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             break;
                         }
 
-            return new EcsSystemClass(className, components, messages);
+            return new EcsSystemClass(className, usedArchetypeName, messages);
+        });
+
+        var archetypeDeclarations = getDeclarations(ArchetypeAttributeFullName, static (className, semanticModel, tds) =>
+        {
+            var archetypes = new List<(string Name, ulong Components)>();
+            if (semanticModel.GetDeclaredSymbol(tds) is { } classSymbol)
+                foreach (var fieldSymbol in classSymbol.GetMembers().OfType<IFieldSymbol>())
+                    if (fieldSymbol.IsConst)
+                        archetypes.Add((fieldSymbol.Name, Convert.ToUInt64(fieldSymbol.ConstantValue)));
+
+            return new EcsArchetypesClass(className, archetypes);
         });
 
         context.RegisterPostInitializationOutput(ctx =>
@@ -168,14 +197,9 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                 [AttributeUsage(AttributeTargets.Class)]
                 internal sealed class EcsSystemAttribute : Attribute
                 {
+                    public EcsSystemAttribute(EcsComponents components) { }
                 }
                 
-                {{Common.GeneratedCodeAttributeText}}
-                [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
-                internal sealed class UsesAttribute<T> : Attribute
-                {
-                }
-
                 {{Common.GeneratedCodeAttributeText}}
                 [AttributeUsage(AttributeTargets.Method)]
                 internal sealed class MessageAttribute : Attribute
@@ -183,12 +207,18 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                 }
                 
                 {{Common.GeneratedCodeAttributeText}}
+                [AttributeUsage(AttributeTargets.Class)]
+                internal sealed class EcsArchetypesAttribute : Attribute
+                {
+                }
+
+                {{Common.GeneratedCodeAttributeText}}
                 internal static partial class EcsCoordinator
                 {
                     static int maxGeneratedEntityID;
                     static readonly SortedSet<int> extraAvailableEntityIDs = new();
-                    static readonly Dictionary<(Entity, Twee.Ecs.Components), int> entityComponentMapping = new();
-                    static readonly List<Twee.Ecs.Components> entityComponents = new();
+                    static readonly Dictionary<(Entity, EcsComponents), int> entityComponentMapping = new();
+                    static readonly List<EcsComponents> entityComponents = new();
 
                     static readonly List<Entity> entities = new();
                     public static ReadOnlyCollection<Entities> Entities { get; } = new(entities);
@@ -203,34 +233,40 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                 """);
             });
 
-        context.RegisterSourceOutput(componentDeclarations.Collect().Combine(systemDeclarations.Collect()), static (spc, input) =>
+        context.RegisterSourceOutput(componentDeclarations.Collect().Combine(systemDeclarations.Collect()).Combine(archetypeDeclarations.Collect()),
+            static (spc, input) =>
         {
             //Debugger.Launch();
 
             var sb = new StringBuilder();
 
-            var components = input.Left;
-            var systems = input.Right;
+            var components = input.Left.Left;
+            var systems = input.Left.Right;
+            var rawArchetypes = input.Right.FirstOrDefault();
+            var archetypes = rawArchetypes?.Archetypes.Select(at => (at.Name,
+                Components: Enumerable.Range(0, sizeof(ulong)).Select(bit => (at.Components & (1ul << bit)) == (1ul << bit) ? components[bit] : null)
+                    .Where(at => at is not null).ToList())).ToList();
 
             sb.AppendLine($$"""
                 {{string.Join(Environment.NewLine, systems.Select(s => $$"""
                     {{(s!.Namespace is not null ? $"namespace {s!.Namespace} {{" : "")}}
                     partial class {{s!.TypeName}}
                     {
-                        internal HashSet<Entity> Entities { get; } = new();
+                        internal HashSet<Entity> Entities { get; } = 
+                            EcsCoordinator.{{s.UsedArchetypeName}}Entities;
 
                         readonly ref struct IterationResult
                         {
                             public readonly Entity Entity;
-                            {{string.Join(Environment.NewLine, components.Select(c => $$"""
+                            {{string.Join(Environment.NewLine, archetypes.First(at => at.Name == s.UsedArchetypeName).Components.Select(c => $$"""
                                 public readonly ref {{c!.FullName}} {{c!.TypeRootName}}Component;
                                 """))}}
 
-                            public IterationResult(Entity entity {{string.Concat(components.Select(c =>
+                            public IterationResult(Entity entity {{string.Concat(archetypes.First(at => at.Name == s.UsedArchetypeName).Components.Select(c =>
                                 $", ref {c!.FullName} {c!.TypeRootName}Component"))}})
                             {
                                 Entity = entity;
-                                {{string.Join(Environment.NewLine, components.Select(c => $$"""
+                                {{string.Join(Environment.NewLine, archetypes.First(at => at.Name == s.UsedArchetypeName).Components.Select(c => $$"""
                                     this.{{c!.TypeRootName}}Component = ref {{c!.TypeRootName}}Component;
                                     """))}}
                             }
@@ -241,7 +277,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         {
                             foreach(var entity in Entities)
                                 process(new(entity
-                                    {{string.Concat(components.Select(c => $", ref EcsCoordinator.Get{c!.TypeRootName}Component(entity)"))}}
+                                    {{string.Concat(archetypes.First(at => at.Name == s.UsedArchetypeName).Components.Select(c => $", ref EcsCoordinator.Get{c!.TypeRootName}Component(entity)"))}}
                                 ));
                         }
                     }
@@ -252,7 +288,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
 
                 {{Common.GeneratedCodeAttributeText}}
                 [Flags]
-                internal enum Components: ulong { {{string.Join(", ",
+                internal enum EcsComponents : ulong { {{string.Join(", ",
                     components.Select((c, idx) => $"{c!.TypeRootName} = 1ul << {idx}"))}} }
 
                 internal static partial class EcsCoordinator
@@ -261,6 +297,10 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         static readonly List<{{c!.FullName}}> {{c!.TypeName}}s = new();
                         static readonly SortedSet<int> extraAvailable{{c!.TypeName}}IDs = new();
                         """))}}
+
+                    {{(rawArchetypes is null ? null : string.Join(Environment.NewLine, rawArchetypes.Archetypes.Select(at => $$"""
+                        internal static readonly HashSet<Entity> {{at.Name}}Entities = new();
+                        """)))}}
 
                     public static Entity CreateEntity()
                     {
@@ -271,10 +311,10 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                 
                             var entity = new Entity() { ID = id };
                 
+                            EnsureEntityComponentsListEntityExists(entity);
+                            entityComponents[entity] = 0;
                             {{string.Join(Environment.NewLine, components.Select(c => $$"""
-                                entityComponentMapping.Remove((entity, Twee.Ecs.Components.{{c!.TypeRootName}}));
-                                EnsureEntityComponentsListEntityExists(entity);
-                                entityComponents[entity] = 0;
+                                entityComponentMapping.Remove((entity, EcsComponents.{{c!.TypeRootName}}));
                                 """))}}
                                 
                             return entity;
@@ -282,10 +322,10 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                 
                         var entity0 = new Entity() { ID = maxGeneratedEntityID++ };
                 
+                        EnsureEntityComponentsListEntityExists(entity0);
+                        entityComponents[entity0] = 0;
                         {{string.Join(Environment.NewLine, components.Select(c => $$"""
-                            entityComponentMapping.Remove((entity0, Twee.Ecs.Components.{{c!.TypeRootName}}));
-                            EnsureEntityComponentsListEntityExists(entity0);
-                            entityComponents[entity0] = 0;
+                            entityComponentMapping.Remove((entity0, EcsComponents.{{c!.TypeRootName}}));
                             """))}}
                                 
                         return entity0;
@@ -299,20 +339,21 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                                 var componentId = extraAvailable{{c!.TypeName}}IDs.Min;
                                 extraAvailable{{c!.TypeName}}IDs.Remove(componentId);
                                 {{c!.TypeName}}s[(int)componentId] = new();
-                                entityComponentMapping[(entity, Twee.Ecs.Components.{{c!.TypeRootName}})] = componentId;
-                                entityComponents[entity] |= Twee.Ecs.Components.{{c!.TypeRootName}};
+                                entityComponentMapping[(entity, EcsComponents.{{c!.TypeRootName}})] = componentId;
+                                entityComponents[entity] |= EcsComponents.{{c!.TypeRootName}};
                             }
                             else
                             {
-                                entityComponentMapping[(entity, Twee.Ecs.Components.{{c!.TypeRootName}})] = {{c!.TypeName}}s.Count;
-                                entityComponents[entity] |= Twee.Ecs.Components.{{c!.TypeRootName}};
+                                entityComponentMapping[(entity, EcsComponents.{{c!.TypeRootName}})] = {{c!.TypeName}}s.Count;
+                                entityComponents[entity] |= EcsComponents.{{c!.TypeRootName}};
                                 {{c!.TypeName}}s.Add(new());
                             }
 
-                            {{string.Join(Environment.NewLine, systems.Select(s => !s.UsedComponents.Contains(c.TypeRootName) ? null : $$"""
-                                if(true {{string.Concat(s.UsedComponents.Select(uc => $" && Has{uc}Component(entity)"))}})
-                                    {{s!.TypeRootName}}System.Entities.Add(entity);
-                                """))}}
+                            {{(rawArchetypes is null ? null : string.Join(Environment.NewLine, rawArchetypes.Archetypes.Select(at =>
+                                (at.Components & (1ul << (components.IndexOf(c)))) != (1ul << (components.IndexOf(c))) ? null : $$"""
+                                if(entityComponents[entity] & {{at.Components}} == {{at.Components}})
+                                    {{at.Name}}Entities.Add(entity);
+                                """)))}}
 
                             return ref CollectionsMarshal.AsSpan({{c!.TypeName}}s)[{{c!.TypeName}}s.Count]; 
                         }
@@ -329,23 +370,24 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             """)}}
 
                         public static bool Has{{c!.TypeRootName}}Component(Entity entity) =>
-                            entityComponents[entity].HasFlag(Twee.Ecs.Components.{{c!.TypeRootName}});
+                            entityComponents[entity].HasFlag(EcsComponents.{{c!.TypeRootName}});
 
                         public static ref {{c!.FullName}} Get{{c!.TypeRootName}}Component(Entity entity) 
                         {
-                            if(!entityComponentMapping.TryGetValue((entity, Twee.Ecs.Components.{{c!.TypeRootName}}), out var componentId))
+                            if(!entityComponentMapping.TryGetValue((entity, EcsComponents.{{c!.TypeRootName}}), out var componentId))
                                 throw new InvalidOperationException();
                             return ref CollectionsMarshal.AsSpan({{c!.TypeName}}s)[componentId];
                         }
                         
                         public static bool Remove{{c!.TypeRootName}}Component(Entity entity) 
                         {
-                            var result = entityComponentMapping.Remove((entity, Twee.Ecs.Components.{{c!.TypeRootName}}));
-                            entityComponents[entity] &= ~Twee.Ecs.Components.{{c!.TypeRootName}};
+                            var result = entityComponentMapping.Remove((entity, EcsComponents.{{c!.TypeRootName}}));
+                            entityComponents[entity] &= ~EcsComponents.{{c!.TypeRootName}};
 
-                            {{string.Join(Environment.NewLine, systems.Select(s => !s.UsedComponents.Contains(c.TypeRootName) ? null : $$"""
-                                {{s!.TypeRootName}}System.Entities.Remove(entity);
-                                """))}}
+                            {{(rawArchetypes is null ? null : string.Join(Environment.NewLine, rawArchetypes.Archetypes.Select(at =>
+                                (at.Components & (1ul << (components.IndexOf(c)))) != (1ul << (components.IndexOf(c))) ? null : $$"""
+                                    {{at.Name}}Entities.Remove(entity);
+                                    """)))}}
 
                             return result;
                         }
