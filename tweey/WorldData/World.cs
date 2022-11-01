@@ -1,6 +1,4 @@
-﻿using System.Xml.Linq;
-
-namespace Tweey.WorldData;
+﻿namespace Tweey.WorldData;
 
 internal class World
 {
