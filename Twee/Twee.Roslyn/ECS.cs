@@ -1,10 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System.Buffers;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -67,12 +64,12 @@ public sealed class ECSSourceGen : IIncrementalGenerator
 
     class EcsArchetypesClass : EcsClass
     {
-        public ImmutableArray<(string Name, ulong Components)> Archetypes { get; }
+        public ImmutableArray<(string Name, ImmutableArray<string> Components)> Archetypes { get; }
 
-        public EcsArchetypesClass(string name, IEnumerable<(string Name, ulong Components)> archetypes)
+        public EcsArchetypesClass(string name, IEnumerable<(string Name, IEnumerable<string> Components)> archetypes)
             : base(name)
         {
-            Archetypes = ImmutableArray.CreateRange(archetypes);
+            Archetypes = ImmutableArray.CreateRange(archetypes.Select(w => (w.Name, ImmutableArray.CreateRange(w.Components))));
         }
     }
 
@@ -159,11 +156,28 @@ public sealed class ECSSourceGen : IIncrementalGenerator
 
         var archetypeDeclarations = getDeclarations(ArchetypeAttributeFullName, static (className, semanticModel, tds) =>
         {
-            var archetypes = new List<(string Name, ulong Components)>();
-            if (semanticModel.GetDeclaredSymbol(tds) is { } classSymbol)
-                foreach (var fieldSymbol in classSymbol.GetMembers().OfType<IFieldSymbol>())
-                    if (fieldSymbol.IsConst)
-                        archetypes.Add((fieldSymbol.Name, Convert.ToUInt64(fieldSymbol.ConstantValue)));
+            var archetypes = new List<(string Name, IEnumerable<string> Components)>();
+            foreach (var fieldSyntax in tds.Members.OfType<FieldDeclarationSyntax>())
+                foreach (var variableDeclaratorSyntax in fieldSyntax.Declaration.Variables)
+                {
+                    // decode a string of the form EcsComponents.Resource | EcsComponents.Location | EcsComponents.Inventory
+                    // at this point we didn't inject the EcsComponents enum yet, so we can't rely on Rosly to do it for us
+
+                    var components = new List<string>();
+                    if (variableDeclaratorSyntax.Initializer?.Value is { } expression)
+                    {
+                        while (expression is BinaryExpressionSyntax binaryExpressionSyntax && binaryExpressionSyntax.IsKind(SyntaxKind.BitwiseOrExpression))
+                        {
+                            if (binaryExpressionSyntax.Right is MemberAccessExpressionSyntax memberAccessExpressionSyntax)
+                                components.Add(memberAccessExpressionSyntax.Name.Identifier.Text);
+                            expression = binaryExpressionSyntax.Left;
+                        }
+                        if (expression is MemberAccessExpressionSyntax memberAccessExpressionSyntax0)
+                            components.Add(memberAccessExpressionSyntax0.Name.Identifier.Text);
+                    }
+
+                    archetypes.Add((variableDeclaratorSyntax.Identifier.ValueText, components));
+                }
 
             return new EcsArchetypesClass(className, archetypes);
         });
@@ -221,7 +235,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                     static readonly List<EcsComponents> entityComponents = new();
 
                     static readonly List<Entity> entities = new();
-                    public static ReadOnlyCollection<Entities> Entities { get; } = new(entities);
+                    public static ReadOnlyCollection<Entity> Entities { get; } = new(entities);
 
                     static void EnsureEntityComponentsListEntityExists(Entity entity)
                     {
@@ -244,10 +258,12 @@ public sealed class ECSSourceGen : IIncrementalGenerator
             var systems = input.Left.Right;
             var rawArchetypes = input.Right.FirstOrDefault();
             var archetypes = rawArchetypes?.Archetypes.Select(at => (at.Name,
-                Components: Enumerable.Range(0, sizeof(ulong)).Select(bit => (at.Components & (1ul << bit)) == (1ul << bit) ? components[bit] : null)
-                    .Where(at => at is not null).ToList())).ToList();
+                Components: at.Components.Select(c=> components.First(w=>w.TypeRootName==c)).ToList())).ToList();
 
             sb.AppendLine($$"""
+                #nullable enable
+
+                // systems
                 {{string.Join(Environment.NewLine, systems.Select(s => $$"""
                     {{(s!.Namespace is not null ? $"namespace {s!.Namespace} {{" : "")}}
                     partial class {{s!.TypeName}}
@@ -293,13 +309,41 @@ public sealed class ECSSourceGen : IIncrementalGenerator
 
                 internal static partial class EcsCoordinator
                 {
+                    // components
                     {{string.Join(Environment.NewLine, components.Select(c => $$"""
                         static readonly List<{{c!.FullName}}> {{c!.TypeName}}s = new();
                         static readonly SortedSet<int> extraAvailable{{c!.TypeName}}IDs = new();
                         """))}}
-
+                        
+                    // archetypes
                     {{(rawArchetypes is null ? null : string.Join(Environment.NewLine, rawArchetypes.Archetypes.Select(at => $$"""
                         internal static readonly HashSet<Entity> {{at.Name}}Entities = new();
+
+                        internal readonly ref struct {{at.Name}}IterationResult
+                        {
+                            public readonly Entity Entity;
+                            {{string.Join(Environment.NewLine, archetypes.First(at2 => at2.Name == at.Name).Components.Select(c => $$"""
+                                public readonly ref {{c!.FullName}} {{c!.TypeRootName}}Component;
+                                """))}}
+
+                            public {{at.Name}}IterationResult(Entity entity {{string.Concat(archetypes.First(at2 => at2.Name == at.Name).Components.Select(c =>
+                                $", ref {c!.FullName} {c!.TypeRootName}Component"))}})
+                            {
+                                Entity = entity;
+                                {{string.Join(Environment.NewLine, archetypes.First(at2 => at2.Name == at.Name).Components.Select(c => $$"""
+                                    this.{{c!.TypeRootName}}Component = ref {{c!.TypeRootName}}Component;
+                                    """))}}
+                            }
+                        }
+                        internal delegate void Iterate{{at.Name}}ArchetypeProcessDelegate(in {{at.Name}}IterationResult iterationResult);
+
+                        public static void Iterate{{at.Name}}Archetype(Iterate{{at.Name}}ArchetypeProcessDelegate process)
+                        {
+                            foreach(var entity in Entities)
+                                process(new(entity
+                                    {{string.Concat(archetypes.First(at2 => at2.Name == at.Name).Components.Select(c => $", ref EcsCoordinator.Get{c!.TypeRootName}Component(entity)"))}}
+                                ));
+                        }
                         """)))}}
 
                     public static Entity CreateEntity()
@@ -316,7 +360,8 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             {{string.Join(Environment.NewLine, components.Select(c => $$"""
                                 entityComponentMapping.Remove((entity, EcsComponents.{{c!.TypeRootName}}));
                                 """))}}
-                                
+                            
+                            entities.Add(entity);
                             return entity;
                         }
                 
@@ -327,10 +372,18 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         {{string.Join(Environment.NewLine, components.Select(c => $$"""
                             entityComponentMapping.Remove((entity0, EcsComponents.{{c!.TypeRootName}}));
                             """))}}
-                                
+                        
+                        entities.Add(entity0);
                         return entity0;
                     }
 
+                    public static bool DeleteEntity(Entity entity)
+                    {
+                        extraAvailableEntityIDs.Add(entity);
+                        return entities.Remove(entity);
+                    }
+
+                    // component functions
                     {{string.Join(Environment.NewLine, components.Select(c => $$"""
                         public static ref {{c!.FullName}} Add{{c!.TypeRootName}}Component(Entity entity)
                         {
@@ -350,10 +403,10 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             }
 
                             {{(rawArchetypes is null ? null : string.Join(Environment.NewLine, rawArchetypes.Archetypes.Select(at =>
-                                (at.Components & (1ul << (components.IndexOf(c)))) != (1ul << (components.IndexOf(c))) ? null : $$"""
-                                if(entityComponents[entity] & {{at.Components}} == {{at.Components}})
-                                    {{at.Name}}Entities.Add(entity);
-                                """)))}}
+                                !at.Components.Contains(c.TypeRootName) ? null : $$"""
+                                    if(entityComponents[entity] & {{at.Components}} == {{at.Components}})
+                                        {{at.Name}}Entities.Add(entity);
+                                    """)))}}
 
                             return ref CollectionsMarshal.AsSpan({{c!.TypeName}}s)[{{c!.TypeName}}s.Count]; 
                         }
@@ -385,7 +438,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             entityComponents[entity] &= ~EcsComponents.{{c!.TypeRootName}};
 
                             {{(rawArchetypes is null ? null : string.Join(Environment.NewLine, rawArchetypes.Archetypes.Select(at =>
-                                (at.Components & (1ul << (components.IndexOf(c)))) != (1ul << (components.IndexOf(c))) ? null : $$"""
+                                !at.Components.Contains(c.TypeRootName) ? null : $$"""
                                     {{at.Name}}Entities.Remove(entity);
                                     """)))}}
 
@@ -393,6 +446,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         }
                         """))}}
 
+                    // system data
                     {{string.Join(Environment.NewLine, systems.Select(s => $$"""
                         static {{s!.FullName}} {{s!.TypeRootName}}System;
                         public static void Construct{{s!.TypeRootName}}System(Func<{{s!.FullName}}> generator) => 

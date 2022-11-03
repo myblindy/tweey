@@ -1,6 +1,4 @@
-﻿using System.Xml.Linq;
-
-namespace Tweey.WorldData;
+﻿namespace Tweey.WorldData;
 
 internal class World
 {
@@ -8,9 +6,6 @@ internal class World
     public TreeTemplates TreeTemplates { get; }
     public BuildingTemplates BuildingTemplates { get; }
     public Configuration Configuration { get; }
-
-    readonly AIManager aiManager;
-    readonly SoundManager soundManager;
 
     internal Entity? SelectedEntity { get; set; }
     public BuildingTemplate? CurrentBuildingTemplate { get; set; }
@@ -38,14 +33,8 @@ internal class World
 
     public World(ILoader loader)
     {
-        (Resources, Configuration, aiManager) = (new(loader), new(loader), new(this));
+        (Resources, Configuration) = (new(loader), new(loader));
         (BuildingTemplates, TreeTemplates) = (new(loader, Resources), new(loader, Resources));
-        soundManager = new(this) { Volume = .1f };
-
-        StartedJob += soundManager.OnStartedJob;
-        EndedBuildingJob += soundManager.OnEndedJob;
-        PlacedBuilding += soundManager.OnPlacedBuilding;
-        CurrentBuildingTemplateChanged += soundManager.OnCurrentBuildingTemplateChanged;
     }
 
     internal Entity AddVillagerEntity(string name, Vector2 location)
@@ -57,7 +46,6 @@ internal class World
         EcsCoordinator.AddHeadingComponent(entity);
         EcsCoordinator.AddVillagerComponent(entity, name);
 
-        Entities.Add(entity);
         return entity;
     }
 
@@ -68,7 +56,6 @@ internal class World
         EcsCoordinator.AddRenderableComponent(entity, $"Data/Trees/{treeTemplate.Name}.png",
             OcclusionCircle: true, OcclusionScale: .3f);
 
-        Entities.Add(entity);
         return entity;
     }
 
@@ -134,8 +121,6 @@ internal class World
                 EcsCoordinator.AddLocationComponent(entity, Box2.FromCornerSize(chosenNeighbour.pt, new(1, 1)));
                 EcsCoordinator.AddResourceComponent(entity);
                 newRB = EcsCoordinator.AddInventoryComponent(entity).Inventory;
-
-                Entities.Add(entity);
             }
             var newRBWeight = newRB.AvailableWeight;
             int resourceIndex = 0;
@@ -167,7 +152,7 @@ internal class World
     internal bool RemoveEntity(Entity entity)
     {
         if (SelectedEntity == entity) SelectedEntity = null;
-        return Entities.Remove(entity);
+        return EcsCoordinator.DeleteEntity(entity);
     }
 
     public Vector2i GetWorldLocationFromScreenPoint(Vector2i screenPoint) =>
@@ -293,17 +278,8 @@ internal class World
     public void Update(double deltaSec)
     {
         TotalTime += TimeSpan.FromSeconds(deltaSec);
-
-        if (!Paused)
-        {
-            Offset += deltaOffsetNextFrame * (float)deltaSec * deltaOffsetPerSecond;
-            aiManager.Update(deltaSec);
-        }
-        soundManager.Update(deltaSec);
-        GetEntities<Villager>().ForEach(villager => villager.Update(deltaSec));
+        Offset += deltaOffsetNextFrame * (float)deltaSec * deltaOffsetPerSecond;
     }
-
-    public IEnumerable<Entity> GetEntities() => Entities;
 
     public double GetTotalResourceAmount(Resource resource)
     {
