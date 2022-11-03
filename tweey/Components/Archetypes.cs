@@ -3,9 +3,12 @@
 [EcsArchetypes]
 static class Archetypes
 {
-    public const EcsComponents ResourceLocationInventory = 
+    public const EcsComponents PlacedResource =
         EcsComponents.Resource | EcsComponents.Location | EcsComponents.Inventory;
 
-    public const EcsComponents Render = 
+    public const EcsComponents Building =
+        EcsComponents.Building | EcsComponents.Location;
+
+    public const EcsComponents Render =
         EcsComponents.Renderable | EcsComponents.Location;
 }

@@ -75,7 +75,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // Debugger.Launch();
+        //System.Diagnostics.Debugger.Launch();
 
         IncrementalValuesProvider<TEcsClass> getDeclarations<TEcsClass>(string fullAttributeTypeName, Func<string, SemanticModel, TypeDeclarationSyntax, TEcsClass> generator)
             where TEcsClass : EcsClass =>
@@ -197,6 +197,8 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                 internal readonly struct Entity : IEquatable<Entity>
                 {
                     public required int ID { get; init; }
+
+                    public static Entity Invalid = new() { ID = -1 };
 
                     public override bool Equals(object? obj) => obj is Entity entity && Equals(entity);
                     public bool Equals(Entity other) => ID == other.ID;
@@ -335,14 +337,17 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                                     """))}}
                             }
                         }
-                        internal delegate void Iterate{{at.Name}}ArchetypeProcessDelegate(in {{at.Name}}IterationResult iterationResult);
+                        internal delegate bool Iterate{{at.Name}}ArchetypeProcessDelegate(in {{at.Name}}IterationResult iterationResult);
 
                         public static void Iterate{{at.Name}}Archetype(Iterate{{at.Name}}ArchetypeProcessDelegate process)
                         {
                             foreach(var entity in Entities)
-                                process(new(entity
+                                if(!process(new(entity
                                     {{string.Concat(archetypes.First(at2 => at2.Name == at.Name).Components.Select(c => $", ref EcsCoordinator.Get{c!.TypeRootName}Component(entity)"))}}
-                                ));
+                                )))
+                                {
+                                    return false;
+                                }
                         }
                         """)))}}
 

@@ -16,11 +16,11 @@ internal class BuildingLightTemplate
     public Vector3 Color { get; set; }
 }
 
-internal class BuildingTemplate : PlaceableEntity, ITemplateFileName
+internal class BuildingTemplate : ITemplateFileName
 {
-    public override string Name { get; set; } = null!;
-    public override Box2 InterpolatedBox => Box;
-    public override Vector2 InterpolatedLocation { get => Location; set => Location = value; }
+    public string? Name { get; set; }
+    public int Width { get; set; }
+    public int Height { get; set; }
     public BuildingType Type { get; set; }
     public string FileName { get; set; } = null!;
     public int BuildWorkTicks { get; set; }

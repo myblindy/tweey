@@ -1,4 +1,6 @@
-﻿namespace Tweey.WorldData;
+﻿using Tweey.Loaders;
+
+namespace Tweey.WorldData;
 
 internal class World
 {
@@ -37,7 +39,8 @@ internal class World
         (BuildingTemplates, TreeTemplates) = (new(loader, Resources), new(loader, Resources));
     }
 
-    internal Entity AddVillagerEntity(string name, Vector2 location)
+    #region AddEntities
+    internal static Entity AddVillagerEntity(string name, Vector2 location)
     {
         var entity = EcsCoordinator.CreateEntity();
         EcsCoordinator.AddLocationComponent(entity, Box2.FromCornerSize(location, new(1, 1)));
@@ -49,26 +52,14 @@ internal class World
         return entity;
     }
 
-    internal Entity AddTreeEntity(TreeTemplate treeTemplate, Vector2 location)
+    internal static Entity AddTreeEntity(TreeTemplate treeTemplate, Vector2 location)
     {
         var entity = EcsCoordinator.CreateEntity();
         EcsCoordinator.AddLocationComponent(entity, Box2.FromCornerSize(location, new(1, 1)));
-        EcsCoordinator.AddRenderableComponent(entity, $"Data/Trees/{treeTemplate.Name}.png",
+        EcsCoordinator.AddRenderableComponent(entity, $"Data/Trees/{treeTemplate.FileName}.png",
             OcclusionCircle: true, OcclusionScale: .3f);
 
         return entity;
-    }
-
-    public void PlantForest(TreeTemplate treeTemplate, Vector2i center, float radius, float chanceCenter, float chanceEdge)
-    {
-        for (int y = (int)MathF.Ceiling(center.Y + radius); y >= MathF.Floor(center.Y - radius); --y)
-            for (int x = (int)MathF.Ceiling(center.X + radius); x >= MathF.Floor(center.X - radius); --x)
-            {
-                var distanceFromCenter = new Vector2i(Math.Abs(y - center.Y), Math.Abs(y - center.Y)).EuclideanLength;
-                var chance = chanceCenter * (radius - distanceFromCenter) / radius + chanceEdge * distanceFromCenter / radius;
-                if (Random.Shared.NextDouble() < chance)
-                    AddTreeEntity(treeTemplate, new(x, y));
-            }
     }
 
     public void AddResourceEntity(ResourceBucket resourceBucket, Vector2 location)
@@ -149,6 +140,30 @@ internal class World
         }
     }
 
+    public static Entity AddBuilding(BuildingTemplate buildingTemplate, Vector2 location, bool isBuilt)
+    {
+        var entity = EcsCoordinator.CreateEntity();
+        EcsCoordinator.AddLocationComponent(entity, Box2.FromCornerSize(location, new(1, 1)));
+        EcsCoordinator.AddRenderableComponent(entity, $"Data/Buildings/{buildingTemplate.FileName}.png", OcclusionScale: 1,
+            LightEmission: buildingTemplate.EmitLight?.Color.ToVector4(1) ?? default, LightRange: buildingTemplate.EmitLight?.Range ?? 0f);
+        EcsCoordinator.AddBuildingComponent(entity, isBuilt);
+
+        return entity;
+    }
+    #endregion
+
+    public static void PlantForest(TreeTemplate treeTemplate, Vector2i center, float radius, float chanceCenter, float chanceEdge)
+    {
+        for (int y = (int)MathF.Ceiling(center.Y + radius); y >= MathF.Floor(center.Y - radius); --y)
+            for (int x = (int)MathF.Ceiling(center.X + radius); x >= MathF.Floor(center.X - radius); --x)
+            {
+                var distanceFromCenter = new Vector2i(Math.Abs(y - center.Y), Math.Abs(y - center.Y)).EuclideanLength;
+                var chance = chanceCenter * (radius - distanceFromCenter) / radius + chanceEdge * distanceFromCenter / radius;
+                if (Random.Shared.NextDouble() < chance)
+                    AddTreeEntity(treeTemplate, new(x, y));
+            }
+    }
+
     internal bool RemoveEntity(Entity entity)
     {
         if (SelectedEntity == entity) SelectedEntity = null;
@@ -158,28 +173,44 @@ internal class World
     public Vector2i GetWorldLocationFromScreenPoint(Vector2i screenPoint) =>
         new((int)MathF.Floor(((screenPoint.X) / Zoom + Offset.X)), (int)MathF.Floor(((screenPoint.Y) / Zoom + Offset.Y)));
 
-    event Action<Building>? PlacedBuilding;
+    event Action<Entity>? PlacedBuilding;
     public void MouseEvent(Vector2i screenPosition, Vector2i worldLocation, InputAction? inputAction = null, MouseButton? mouseButton = null, KeyModifiers? keyModifiers = null)
     {
         if (inputAction == InputAction.Press && mouseButton == MouseButton.Button1)
         {
-            if (CurrentBuildingTemplate is not null
-                && !GetEntities<Building>().Any(b => b.Box.Intersects(Box2.FromCornerSize(worldLocation, new(CurrentBuildingTemplate.Width, CurrentBuildingTemplate.Height)))))
+            if (CurrentBuildingTemplate is not null)
             {
-                var building = Building.FromTemplate(CurrentBuildingTemplate, worldLocation.ToNumericsVector2(), false);
-                PlaceEntity(building);
-                PlacedBuilding?.Invoke(building);
-                if (keyModifiers?.HasFlag(KeyModifiers.Shift) != true)
-                    CurrentBuildingTemplate = null;
+                var okay = true;
+                EcsCoordinator.IterateBuildingArchetype((in EcsCoordinator.BuildingIterationResult w) =>
+                {
+                    if (w.LocationComponent.Box.Intersects(Box2.FromCornerSize(worldLocation, new(CurrentBuildingTemplate.Width, CurrentBuildingTemplate.Height))))
+                    {
+                        okay = false;
+                        return false;
+                    }
+
+                    return true;
+                });
+
+                if (okay)
+                {
+                    var building = AddBuilding(CurrentBuildingTemplate, worldLocation.ToNumericsVector2(), false);
+                    PlacedBuilding?.Invoke(building);
+                    if (keyModifiers?.HasFlag(KeyModifiers.Shift) != true)
+                        CurrentBuildingTemplate = null;
+                }
             }
             else
-            {
-                if (SelectedEntity is not null && SelectedEntity.Location.ToVector2i() == worldLocation)
-                    SelectedEntity = GetEntities().SkipWhile(e => e != SelectedEntity).Skip(1).FirstOrDefault(e => e.Box.Contains(worldLocation));
-                else
-                    SelectedEntity = null;
-                SelectedEntity ??= GetEntities().FirstOrDefault(e => e.Box.Contains(worldLocation));
-            }
+                EcsCoordinator.IterateRenderArchetype((in EcsCoordinator.RenderIterationResult w) =>
+                {
+                    if (w.LocationComponent.Box.Contains(worldLocation))
+                    {
+                        SelectedEntity = w.Entity;
+                        return false;
+                    }
+
+                    return true;
+                });
         }
         else if (inputAction == InputAction.Press && mouseButton == MouseButton.Button2)
             CurrentBuildingTemplate = null;
@@ -187,59 +218,44 @@ internal class World
         (MouseScreenPosition, MouseWorldPosition) = (screenPosition, worldLocation);
     }
 
-    event Action<PlaceableEntity, Villager>? StartedJob;
-    public void PlanWork<T>(T entity, Villager villager) where T : PlaceableEntity
+    event Action<Entity /* workable */, Entity /* worker */>? StartedJob;
+    public static void PlanWork(Entity workable, Entity worker)
     {
-        if (entity is Building building)
-            if (building.GetEmptyAssignedWorkerSlot() is { } emptyAssignedWorker)
-                emptyAssignedWorker.Villager = villager;
-            else
-                ThrowNoEmptyWorkerSlotException(entity, villager);
-        else if (entity is Tree tree)
-            if (tree.AssignedVillager is null)
-                tree.AssignedVillager = villager;
-            else
-                ThrowNoEmptyWorkerSlotException(entity, villager);
+        ref var workableComponent = ref EcsCoordinator.GetWorkableComponent(workable);
+        ref var emptyWorkerSlot = ref workableComponent.GetEmptyWorkerSlot();
+
+        if (emptyWorkerSlot.Entity != Entity.Invalid)
+            emptyWorkerSlot.Entity = worker;
         else
-            throw new NotImplementedException();
+            throw new InvalidOperationException($"Could not find an empty worker slot for {worker} to work on {workable}.");
     }
 
-    [DoesNotReturn]
-    static void ThrowNoEmptyWorkerSlotException<T>(T entity, Villager villager) where T : PlaceableEntity =>
-        throw new InvalidOperationException($"Could not find an empty worker slot for {villager} to work on {entity}.");
-
-    public void StartWork<T>(T entity, Villager villager) where T : PlaceableEntity
+    public void StartWork(Entity workable, Entity worker)
     {
-        StartedJob?.Invoke(entity, villager);
-        if (entity is Building building && building.GetAssignedWorkerSlot(villager) is { } assignedWorker)
-            assignedWorker.VillagerWorking = true;
-        else if (entity is Tree tree)
-            tree.AssignedVillagerWorking = true;
+        StartedJob?.Invoke(workable, worker);
+
+        ref var workableComponent = ref EcsCoordinator.GetWorkableComponent(workable);
+        ref var emptyWorkerSlot = ref workableComponent.GetAssignedWorkerSlot(worker);
+
+        if (emptyWorkerSlot.Entity != Entity.Invalid)
+            emptyWorkerSlot.EntityWorking = true;
         else
-            throw new NotImplementedException();
+            throw new InvalidOperationException($"Could not find worker slot on {workable} supposedly worked by {worker}.");
     }
 
-    event Action<PlaceableEntity, Villager, bool /* last */>? EndedBuildingJob;
-    public void EndWork<T>(T entity, Villager villager) where T : PlaceableEntity
+    event Action<Entity /* workable */, Entity /* worker */, bool /* last */>? EndedBuildingJob;
+    public void EndWork(Entity workable, Entity worker)
     {
-        if (entity is Building building)
+        ref var workableComponent = ref EcsCoordinator.GetWorkableComponent(workable);
+        ref var emptyWorkerSlot = ref workableComponent.GetAssignedWorkerSlot(worker);
+
+        if (emptyWorkerSlot.Entity != Entity.Invalid)
         {
-            if (building.IsBuilt)
-                if (building.GetAssignedWorkerSlot(villager) is { } assignedWorker)
-                    assignedWorker.Villager = null;
-                else
-                    ThrowNoEmptyWorkerSlotException(entity, villager);
-            else
-                building.FinishBuilding();
-            EndedBuildingJob?.Invoke(building, villager, !building.AssignedWorkers.Any(w => w.VillagerWorking));
-        }
-        else if (entity is Tree tree)
-        {
-            tree.AssignedVillager = null;
-            EndedBuildingJob?.Invoke(tree, villager, true);
+            EndedBuildingJob?.Invoke(workable, worker, !workableComponent.WorkerSlots.Any(w => w.EntityWorking));
+            emptyWorkerSlot.Clear();
         }
         else
-            throw new NotImplementedException();
+            throw new InvalidOperationException($"Could not find worker slot on {workable} supposedly worked by {worker}.");
     }
 
     event Action<BuildingTemplate?>? CurrentBuildingTemplateChanged;
@@ -279,16 +295,5 @@ internal class World
     {
         TotalTime += TimeSpan.FromSeconds(deltaSec);
         Offset += deltaOffsetNextFrame * (float)deltaSec * deltaOffsetPerSecond;
-    }
-
-    public double GetTotalResourceAmount(Resource resource)
-    {
-        double total = 0;
-        foreach (var entity in GetEntities())
-            if (entity is ResourceBucket rb)
-                total += (rb.ResourceQuantities.FirstOrDefault(w => w.Resource == resource)?.Quantity ?? 0);
-            else if (entity is Building { IsBuilt: true, Type: BuildingType.Storage, Inventory: { } buildingInventory })
-                total += (buildingInventory.ResourceQuantities.FirstOrDefault(w => w.Resource == resource)?.Quantity ?? 0);
-        return total;
     }
 }
