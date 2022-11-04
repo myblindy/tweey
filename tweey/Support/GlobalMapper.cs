@@ -8,10 +8,6 @@ internal static class GlobalMapper
 
     static GlobalMapper()
     {
-        Mapper.CreateMap<BuildingTemplate, Building>()
-            .ForMember(x => x.BuildCost, src => src.BuildCost.Clone());
-        Mapper.CreateMap<TreeTemplate, Tree>()
-            .ForMember(x => x.Inventory, src => src.Inventory.Clone());
         Mapper.CreateMap<BuildingTemplateIn, BuildingTemplate>()
             .ForMember(x => x.BuildWorkTicks, src => src.BuildCost!.WorkTicks)
             .ForMember(x => x.BuildCost, (src, resources) => new ResourceBucket(src.BuildCost!.Resources!.Select(rq => new ResourceQuantity(((ResourceTemplates)resources!)[rq.Resource!], rq.Quantity))))

@@ -75,7 +75,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        //System.Diagnostics.Debugger.Launch();
+        // System.Diagnostics.Debugger.Launch();
 
         IncrementalValuesProvider<TEcsClass> getDeclarations<TEcsClass>(string fullAttributeTypeName, Func<string, SemanticModel, TypeDeclarationSyntax, TEcsClass> generator)
             where TEcsClass : EcsClass =>
@@ -242,7 +242,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                     static void EnsureEntityComponentsListEntityExists(Entity entity)
                     {
                         int idx = entity;
-                        while(entityComponents.Length <= idx)
+                        while(entityComponents.Count <= idx)
                             entityComponents.Add(0);
                     }
                 }
@@ -260,7 +260,26 @@ public sealed class ECSSourceGen : IIncrementalGenerator
             var systems = input.Left.Right;
             var rawArchetypes = input.Right.FirstOrDefault();
             var archetypes = rawArchetypes?.Archetypes.Select(at => (at.Name,
-                Components: at.Components.Select(c=> components.First(w=>w.TypeRootName==c)).ToList())).ToList();
+                Components: at.Components.Select(c => components.First(w => w.TypeRootName == c)).ToList())).ToList();
+
+            ulong getComponentsRawValue(IEnumerable<string> selectedComponents)
+            {
+                static int findIndex<T>(IEnumerable<T> enumerable, Func<T, bool> test)
+                {
+                    int index = 0;
+                    foreach (var item in enumerable)
+                        if (!test(item))
+                            ++index;
+                        else
+                            return index;
+                    return -1;
+                }
+
+                ulong result = 0;
+                foreach (var component in selectedComponents)
+                    result += 1ul << findIndex(components, w => w.TypeRootName == component);
+                return result;
+            }
 
             sb.AppendLine($$"""
                 #nullable enable
@@ -346,7 +365,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                                     {{string.Concat(archetypes.First(at2 => at2.Name == at.Name).Components.Select(c => $", ref EcsCoordinator.Get{c!.TypeRootName}Component(entity)"))}}
                                 )))
                                 {
-                                    return false;
+                                    break;
                                 }
                         }
                         """)))}}
@@ -392,9 +411,10 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                     {{string.Join(Environment.NewLine, components.Select(c => $$"""
                         public static ref {{c!.FullName}} Add{{c!.TypeRootName}}Component(Entity entity)
                         {
+                            int componentId;
                             if (extraAvailable{{c!.TypeName}}IDs.Count > 0)
                             {
-                                var componentId = extraAvailable{{c!.TypeName}}IDs.Min;
+                                componentId = extraAvailable{{c!.TypeName}}IDs.Min;
                                 extraAvailable{{c!.TypeName}}IDs.Remove(componentId);
                                 {{c!.TypeName}}s[(int)componentId] = new();
                                 entityComponentMapping[(entity, EcsComponents.{{c!.TypeRootName}})] = componentId;
@@ -402,18 +422,18 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             }
                             else
                             {
-                                entityComponentMapping[(entity, EcsComponents.{{c!.TypeRootName}})] = {{c!.TypeName}}s.Count;
+                                entityComponentMapping[(entity, EcsComponents.{{c!.TypeRootName}})] = componentId = {{c!.TypeName}}s.Count;
                                 entityComponents[entity] |= EcsComponents.{{c!.TypeRootName}};
                                 {{c!.TypeName}}s.Add(new());
                             }
 
                             {{(rawArchetypes is null ? null : string.Join(Environment.NewLine, rawArchetypes.Archetypes.Select(at =>
                                 !at.Components.Contains(c.TypeRootName) ? null : $$"""
-                                    if(entityComponents[entity] & {{at.Components}} == {{at.Components}})
+                                    if((((ulong)entityComponents[entity]) & {{getComponentsRawValue(at.Components)}}) == {{getComponentsRawValue(at.Components)}})
                                         {{at.Name}}Entities.Add(entity);
                                     """)))}}
 
-                            return ref CollectionsMarshal.AsSpan({{c!.TypeName}}s)[{{c!.TypeName}}s.Count]; 
+                            return ref CollectionsMarshal.AsSpan({{c!.TypeName}}s)[componentId]; 
                         }
 
                         {{(c.Parameters.Length == 0 ? "" : $$"""
@@ -456,6 +476,8 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         static {{s!.FullName}} {{s!.TypeRootName}}System;
                         public static void Construct{{s!.TypeRootName}}System(Func<{{s!.FullName}}> generator) => 
                             {{s!.TypeRootName}}System = generator();
+
+                        public static bool Is{{s!.TypeRootName}}SystemConstructed => {{s!.TypeRootName}}System is not null;
 
                         {{string.Join(Environment.NewLine, s.Messages.Select(m => $$"""
                             public static {{m.FullReturnTypeName}} Send{{m.RootName}}MessageTo{{s.TypeRootName}}System(

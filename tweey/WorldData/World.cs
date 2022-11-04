@@ -140,7 +140,7 @@ internal class World
         }
     }
 
-    public static Entity AddBuilding(BuildingTemplate buildingTemplate, Vector2 location, bool isBuilt)
+    public static Entity AddBuildingEntity(BuildingTemplate buildingTemplate, Vector2 location, bool isBuilt)
     {
         var entity = EcsCoordinator.CreateEntity();
         EcsCoordinator.AddLocationComponent(entity, Box2.FromCornerSize(location, new(1, 1)));
@@ -194,7 +194,7 @@ internal class World
 
                 if (okay)
                 {
-                    var building = AddBuilding(CurrentBuildingTemplate, worldLocation.ToNumericsVector2(), false);
+                    var building = AddBuildingEntity(CurrentBuildingTemplate, worldLocation.ToNumericsVector2(), false);
                     PlacedBuilding?.Invoke(building);
                     if (keyModifiers?.HasFlag(KeyModifiers.Shift) != true)
                         CurrentBuildingTemplate = null;

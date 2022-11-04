@@ -51,8 +51,8 @@ class Program : GameWindow
         GL.Disable(EnableCap.CullFace);
         GL.Enable(EnableCap.Blend);
 
-        var villager = world.SelectedEntity = world.AddVillagerEntity("Sana", new(5, 1));
-        world.AddVillagerEntity("Momo", new(15, 20));
+        var villager = world.SelectedEntity = World.AddVillagerEntity("Sana", new(5, 1));
+        World.AddVillagerEntity("Momo", new(15, 20));
 
         world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["bread"], 100)), new(3, 3));
 
@@ -73,18 +73,10 @@ class Program : GameWindow
             new ResourceQuantity(world.Resources["iron"], 125)),
             new(20, 20));
 
-        world.PlantForest(world.TreeTemplates["pine"], new(3, 20), 6, .9f, .2f);
-        world.PlantForest(world.TreeTemplates["pine"], new(40, 12), 12, .8f, .1f);
+        World.PlantForest(world.TreeTemplates["pine"], new(3, 20), 6, .9f, .2f);
+        World.PlantForest(world.TreeTemplates["pine"], new(40, 12), 12, .8f, .1f);
 
-        var well = Building.FromTemplate(world.BuildingTemplates["well"], new(8, 12), false);
-        well.FinishBuilding();
-        well.ActiveProductionLines.Add(new()
-        {
-            ProductionLine = well.ProductionLines[0],
-            Type = ActiveProductionLineType.UntilStock,
-            OutputTarget = 20
-        });
-        world.PlaceEntity(well);
+        World.AddBuildingEntity(world.BuildingTemplates["well"], new(8, 12), false);
 
         EcsCoordinator.ConstructRenderSystem(() => new(world));
         EcsCoordinator.SendResizeMessageToRenderSystem(Size.X, Size.Y);
@@ -92,7 +84,8 @@ class Program : GameWindow
 
     protected override void OnResize(ResizeEventArgs e)
     {
-        EcsCoordinator.SendResizeMessageToRenderSystem(e.Width, e.Height);
+        if (EcsCoordinator.IsRenderSystemConstructed)
+            EcsCoordinator.SendResizeMessageToRenderSystem(e.Width, e.Height);
     }
 
     protected override void OnMouseDown(MouseButtonEventArgs e)

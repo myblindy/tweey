@@ -3,8 +3,8 @@
 [EcsComponent]
 struct WorkableComponent
 {
-    public WorkableComponent(int slots) =>
-        ResizeSlots(slots);
+    public WorkableComponent() =>
+        ResizeSlots(0);
 
     [MemberNotNull(nameof(WorkerSlots))]
     public void ResizeSlots(int slots)
