@@ -10,22 +10,8 @@ partial class RenderSystem
     readonly GrowableTextureAtlas3D atlas;
     readonly FontRenderer fontRenderer;
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    struct WindowUbo
-    {
-        Vector4 WindowSizeAndZero;
-        public Vector2 WindowSize
-        {
-            get => new(WindowSizeAndZero.X, WindowSizeAndZero.Y);
-            set => (WindowSizeAndZero.X, WindowSizeAndZero.Y) = (value.X, value.Y);
-        }
-    }
-
     readonly UniformBufferObject<WindowUbo> windowUbo = new();
     const int windowUboBindingPoint = 1;
-
-    [VertexDefinition, StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public record struct GuiVertex(Vector2 Location, Vector4 Color, Vector3 Tex0);
 
     readonly StreamingVertexArrayObject<GuiVertex> guiVAO = new();
     readonly ShaderProgram guiShaderProgram;
@@ -58,47 +44,6 @@ partial class RenderSystem
     const int lightsUboBindingPoint = 2;
     Texture2D lightMapTexture = null!;
     FrameBuffer lightMapFrameBuffer = null!;
-
-    [VertexDefinition, StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public record struct LightMapOcclusionFBVertex(Vector2 Location, Vector2 Tex0);
-
-    [VertexDefinition, StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public record struct LightMapFBVertex(Vector2 Location, Vector2 Tex0);
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    unsafe struct LightMapFBUbo
-    {
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public struct Light
-        {
-            public Vector4 LocationAndAngle { get; private set; }
-            public Vector4 RangeAndStartColor { get; private set; }
-
-            public const int Size = sizeof(float) * 8;
-            public static readonly Vector2 FullAngle = new(0, 1);
-
-            public Light(Vector2 location, float range, Vector3 startColor, Vector2 angleMinMax)
-            {
-                LocationAndAngle = new(location, angleMinMax.X, angleMinMax.Y);
-                RangeAndStartColor = new(range, startColor.X, startColor.Y, startColor.Z);
-            }
-
-            public void ClearToInvalid() =>
-                (LocationAndAngle, RangeAndStartColor) = (new(-100000, -100000, FullAngle.X, FullAngle.Y), new(0, 0, 0, 0));
-        }
-
-        public const int MaxLightCount = 16;
-        fixed byte Data[Light.Size * MaxLightCount];
-        public ref Light this[int idx]
-        {
-            get
-            {
-                Debug.Assert(idx >= 0 && idx < MaxLightCount);
-                fixed (byte* p = Data)
-                    return ref ((Light*)p)[idx];
-            }
-        }
-    }
 
     public RenderSystem(World world)
     {
@@ -240,25 +185,6 @@ partial class RenderSystem
             addLight((w.LocationComponent.Box.Center + new Vector2(.5f) - world.Offset) * world.Zoom, w.RenderableComponent.LightRange * world.Zoom,
                 w.RenderableComponent.LightEmission.GetXYZ(), w.RenderableComponent.LightFullCircle ? LightMapFBUbo.Light.FullAngle :
                     getAngleMinMaxFromHeading(EcsCoordinator.GetHeadingComponent(w.Entity).Heading, w.RenderableComponent.LightAngleRadius));
-
-            //if (entity is Villager villager)
-            //    addLight(new Vector2(entity.InterpolatedLocation.X + .5f - world.Offset.X, entity.InterpolatedLocation.Y + .5f - world.Offset.Y) * world.Zoom, 12 * world.Zoom,
-            //        lightCount == 1 ? new(.5f, .5f, .9f) : new(.9f, .5f, .5f), getAngleMinMaxFromHeading(villager.Heading, .1));
-            //else if (entity is Building { IsBuilt: true, Name: "Siren" })
-            //{
-            //    const float range = 12;
-            //    const float coneAngle = .25f / 2;
-            //    var heading = (float)(world.TotalTime.TotalSeconds / 4) % 1f;
-
-            //    var red = new Vector3(.6f, .1f, .1f);
-            //    var blue = new Vector3(.1f, .1f, .6f);
-            //    addLight((entity.Center + new Vector2(.5f) - world.Offset) * world.Zoom, range * world.Zoom, red, getAngleMinMaxFromHeading(heading, coneAngle));
-            //    addLight((entity.Center + new Vector2(.5f) - world.Offset) * world.Zoom, range * world.Zoom, blue, getAngleMinMaxFromHeading(heading + .25f, coneAngle));
-            //    addLight((entity.Center + new Vector2(.5f) - world.Offset) * world.Zoom, range * world.Zoom, red, getAngleMinMaxFromHeading(heading + .5f, coneAngle));
-            //    addLight((entity.Center + new Vector2(.5f) - world.Offset) * world.Zoom, range * world.Zoom, blue, getAngleMinMaxFromHeading(heading + .75f, coneAngle));
-            //}
-            //else if (entity is Building { IsBuilt: true, EmitLight: { } emitLight })
-            //    addLight((entity.Center + new Vector2(.5f) - world.Offset) * world.Zoom, emitLight.Range * world.Zoom, emitLight.Color, LightMapFBUbo.Light.FullAngle);
         });
 
         if (world.DebugShowLightAtMouse)
@@ -290,5 +216,66 @@ partial class RenderSystem
                 ScreenFillQuad(Box2.FromCornerSize(new Vector2(x, y) + normalizedGrassOffset,
                     new(grassTileSize)), new(.8f, .8f, .8f, 1), grassAtlasEntry);
             }
+
+        // store the actual entities' vertices(tri0)
+        EcsCoordinator.IterateRenderArchetype((in EcsCoordinator.RenderIterationResult w) =>
+        {
+            if (w.RenderableComponent.AtlasEntryName is { } atlasEntryName)
+                ScreenFillQuad(w.LocationComponent.Box, Colors4.White, atlas[atlasEntryName]);
+            return true;
+        });
+
+        var countTri0 = guiVAO.Vertices.Count;
+
+        // store the ai plan targets' vertices (lines)
+        // ...
+
+        // selection box (lines)
+        if (world.SelectedEntity is { } entity)
+            ScreenLineQuad(EcsCoordinator.GetLocationComponent(entity).Box, Colors4.White);
+        var countLines1 = guiVAO.Vertices.Count - countTri0;
+
+        // render top layer (tri2)
+        EcsCoordinator.IterateVillagerArchetype((in EcsCoordinator.VillagerIterationResult w) =>
+        {
+            ScreenString(w.VillagerComponent.Name, new() { Size = 16 },
+                new Vector2((w.LocationComponent.Box.Left + .5f - world.Offset.X) * world.Zoom, (w.LocationComponent.Box.Top - world.Offset.Y) * world.Zoom - 20),
+                Colors4.White, new(0, 0, 0, .4f), HorizontalAlignment.Center);
+            //if (world.ShowDetails)
+            //    ScreenString(villager.AIPlan?.Description, new() { Size = 13 },
+            //        new Vector2((villager.InterpolatedLocation.X + .5f - world.Offset.X) * world.Zoom, (villager.InterpolatedLocation.Y + 1 - world.Offset.Y) * world.Zoom),
+            //        Colors4.White, new(0, 0, 0, .4f), HorizontalAlignment.Center);
+
+            return true;
+        });
+
+        // building template
+        // ...
+
+        // render gui (tri2)
+        RenderGui();
+
+        var countTri2 = guiVAO.Vertices.Count - countTri0 - countLines1;
+
+        guiVAO.UploadNewData();
+
+        // draw the world (with light mapping)
+        guiLightMapShaderProgram.Use();
+        guiLightMapShaderProgram.Uniform("ambientColor", new Vector4(.3f, .3f, .3f, 1f));
+        atlas.Bind(0);
+        lightMapTexture.Bind(1);
+
+        GraphicsEngine.Viewport(0, 0, (int)windowUbo.Data.WindowSize.X, (int)windowUbo.Data.WindowSize.Y);
+        GraphicsEngine.BlendNormalAlpha();
+
+        guiVAO.Draw(PrimitiveType.Triangles, vertexOrIndexCount: countTri0);
+
+        // draw the gui overlays, which shouldn't be light mapped
+        guiShaderProgram.Use();
+        guiVAO.Draw(PrimitiveType.Lines, countTri0, countLines1);
+        guiVAO.Draw(PrimitiveType.Triangles, countTri0 + countLines1, countTri2);
+
+        // frame data
+        FrameData.NewFrame(TimeSpan.FromSeconds(deltaSec), TimeSpan.FromSeconds(updateDeltaSec), TimeSpan.FromSeconds(renderDeltaSec));
     }
 }

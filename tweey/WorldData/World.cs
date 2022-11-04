@@ -58,6 +58,8 @@ internal class World
         EcsCoordinator.AddLocationComponent(entity, Box2.FromCornerSize(location, new(1, 1)));
         EcsCoordinator.AddRenderableComponent(entity, $"Data/Trees/{treeTemplate.FileName}.png",
             OcclusionCircle: true, OcclusionScale: .3f);
+        EcsCoordinator.AddWorkableComponent(entity)
+            .ResizeSlots(1);
 
         return entity;
     }
@@ -147,6 +149,8 @@ internal class World
         EcsCoordinator.AddRenderableComponent(entity, $"Data/Buildings/{buildingTemplate.FileName}.png", OcclusionScale: 1,
             LightEmission: buildingTemplate.EmitLight?.Color.ToVector4(1) ?? default, LightRange: buildingTemplate.EmitLight?.Range ?? 0f);
         EcsCoordinator.AddBuildingComponent(entity, isBuilt);
+        EcsCoordinator.AddWorkableComponent(entity)
+            .ResizeSlots(buildingTemplate.MaxWorkersAmount);
 
         return entity;
     }
@@ -201,16 +205,23 @@ internal class World
                 }
             }
             else
+            {
+                var foundAny = false;
                 EcsCoordinator.IterateRenderArchetype((in EcsCoordinator.RenderIterationResult w) =>
                 {
                     if (w.LocationComponent.Box.Contains(worldLocation))
                     {
                         SelectedEntity = w.Entity;
+                        foundAny = true;
                         return false;
                     }
 
                     return true;
                 });
+
+                if (!foundAny)
+                    SelectedEntity = null;
+            }
         }
         else if (inputAction == InputAction.Press && mouseButton == MouseButton.Button2)
             CurrentBuildingTemplate = null;

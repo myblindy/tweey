@@ -360,7 +360,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
 
                         public static void Iterate{{at.Name}}Archetype(Iterate{{at.Name}}ArchetypeProcessDelegate process)
                         {
-                            foreach(var entity in Entities)
+                            foreach(var entity in {{at.Name}}Entities)
                                 if(!process(new(entity
                                     {{string.Concat(archetypes.First(at2 => at2.Name == at.Name).Components.Select(c => $", ref EcsCoordinator.Get{c!.TypeRootName}Component(entity)"))}}
                                 )))
