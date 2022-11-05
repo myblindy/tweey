@@ -505,12 +505,11 @@ public sealed class ECSSourceGen : IIncrementalGenerator
 
                     public static EcsDataDump DumpAllData() 
                     {
-                        var dump = new EcsDataDump();
-                        dump.Entities.AddRange(Entities);
+                        var dump = new EcsDataDump { MaxGeneratedEntityID = maxGeneratedEntityID };
+                        dump.ExtraAvailableEntitiesIDs.AddRange(extraAvailableEntityIDs);
 
-                        for(int eid = 0; eid < dump.Entities.Count; ++eid)
+                        foreach(var entity in Entities)
                         {
-                            var entity = dump.Entities[eid];
                             {{string.Join(Environment.NewLine, components.Select(c => $$"""
                                 if(Has{{c!.TypeRootName}}Component(entity))
                                     dump.{{c!.TypeRootName}}s.Add((entity, Get{{c!.TypeRootName}}Component(entity)));
@@ -523,7 +522,8 @@ public sealed class ECSSourceGen : IIncrementalGenerator
 
                 internal class EcsDataDump
                 {
-                    public List<Entity> Entities { get; } = new();
+                    public int MaxGeneratedEntityID { get; set; }
+                    public List<int> ExtraAvailableEntitiesIDs { get; } = new();
                     {{string.Join(Environment.NewLine, components.Select(c => $$"""
                         public List<(Entity Entity, {{c!.FullName}} Component)> {{c!.TypeRootName}}s { get; } = new();
                         """))}}
