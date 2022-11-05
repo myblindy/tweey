@@ -1,6 +1,4 @@
-﻿using Tweey.Loaders;
-
-namespace Tweey.WorldData;
+﻿namespace Tweey.WorldData;
 
 internal class World
 {
@@ -299,6 +297,32 @@ internal class World
             deltaOffsetNextFrame.X = 1;
         else if (inputAction == InputAction.Release && key is Keys.D)
             deltaOffsetNextFrame.X = 0;
+        else if (inputAction == InputAction.Press && key is Keys.F5)
+            Save("quick");
+    }
+
+    static readonly string SavesFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "My Games", "Tweey");
+    const string SavesExtension = "sav";
+
+    class SaveData
+    {
+        public EcsDataDump EcsDataDump { get; set; }
+        public Vector2 WorldOffset { get; set; }
+        public float WorldZoom { get; set; }
+    }
+
+    private void Save(string name)
+    {
+        var saveData = new SaveData
+        {
+            EcsDataDump = EcsCoordinator.DumpAllData(),
+            WorldOffset = Offset,
+            WorldZoom = Zoom
+        };
+
+        Directory.CreateDirectory(SavesFolder);
+        using var file = File.Create(Path.Combine(SavesFolder, $"{name}.{SavesExtension}"));
+        JsonSerializer.Serialize(file, saveData, Loader.BuildJsonOptions());
     }
 
     public TimeSpan TotalTime { get; private set; }

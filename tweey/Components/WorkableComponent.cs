@@ -1,4 +1,6 @@
-﻿namespace Tweey.Components;
+﻿using System.ComponentModel;
+
+namespace Tweey.Components;
 
 [EcsComponent]
 struct WorkableComponent

@@ -236,8 +236,8 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                     static readonly Dictionary<(Entity, EcsComponents), int> entityComponentMapping = new();
                     static readonly List<EcsComponents> entityComponents = new();
 
-                    static readonly List<Entity> entities = new();
-                    public static ReadOnlyCollection<Entity> Entities { get; } = new(entities);
+                    static readonly HashSet<Entity> entities = new();
+                    public static IReadOnlyCollection<Entity> Entities { get; } = entities;
 
                     static void EnsureEntityComponentsListEntityExists(Entity entity)
                     {
@@ -245,6 +245,19 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         while(entityComponents.Count <= idx)
                             entityComponents.Add(0);
                     }
+                }
+
+                class EntityJsonConverter : JsonConverter<Entity>
+                {
+                    public override Entity Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+                    {
+                        if (!reader.Read())
+                            throw new JsonException();
+                        return new() { ID = reader.GetInt32() };
+                    }
+                    
+                    public override void Write(Utf8JsonWriter writer, Entity value, JsonSerializerOptions options) =>
+                        writer.WriteNumberValue(value.ID);
                 }
                 """);
             });
@@ -492,6 +505,31 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             {{s!.TypeRootName}}System?.Run(deltaSec, updateDeltaSec, renderDeltaSec);
                             """))}}
                     }
+
+                    public static EcsDataDump DumpAllData() 
+                    {
+                        var dump = new EcsDataDump();
+                        dump.Entities.AddRange(Entities);
+
+                        for(int eid = 0; eid < dump.Entities.Count; ++eid)
+                        {
+                            var entity = dump.Entities[eid];
+                            {{string.Join(Environment.NewLine, components.Select(c => $$"""
+                                if(Has{{c!.TypeRootName}}Component(entity))
+                                    dump.{{c!.TypeRootName}}s.Add((entity, Get{{c!.TypeRootName}}Component(entity)));
+                                """))}}
+                        }
+
+                        return dump;
+                    }
+                }
+
+                internal class EcsDataDump
+                {
+                    public List<Entity> Entities { get; } = new();
+                    {{string.Join(Environment.NewLine, components.Select(c => $$"""
+                        public List<(Entity Entity, {{c!.FullName}} Component)> {{c!.TypeRootName}}s { get; } = new();
+                        """))}}
                 }
                 }
                 """);
