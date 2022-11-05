@@ -233,7 +233,6 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                 {
                     static int maxGeneratedEntityID;
                     static readonly SortedSet<int> extraAvailableEntityIDs = new();
-                    static readonly Dictionary<(Entity, EcsComponents), int> entityComponentMapping = new();
                     static readonly List<EcsComponents> entityComponents = new();
 
                     static readonly HashSet<Entity> entities = new();
@@ -275,19 +274,19 @@ public sealed class ECSSourceGen : IIncrementalGenerator
             var archetypes = rawArchetypes?.Archetypes.Select(at => (at.Name,
                 Components: at.Components.Select(c => components.First(w => w.TypeRootName == c)).ToList())).ToList();
 
+            static int findIndex<T>(IEnumerable<T> enumerable, Func<T, bool> test)
+            {
+                int index = 0;
+                foreach (var item in enumerable)
+                    if (!test(item))
+                        ++index;
+                    else
+                        return index;
+                return -1;
+            }
+
             ulong getComponentsRawValue(IEnumerable<string> selectedComponents)
             {
-                static int findIndex<T>(IEnumerable<T> enumerable, Func<T, bool> test)
-                {
-                    int index = 0;
-                    foreach (var item in enumerable)
-                        if (!test(item))
-                            ++index;
-                        else
-                            return index;
-                    return -1;
-                }
-
                 ulong result = 0;
                 foreach (var component in selectedComponents)
                     result += 1ul << findIndex(components, w => w.TypeRootName == component);
@@ -343,6 +342,8 @@ public sealed class ECSSourceGen : IIncrementalGenerator
 
                 internal static partial class EcsCoordinator
                 {
+                    static EcsMapping entityComponentMapping = new({{components.Length}});
+                    
                     // components
                     {{string.Join(Environment.NewLine, components.Select(c => $$"""
                         static readonly List<{{c!.FullName}}> {{c!.TypeName}}s = new();
@@ -395,7 +396,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             EnsureEntityComponentsListEntityExists(entity);
                             entityComponents[entity] = 0;
                             {{string.Join(Environment.NewLine, components.Select(c => $$"""
-                                entityComponentMapping.Remove((entity, EcsComponents.{{c!.TypeRootName}}));
+                                entityComponentMapping[entity, {{findIndex(components, w => w == c)}}] = -1;
                                 """))}}
                             
                             entities.Add(entity);
@@ -407,7 +408,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         EnsureEntityComponentsListEntityExists(entity0);
                         entityComponents[entity0] = 0;
                         {{string.Join(Environment.NewLine, components.Select(c => $$"""
-                            entityComponentMapping.Remove((entity0, EcsComponents.{{c!.TypeRootName}}));
+                            entityComponentMapping[entity0, {{findIndex(components, w => w == c)}}] = -1;
                             """))}}
                         
                         entities.Add(entity0);
@@ -430,12 +431,12 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                                 componentId = extraAvailable{{c!.TypeName}}IDs.Min;
                                 extraAvailable{{c!.TypeName}}IDs.Remove(componentId);
                                 {{c!.TypeName}}s[(int)componentId] = new();
-                                entityComponentMapping[(entity, EcsComponents.{{c!.TypeRootName}})] = componentId;
+                                entityComponentMapping[entity, {{findIndex(components, w => w == c)}}] = componentId;
                                 entityComponents[entity] |= EcsComponents.{{c!.TypeRootName}};
                             }
                             else
                             {
-                                entityComponentMapping[(entity, EcsComponents.{{c!.TypeRootName}})] = componentId = {{c!.TypeName}}s.Count;
+                                entityComponentMapping[entity, {{findIndex(components, w => w == c)}}] = componentId = {{c!.TypeName}}s.Count;
                                 entityComponents[entity] |= EcsComponents.{{c!.TypeRootName}};
                                 {{c!.TypeName}}s.Add(new());
                             }
@@ -465,22 +466,18 @@ public sealed class ECSSourceGen : IIncrementalGenerator
 
                         public static ref {{c!.FullName}} Get{{c!.TypeRootName}}Component(Entity entity) 
                         {
-                            if(!entityComponentMapping.TryGetValue((entity, EcsComponents.{{c!.TypeRootName}}), out var componentId))
-                                throw new InvalidOperationException();
-                            return ref CollectionsMarshal.AsSpan({{c!.TypeName}}s)[componentId];
+                            return ref CollectionsMarshal.AsSpan({{c!.TypeName}}s)[entityComponentMapping[entity, {{findIndex(components, w => w == c)}}]];
                         }
                         
-                        public static bool Remove{{c!.TypeRootName}}Component(Entity entity) 
+                        public static void Remove{{c!.TypeRootName}}Component(Entity entity) 
                         {
-                            var result = entityComponentMapping.Remove((entity, EcsComponents.{{c!.TypeRootName}}));
+                            entityComponentMapping[entity, {{findIndex(components, w => w == c)}}] = -1;
                             entityComponents[entity] &= ~EcsComponents.{{c!.TypeRootName}};
 
                             {{(rawArchetypes is null ? null : string.Join(Environment.NewLine, rawArchetypes.Archetypes.Select(at =>
                                 !at.Components.Contains(c.TypeRootName) ? null : $$"""
                                     {{at.Name}}Entities.Remove(entity);
                                     """)))}}
-
-                            return result;
                         }
                         """))}}
 

@@ -78,6 +78,7 @@ class Program : GameWindow
 
         World.AddBuildingEntity(world.BuildingTemplates["well"], new(8, 12), false);
 
+        EcsCoordinator.ConstructSetPlacedResourceAtlasEntrySystem(() => new());
         EcsCoordinator.ConstructRenderSystem(() => new(world));
         EcsCoordinator.SendResizeMessageToRenderSystem(Size.X, Size.Y);
     }

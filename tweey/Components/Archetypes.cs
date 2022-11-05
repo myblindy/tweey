@@ -4,7 +4,7 @@
 static class Archetypes
 {
     public const EcsComponents PlacedResource =
-        EcsComponents.Resource | EcsComponents.Location | EcsComponents.Inventory;
+        EcsComponents.Resource | EcsComponents.Location | EcsComponents.Inventory | EcsComponents.Renderable;
 
     public const EcsComponents Building =
         EcsComponents.Building | EcsComponents.Location;
