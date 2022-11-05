@@ -1,4 +1,6 @@
-﻿namespace Tweey.WorldData;
+﻿using System.IO.Compression;
+
+namespace Tweey.WorldData;
 
 internal class World
 {
@@ -322,7 +324,8 @@ internal class World
 
         Directory.CreateDirectory(SavesFolder);
         using var file = File.Create(Path.Combine(SavesFolder, $"{name}.{SavesExtension}"));
-        JsonSerializer.Serialize(file, saveData, Loader.BuildJsonOptions());
+        using var compressStream = new GZipStream(file, CompressionLevel.SmallestSize, true);
+        JsonSerializer.Serialize(compressStream, saveData, Loader.BuildJsonOptions());
     }
 
     public TimeSpan TotalTime { get; private set; }
