@@ -3,9 +3,16 @@
 namespace Twee.Core;
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-public struct Box2 : IEquatable<Box2>
+public readonly struct Box2 : IEquatable<Box2>
 {
-    public Vector2 TopLeft, BottomRight;
+    public readonly Vector2 TopLeft, BottomRight;
+
+    public Box2(Vector2 tl, Vector2 br)
+    {
+        var (x0, x1) = tl.X <= br.X ? (tl.X, br.X) : (br.X, tl.X);
+        var (y0, y1) = tl.Y <= br.Y ? (tl.Y, br.Y) : (br.Y, tl.Y);
+        (TopLeft, BottomRight) = (new(x0, y0), new(x1, y1));
+    }
 
     public float Left => TopLeft.X;
     public float Top => TopLeft.Y;
@@ -20,16 +27,21 @@ public struct Box2 : IEquatable<Box2>
     public Vector2 Size => BottomRight - TopLeft + Vector2.One;
 
     public static Box2 FromCornerSize(Vector2 topLeft, Vector2 size) =>
-        new() { TopLeft = topLeft, BottomRight = topLeft + size - Vector2.One };
+        new(topLeft, topLeft + size - Vector2.One);
     public static Box2 FromCornerSize(Vector2i topLeft, Vector2i size) =>
         FromCornerSize(topLeft.ToNumericsVector2(), size.ToNumericsVector2());
 
+    public static Box2 FromCornerSize(float left, float top, float width, float height) =>
+        FromCornerSize(new Vector2(left, top), new Vector2(width, height));
+    public static Box2 FromCornerSize(int left, int top, int width, int height) =>
+        FromCornerSize(new Vector2i(left, top), new Vector2i(width, height));
+
     public static Box2 FromCornerSize(Vector2 topLeft, float width, float height) =>
-        new() { TopLeft = topLeft, BottomRight = topLeft + new Vector2(width - 1, height - 1) };
+        new(topLeft, topLeft + new Vector2(width - 1, height - 1));
     public static Box2 FromCornerSize(Vector2i topLeft, float width, float height) =>
         FromCornerSize(topLeft.ToNumericsVector2(), width, height);
 
-    public Box2 WithExpand(Vector2 offset) => new() { TopLeft = TopLeft - offset, BottomRight = BottomRight + offset };
+    public Box2 WithExpand(Vector2 offset) => new(TopLeft - offset, BottomRight + offset);
     public Box2 WithExpand(Vector2i offset) => WithExpand(offset.ToNumericsVector2());
 
     public bool Intersects(Box2 other) => Left <= other.Right && Right >= other.Left && Top <= other.Bottom && Bottom >= other.Top;

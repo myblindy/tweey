@@ -14,6 +14,8 @@ public class ConfigurationData
     public double BaseEatSpeed { get; set; }
     public double BaseHungerPercentage { get; set; }
     public double BaseHungerEmergencyPercentage { get; set; }
+    public Vector3 ZoneGrowColor { get; set; }
+    public Vector3 ZoneErrorColor { get; set; }
 }
 
 public class Configuration

@@ -189,13 +189,31 @@ partial class RenderSystem
 
         if (world.DebugShowLightAtMouse)
         {
-            var totalTimeSec = (float)world.TotalTime.TotalSeconds;
+            var totalTimeSec = (float)world.TotalRealTime.TotalSeconds;
             addLight(new Vector2(world.MouseScreenPosition.X, world.MouseScreenPosition.Y) - world.Offset * world.Zoom, 16 * world.Zoom,
                 new(MathF.Sin(totalTimeSec / 2f) / 2 + 1, MathF.Sin(totalTimeSec / 4f) / 2 + 1, MathF.Sin(totalTimeSec / 6f) / 2 + 1),
                 LightMapFBUbo.Light.FullAngle);
         }
 
         renderLights();
+    }
+
+    void RenderZone(Box2 box, ZoneType zoneType, bool error, bool showGrid)
+    {
+        const float zoneBackgroundAlpha = .7f;
+        ScreenFillQuad(box, error ? world.Configuration.Data.ZoneErrorColor.ToVector4(zoneBackgroundAlpha) : zoneType switch
+        {
+            ZoneType.Grow => world.Configuration.Data.ZoneGrowColor.ToVector4(zoneBackgroundAlpha),
+            _ => throw new NotImplementedException()
+        }, blankAtlasEntry);
+
+        if (showGrid)
+        {
+            var cellAtlas = atlas["Data/Misc/zonecell.png"];
+            for (var y = box.Top; y <= box.Bottom; ++y)
+                for (var x = box.Left; x <= box.Right; ++x)
+                    ScreenFillQuad(Box2.FromCornerSize(x, y, 1, 1), Colors4.White, cellAtlas);
+        }
     }
 
     public void Run(double deltaSec, double updateDeltaSec, double renderDeltaSec)
@@ -222,6 +240,11 @@ partial class RenderSystem
         {
             if (w.RenderableComponent.AtlasEntryName is { } atlasEntryName)
                 ScreenFillQuad(w.LocationComponent.Box, Colors4.White, atlas[atlasEntryName]);
+            else if (EcsCoordinator.HasZoneComponent(w.Entity))
+            {
+                ref var zoneComponent = ref EcsCoordinator.GetZoneComponent(w.Entity);
+                RenderZone(w.LocationComponent.Box, zoneComponent.Type, false, false);
+            }
             return true;
         });
 
@@ -251,6 +274,13 @@ partial class RenderSystem
 
         // building template
         // ...
+
+        // zone template
+        if (world.CurrentZoneType is not null && world.CurrentZoneStartPoint is not null
+            && Box2.FromCornerSize(world.CurrentZoneStartPoint.Value, world.MouseWorldPosition - world.CurrentZoneStartPoint.Value + Vector2i.One) is { } zoneBox)
+        {
+            RenderZone(zoneBox, world.CurrentZoneType.Value, !world.IsZoneValid(zoneBox), true);
+        }
 
         // render gui (tri2)
         RenderGui();

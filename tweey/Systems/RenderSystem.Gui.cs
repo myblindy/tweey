@@ -8,15 +8,66 @@ partial class RenderSystem
         var highlightColor = Colors4.Aqua;
         var defaultFontSize = 18;
 
-        //gui.RootViewDescriptions.Add(new(
-        //    new StackView(StackType.Vertical)
-        //    {
-        //        BackgroundColor = new(.1f, .1f, .1f, 1),
-        //        MinWidth = () => WidthPercentage(50),
-        //        MinHeight = () => HeightPercentage(20),
-        //        Padding = new(8),
-        //        Children =
-        //        {
+        gui.RootViewDescriptions.Add(new(
+            new StackView(StackType.Vertical)
+            {
+                Children =
+                {
+                    new LabelView { Text = () => $"Time: {world.WorldTimeString}" },
+                    new StackView(StackType.Horizontal)
+                    {
+                        Children=
+                        {
+                            new ButtonView
+                            {
+                                Child = new LabelView { Text = () => "1x" },
+                                IsChecked = () => world.TimeSpeedUp == 1,
+                                Clicked = () => world.TimeSpeedUp = 1,
+                            },
+                            new ButtonView
+                            {
+                                Child = new LabelView { Text = () => "2x" },
+                                IsChecked = () => world.TimeSpeedUp == 2,
+                                Clicked = () => world.TimeSpeedUp = 2,
+                            },
+                            new ButtonView
+                            {
+                                Child = new LabelView { Text = () => "4x" },
+                                IsChecked = () => world.TimeSpeedUp == 4,
+                                Clicked = () => world.TimeSpeedUp = 4,
+                            },
+                            new ButtonView
+                            {
+                                Child = new LabelView { Text = () => "8x" },
+                                IsChecked = () => world.TimeSpeedUp == 8,
+                                Clicked = () => world.TimeSpeedUp = 8,
+                            },
+                        }
+                    }
+                }
+            }, Anchor.BottomRight));
+
+        gui.RootViewDescriptions.Add(new(
+            new StackView(StackType.Vertical)
+            {
+                BackgroundColor = new(.1f, .1f, .1f, 1),
+                Padding = new(8),
+                Children =
+                {
+                    new StackView(StackType.Vertical)
+                    {
+                        Children =
+                        {
+                            new LabelView() { Text = () => "Zones" },
+                            new ButtonView()
+                            {
+                                Child = new LabelView() { Text = () => "Grow Zone" },
+                                IsChecked = () => world.CurrentZoneType.HasValue,
+                                Clicked = () => (world.CurrentZoneType, world.CurrentZoneStartPoint) =
+                                    (ZoneType.Grow, null),
+                            }
+                        }
+                    }
         //            new StackView(StackType.Vertical)
         //            {
         //                Visible = () => world.SelectedEntity is not null,
@@ -207,8 +258,8 @@ partial class RenderSystem
         //                    }
         //                }
         //            }
-        //        }
-        //    }, Anchor.BottomLeft));
+                }
+            }, Anchor.BottomLeft));
 
         gui.RootViewDescriptions.Add(new(
             new StackView(StackType.Vertical)

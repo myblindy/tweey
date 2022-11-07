@@ -37,7 +37,7 @@ partial class RenderSystem
         guiVAO.Vertices.Add(new((box.TopLeft - offset) * zoom, color, uv0));
     }
 
-    enum FrameType { Normal, Hover }
+    enum FrameType { Normal = 0, Hover = 1 << 0, Checked = 1 << 2 }
     /// <summary>
     /// Fills a quad with a frame made by two textures, the corner and the edge textures respectively. 
     /// <para>Naming conventions:</para>
@@ -51,12 +51,12 @@ partial class RenderSystem
     /// <param name="elementWidth">The width of the corner &amp; edge textures, in pixels. Looks best with the pixel width, but it scales as needed.</param>
     void ScreenFillFrame(Box2 box, string baseTextureName, float elementWidth, FrameType frameType = FrameType.Normal)
     {
-        var cornerTexture = atlas[$"Data/Misc/{baseTextureName}{(frameType is FrameType.Hover ? "-hover" : "")}-corner.png"];
-        var edgeTexture = atlas[$"Data/Misc/{baseTextureName}{(frameType is FrameType.Hover ? "-hover" : "")}-edge.png"];
+        var cornerTexture = atlas[$"Data/Misc/{baseTextureName}{(frameType.HasFlag(FrameType.Hover) ? "-hover" : "")}{(frameType.HasFlag(FrameType.Checked) ? "-checked" : "")}-corner.png"];
+        var edgeTexture = atlas[$"Data/Misc/{baseTextureName}{(frameType.HasFlag(FrameType.Hover) ? "-hover" : "")}{(frameType.HasFlag(FrameType.Checked) ? "-checked" : "")}-edge.png"];
 
         ScreenFillQuad(Box2.FromCornerSize(box.TopLeft, new(elementWidth)),
             Colors4.White, cornerTexture, false);
-        ScreenFillQuad(Box2.FromCornerSize(box.TopLeft + new Vector2(elementWidth, 0), new(box.Size.X - 2 * elementWidth + 2, elementWidth)),
+        ScreenFillQuad(Box2.FromCornerSize(box.TopLeft + new Vector2(elementWidth - 1, 0), new(box.Size.X - 2 * elementWidth + 2, elementWidth)),
             Colors4.White, edgeTexture, false);
 
         ScreenFillQuad(Box2.FromCornerSize(box.TopRight - new Vector2(elementWidth + 1, -1), new(elementWidth)),
@@ -71,7 +71,7 @@ partial class RenderSystem
 
         ScreenFillQuad(Box2.FromCornerSize(box.BottomLeft - new Vector2(1, elementWidth + 3), new(elementWidth)),
             Colors4.White, cornerTexture, false, GuiTransformType.Rotate270);
-        ScreenFillQuad(Box2.FromCornerSize(box.TopLeft + new Vector2(-1, elementWidth - 4), new(elementWidth, box.Size.Y - 2 * elementWidth)),
+        ScreenFillQuad(Box2.FromCornerSize(box.TopLeft + new Vector2(-1, elementWidth - 3), new(elementWidth, box.Size.Y - 2 * elementWidth)),
             Colors4.White, edgeTexture, false, GuiTransformType.Rotate270);
 
         ScreenFillQuad(Box2.FromCornerSize(box.TopLeft + new Vector2(elementWidth - 1), new(box.Size.X - 2 * elementWidth, box.Size.Y - 2 * elementWidth)),
@@ -351,7 +351,7 @@ partial class RenderSystem
             case LabelView labelView:
                 if (labelView.Text?.Invoke() is { } text && !string.IsNullOrEmpty(text) && labelView.ForegroundColor.Invoke() is { } labelForegroundColor)
                     ScreenString(text, new() { Size = labelView.FontSize },
-                        new Box2 { TopLeft = box.TopLeft + new Vector2(view.Margin.Left, view.Margin.Top), BottomRight = box.BottomRight - new Vector2(view.Margin.Right, view.Margin.Bottom) },
+                        new Box2(box.TopLeft + new Vector2(view.Margin.Left, view.Margin.Top), box.BottomRight - new Vector2(view.Margin.Right, view.Margin.Bottom)),
                         labelForegroundColor, labelView.BackgroundColor, labelView.HorizontalTextAlignment);
                 break;
             case ProgressView progressView:
@@ -368,7 +368,7 @@ partial class RenderSystem
                         ScreenFillQuad(box, progressView.BackgroundColor, blankAtlasEntry, false);
                     ScreenFillQuad(Box2.FromCornerSize(box.TopLeft, (float)(box.Size.X * value / maximum), box.Size.Y), progressForegroundColor, blankAtlasEntry, false);
                     ScreenString(string.Format(stringFormat, value / maximum * 100), new() { Size = progressView.FontSize },
-                        new Box2 { TopLeft = box.TopLeft + new Vector2(view.Margin.Left, view.Margin.Top), BottomRight = box.BottomRight - new Vector2(view.Margin.Right, view.Margin.Bottom) },
+                        new Box2(box.TopLeft + new Vector2(view.Margin.Left, view.Margin.Top), box.BottomRight - new Vector2(view.Margin.Right, view.Margin.Bottom)),
                         progressView.TextColor, Colors4.Transparent, progressView.HorizontalTextAlignment);
                 }
                 break;
@@ -378,7 +378,8 @@ partial class RenderSystem
                 break;
             case ButtonView buttonView:
                 ScreenFillFrame(box, "button", ButtonBorderTextureWidth,
-                    box.Contains(world.MouseScreenPosition) ? FrameType.Hover : FrameType.Normal);
+                    (box.Contains(world.MouseScreenPosition) ? FrameType.Hover : FrameType.Normal)
+                    | (buttonView.IsChecked?.Invoke() is true ? FrameType.Checked : FrameType.Normal));
 
                 if (buttonView.Child is not null)
                     RenderView(buttonView.Child);
@@ -398,12 +399,14 @@ partial class RenderSystem
                 {
                     Anchor.TopLeft => new(),
                     Anchor.BottomLeft => new(0, windowUbo.Data.WindowSize.Y),
+                    Anchor.BottomRight => new(windowUbo.Data.WindowSize.X, windowUbo.Data.WindowSize.Y),
                     _ => throw new NotImplementedException()
                 },
                 rootViewDescription.Anchor switch
                 {
                     Anchor.TopLeft => new(1, 1),
                     Anchor.BottomLeft => new(1, -1),
+                    Anchor.BottomRight => new(-1, -1),
                     _ => throw new NotImplementedException()
                 });
             RenderView(view);

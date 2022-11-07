@@ -1,4 +1,5 @@
 ﻿using System.IO.Compression;
+using Tweey.Loaders;
 
 namespace Tweey.WorldData;
 
@@ -10,7 +11,11 @@ internal class World
     public Configuration Configuration { get; }
 
     internal Entity? SelectedEntity { get; set; }
+    public ZoneType? CurrentZoneType { get; set; }
+    public Vector2i? CurrentZoneStartPoint { get; set; }
     public BuildingTemplate? CurrentBuildingTemplate { get; set; }
+
+    public double TimeSpeedUp { get; set; } = 1;
 
     public bool Paused { get; private set; }
     public bool ShowDetails { get; private set; }
@@ -154,6 +159,16 @@ internal class World
 
         return entity;
     }
+
+    public static Entity AddZoneEntity(ZoneType zoneType, Box2 box)
+    {
+        var entity = EcsCoordinator.CreateEntity();
+        EcsCoordinator.AddLocationComponent(entity, box);
+        EcsCoordinator.AddRenderableComponent(entity, null);
+        EcsCoordinator.AddZoneComponent(entity, zoneType);
+
+        return entity;
+    }
     #endregion
 
     public static void PlantForest(TreeTemplate treeTemplate, Vector2i center, float radius, float chanceCenter, float chanceEdge)
@@ -174,6 +189,22 @@ internal class World
         return EcsCoordinator.DeleteEntity(entity);
     }
 
+    public bool IsZoneValid(Box2 box)
+    {
+        var okay = true;
+        EcsCoordinator.IterateBuildingArchetype((in EcsCoordinator.BuildingIterationResult w) =>
+        {
+            if (w.LocationComponent.Box.Intersects(box))
+            {
+                okay = false;
+                return false;
+            }
+            return true;
+        });
+
+        return okay;
+    }
+
     public Vector2i GetWorldLocationFromScreenPoint(Vector2i screenPoint) =>
         new((int)MathF.Floor(((screenPoint.X) / Zoom + Offset.X)), (int)MathF.Floor(((screenPoint.Y) / Zoom + Offset.Y)));
 
@@ -182,7 +213,20 @@ internal class World
     {
         if (inputAction == InputAction.Press && mouseButton == MouseButton.Button1)
         {
-            if (CurrentBuildingTemplate is not null)
+            if (CurrentZoneType is not null && CurrentZoneStartPoint is null)
+            {
+                // first point
+                CurrentZoneStartPoint = MouseWorldPosition;
+            }
+            else if (CurrentZoneType is not null)
+            {
+                // second point, add the zone entity
+                var box = Box2.FromCornerSize(CurrentZoneStartPoint!.Value, MouseWorldPosition - CurrentZoneStartPoint.Value + Vector2i.One);
+                if (IsZoneValid(box))
+                    AddZoneEntity(CurrentZoneType.Value, box);
+                CurrentZoneType = null;
+            }
+            else if (CurrentBuildingTemplate is not null)
             {
                 var okay = true;
                 EcsCoordinator.IterateBuildingArchetype((in EcsCoordinator.BuildingIterationResult w) =>
@@ -328,10 +372,23 @@ internal class World
         JsonSerializer.Serialize(compressStream, saveData, Loader.BuildJsonOptions());
     }
 
-    public TimeSpan TotalTime { get; private set; }
+    public TimeSpan TotalRealTime { get; private set; }
+    const double worldTimeMultiplier = 96;      // ~one day world time every 15min real time
+    public TimeSpan WorldTime { get; private set; }
+    public string WorldTimeString { get; private set; }
+    public TimeSpan DeltaWorldTime { get; private set; }
     public void Update(double deltaSec)
     {
-        TotalTime += TimeSpan.FromSeconds(deltaSec);
+        TotalRealTime += TimeSpan.FromSeconds(deltaSec);
+        WorldTime += DeltaWorldTime = TimeSpan.FromSeconds(deltaSec * worldTimeMultiplier * TimeSpeedUp);
         Offset += deltaOffsetNextFrame * (float)deltaSec * deltaOffsetPerSecond;
+
+        var wt = WorldTime.TotalMinutes;
+        var min = wt % 60; wt /= 60;
+        var hour = wt % 24; wt /= 24;
+        var day = wt % 30 + 1; wt /= 30;
+        var month = wt % 12 + 1; wt /= 12;
+        var year = wt + 1;
+        WorldTimeString = $"{year:00}-{month:00}-{day:00} {hour:00}:{min:00}";
     }
 }

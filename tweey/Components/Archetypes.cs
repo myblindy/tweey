@@ -12,6 +12,9 @@ static class Archetypes
     public const EcsComponents Villager =
         EcsComponents.Villager | EcsComponents.Location;
 
+    public const EcsComponents Zone = 
+        EcsComponents.Zone | EcsComponents.Location;
+
     public const EcsComponents Render =
         EcsComponents.Renderable | EcsComponents.Location;
 }
