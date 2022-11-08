@@ -23,6 +23,7 @@ global using Twee.Core.Support;
 global using Twee.Ecs;
 global using Twee.Renderer;
 global using Twee.Renderer.Shaders;
+global using Twee.Renderer.Support;
 global using Twee.Renderer.Textures;
 global using Twee.Renderer.VertexArrayObjects;
 

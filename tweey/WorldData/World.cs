@@ -189,7 +189,7 @@ internal class World
         return EcsCoordinator.DeleteEntity(entity);
     }
 
-    public bool IsZoneValid(Box2 box)
+    public static bool IsZoneValid(Box2 box)
     {
         var okay = true;
         EcsCoordinator.IterateBuildingArchetype((in EcsCoordinator.BuildingIterationResult w) =>
@@ -373,9 +373,9 @@ internal class World
     }
 
     public TimeSpan TotalRealTime { get; private set; }
-    const double worldTimeMultiplier = 96;      // ~one day world time every 15min real time
+    const double worldTimeMultiplier = 96 * 6;
     public TimeSpan WorldTime { get; private set; }
-    public string WorldTimeString { get; private set; }
+    public string? WorldTimeString { get; private set; }
     public TimeSpan DeltaWorldTime { get; private set; }
     public void Update(double deltaSec)
     {

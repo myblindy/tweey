@@ -24,13 +24,13 @@ partial class RenderSystem
     readonly StaticVertexArrayObject<LightMapFBVertex> lightMapFBVao =
         new(new LightMapFBVertex[]
         {
-                new(new(-1, -1), new (0, 0)),
-                new(new(1, -1), new (1, 0)),
-                new(new(-1, 1), new (0, 1)),
+            new(new(-1, -1), new (0, 0)),
+            new(new(1, -1), new (1, 0)),
+            new(new(-1, 1), new (0, 1)),
 
-                new(new(-1, 1), new (0, 1)),
-                new(new(1, -1), new (1, 0)),
-                new(new(1, 1), new (1, 1)),
+            new(new(-1, 1), new (0, 1)),
+            new(new(1, -1), new (1, 0)),
+            new(new(1, 1), new (1, 1)),
         });
     readonly ShaderProgram lightMapFBShaderProgram;
     readonly UniformBufferObject<LightMapFBUbo> lightMapFBUbo = new();
@@ -279,7 +279,7 @@ partial class RenderSystem
         if (world.CurrentZoneType is not null && world.CurrentZoneStartPoint is not null
             && Box2.FromCornerSize(world.CurrentZoneStartPoint.Value, world.MouseWorldPosition - world.CurrentZoneStartPoint.Value + Vector2i.One) is { } zoneBox)
         {
-            RenderZone(zoneBox, world.CurrentZoneType.Value, !world.IsZoneValid(zoneBox), true);
+            RenderZone(zoneBox, world.CurrentZoneType.Value, !World.IsZoneValid(zoneBox), true);
         }
 
         // render gui (tri2)

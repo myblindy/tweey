@@ -10,7 +10,7 @@ public abstract class BaseVertexArrayObject
     static BaseVertexArrayObject()
     {
         // fill in the VertexDefinitionSetup function
-        if(Assembly.GetEntryAssembly()?.GetType("VertexDefinitionSetup") is { } vdsType
+        if(Assembly.GetEntryAssembly()?.GetType("Twee.Renderer.Support.VertexDefinitionSetup") is { } vdsType
             && vdsType.GetMethod("Setup", BindingFlags.Static | BindingFlags.Public) is { } setupMethod)
         {
             VertexDefinitionSetup = (vertexType, vah) =>

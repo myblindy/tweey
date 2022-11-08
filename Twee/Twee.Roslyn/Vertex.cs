@@ -10,6 +10,7 @@ using System.Composition;
 using System.Text;
 using System.Diagnostics.CodeAnalysis;
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
+using System.Runtime.InteropServices.ComTypes;
 
 namespace Twee.Roslyn;
 
@@ -72,11 +73,16 @@ public sealed class VertexSourceGen : IIncrementalGenerator
         public List<(int fieldCount, string? fieldType, int byteSize, bool error, Location location)> Fields { get; } = new();
     }
 
-    public static IEnumerable<VertexStructure> EnumerateVertexStructures(SyntaxNode rootNode, SemanticModel semanticModel)
+    public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        foreach (StructDeclarationSyntax sd in rootNode.DescendantNodes().Where(n => n.IsKind(SyntaxKind.StructDeclaration)))
-            if (sd.AttributeLists.SelectMany(a => a.Attributes).Any(a => a.Name is IdentifierNameSyntax ins && ins.Identifier.Text is "VertexDefinition" or "VertexDefinitionAttribute"))
+        //Debugger.Launch();
+
+        var vertexStructures = context.SyntaxProvider.ForAttributeWithMetadataName("Twee.Renderer.Support.VertexDefinitionAttribute",
+            static (n, _) => n.IsKind(SyntaxKind.StructDeclaration),
+            static (ctx, _) =>
             {
+                var semanticModel = ctx.SemanticModel;
+                var sd = (StructDeclarationSyntax)ctx.TargetNode;
                 var result = new VertexStructure { StructDeclarationSyntax = sd };
 
                 // ensure this structure is packed
@@ -97,24 +103,27 @@ public sealed class VertexSourceGen : IIncrementalGenerator
                         result.Fields.Add((fieldCount, fieldType, byteSize, error, field.Declaration.Type.GetLocation()));
                     }
 
-                yield return result;
-            }
-    }
+                return result;
+            });
 
-    public void Initialize(IncrementalGeneratorInitializationContext context)
-    {
-        //Debugger.Launch();
+        context.RegisterPostInitializationOutput(static ctx => ctx.AddSource("VertexSourceGen.gg.cs", $$"""
+            using System;
+            using OpenTK.Graphics.OpenGL;
 
-        var inputs = context.CompilationProvider;
-        context.RegisterSourceOutput(inputs, static (context, compilationProvider) =>
+            namespace Twee.Renderer.Support;
+
+            {{Common.GeneratedCodeAttributeText}}
+            [AttributeUsage(AttributeTargets.Struct)]
+            public sealed class VertexDefinitionAttribute: Attribute { }
+            """));
+
+        context.RegisterSourceOutput(vertexStructures.Collect(), static (ctx, vertexStructures) =>
         {
             var sb = new StringBuilder($$"""
                 using System;
                 using OpenTK.Graphics.OpenGL;
 
-                {{Common.GeneratedCodeAttributeText}}
-                [AttributeUsage(AttributeTargets.Struct)]
-                public sealed class VertexDefinitionAttribute: Attribute { }
+                namespace Twee.Renderer.Support;
 
                 {{Common.GeneratedCodeAttributeText}}
                 public static class VertexDefinitionSetup
@@ -123,62 +132,70 @@ public sealed class VertexSourceGen : IIncrementalGenerator
                     {
                 """);
 
-            foreach (var tree in compilationProvider.SyntaxTrees)
-                if (tree.TryGetRoot(out var rootNode))
-                {
-                    var semanticModel = compilationProvider.GetSemanticModel(tree);
+            var anyError = false;
+            foreach (var vertexStructure in vertexStructures)
+            {
+                var fullName = GetFullName(vertexStructure.StructDeclarationSyntax);
 
-                    foreach (var vertexStructure in EnumerateVertexStructures(rootNode, semanticModel))
+                if (!vertexStructure.PackingAttributeCorrect)
+                    ctx.ReportDiagnostic(Diagnostic.Create(NoPackingDiagnosticDescriptor, vertexStructure.StructDeclarationSyntax.Identifier.GetLocation()));
+
+                sb.AppendLine($"if(t == typeof({fullName})) {{");
+                var idx = 0;
+                var offset = 0;
+                foreach (var (fieldCount, fieldType, byteSize, error, location) in vertexStructure.Fields)
+                    if (!error)
                     {
-                        var fullName = GetFullName(vertexStructure.StructDeclarationSyntax);
-                        sb.AppendLine($"if(t == typeof({fullName})) {{");
-                        var idx = 0;
-                        var offset = 0;
-                        foreach (var (fieldCount, fieldType, byteSize, error, location) in vertexStructure.Fields)
-                            if (!error)
-                            {
-                                sb.AppendLine($"GL.EnableVertexArrayAttrib(va, {idx});");
-                                sb.AppendLine($"GL.VertexArrayAttribFormat(va, {idx}, {fieldCount}, {fieldType}, false, {offset});");
-                                offset += byteSize;
-                                sb.AppendLine($"GL.VertexArrayAttribBinding(va, {idx}, 0);");
+                        sb.AppendLine($"GL.EnableVertexArrayAttrib(va, {idx});");
+                        sb.AppendLine($"GL.VertexArrayAttribFormat(va, {idx}, {fieldCount}, {fieldType}, false, {offset});");
+                        offset += byteSize;
+                        sb.AppendLine($"GL.VertexArrayAttribBinding(va, {idx}, 0);");
 
-                                ++idx;
-                            }
-                        sb.AppendLine("}");
+                        ++idx;
                     }
-                }
+                    else
+                    {
+                        ctx.ReportDiagnostic(Diagnostic.Create(InvalidFieldTypeDiagnosticDescriptor, location, vertexStructure.StructDeclarationSyntax.Identifier.Text));
+                        anyError = true;
+                    }
+
+                sb.AppendLine("}");
+            }
 
             sb.AppendLine("}}");
-            context.AddSource("VertexSourceGen.cs", sb.ToString());
+
+            if (!anyError)
+                ctx.AddSource("VertexSourceGen.g.cs", sb.ToString());
         });
     }
 }
 
-[DiagnosticAnalyzer(LanguageNames.CSharp)]
-public class VertexAnalyzer : DiagnosticAnalyzer
-{
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = ImmutableArray.Create(VertexSourceGen.NoPackingDiagnosticDescriptor, VertexSourceGen.InvalidFieldTypeDiagnosticDescriptor);
+//[DiagnosticAnalyzer(LanguageNames.CSharp)]
+//public class VertexAnalyzer : DiagnosticAnalyzer
+//{
+//    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
+//        ImmutableArray.Create(VertexSourceGen.NoPackingDiagnosticDescriptor, VertexSourceGen.InvalidFieldTypeDiagnosticDescriptor);
 
-    public override void Initialize(AnalysisContext context)
-    {
-        //Debugger.Launch();
+//    public override void Initialize(AnalysisContext context)
+//    {
+//        //Debugger.Launch();
 
-        context.EnableConcurrentExecution();
-        context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
+//        context.EnableConcurrentExecution();
+//        context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
 
-        context.RegisterSemanticModelAction(semanticModelAnalysisContext =>
-        {
-            foreach (var vertexStructure in VertexSourceGen.EnumerateVertexStructures(semanticModelAnalysisContext.SemanticModel.SyntaxTree.GetRoot(), semanticModelAnalysisContext.SemanticModel))
-            {
-                if (!vertexStructure.PackingAttributeCorrect)
-                    semanticModelAnalysisContext.ReportDiagnostic(Diagnostic.Create(VertexSourceGen.NoPackingDiagnosticDescriptor, vertexStructure.StructDeclarationSyntax.Identifier.GetLocation()));
-                foreach (var (fieldCount, fieldType, byteSize, error, location) in vertexStructure.Fields)
-                    if (error)
-                        semanticModelAnalysisContext.ReportDiagnostic(Diagnostic.Create(VertexSourceGen.InvalidFieldTypeDiagnosticDescriptor, location, vertexStructure.StructDeclarationSyntax.Identifier.Text));
-            }
-        });
-    }
-}
+//        context.RegisterSemanticModelAction(semanticModelAnalysisContext =>
+//        {
+//            foreach (var vertexStructure in VertexSourceGen.EnumerateVertexStructures(semanticModelAnalysisContext.SemanticModel.SyntaxTree.GetRoot(), semanticModelAnalysisContext.SemanticModel))
+//            {
+//                if (!vertexStructure.PackingAttributeCorrect)
+//                    semanticModelAnalysisContext.ReportDiagnostic(Diagnostic.Create(VertexSourceGen.NoPackingDiagnosticDescriptor, vertexStructure.StructDeclarationSyntax.Identifier.GetLocation()));
+//                foreach (var (fieldCount, fieldType, byteSize, error, location) in vertexStructure.Fields)
+//                    if (error)
+//                        semanticModelAnalysisContext.ReportDiagnostic(Diagnostic.Create(VertexSourceGen.InvalidFieldTypeDiagnosticDescriptor, location, vertexStructure.StructDeclarationSyntax.Identifier.Text));
+//            }
+//        });
+//    }
+//}
 
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(VertexCodeFixProvider)), Shared]
 public class VertexCodeFixProvider : CodeFixProvider

@@ -7,7 +7,6 @@ class Program : GameWindow
         {
             RenderFrequency = 60,
             UpdateFrequency = 60,
-            IsMultiThreaded = false,
         }, new()
         {
             Profile = ContextProfile.Core,
@@ -15,6 +14,7 @@ class Program : GameWindow
             APIVersion = new(4, 6),
             StartFocused = true,
             StartVisible = true,
+            WindowBorder = WindowBorder.Hidden,
             Size = new(800, 600),
             WindowState = WindowState.Maximized,
             Title = "TwEEY",
