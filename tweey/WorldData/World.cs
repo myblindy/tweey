@@ -51,7 +51,10 @@ internal class World
         EcsCoordinator.AddRenderableComponent(entity, "Data/Misc/villager.png",
             LightEmission: Colors4.White, LightRange: 12, LightAngleRadius: .1f);
         EcsCoordinator.AddHeadingComponent(entity);
-        EcsCoordinator.AddVillagerComponent(entity, name, Configuration.Data.BaseCarryWeight);
+        EcsCoordinator.AddVillagerComponent(entity, name, Configuration.Data.BaseCarryWeight, Configuration.Data.BasePickupSpeed, Configuration.Data.BaseMovementSpeed,
+            Configuration.Data.BaseWorkSpeed);
+        EcsCoordinator.AddWorkerComponent(entity);
+        EcsCoordinator.AddInventoryComponent(entity);
 
         return entity;
     }
@@ -130,7 +133,7 @@ internal class World
                     var quantityToMove = (int)Math.Floor(Math.Min(maxNewWeight, resQ.Weight) / resQ.Resource.Weight);
 
                     var newResQ = new ResourceQuantity(resQ.Resource, quantityToMove);
-                    newRB.Add(newResQ);
+                    newRB.Add(newResQ, ResourceMarker.Default);
                     resourceBucket.Remove(newResQ);
                     if (resQ.Quantity > 0)
                         break;  // couldn't finish the stack
@@ -146,10 +149,10 @@ internal class World
         EcsCoordinator.AddLocationComponent(entity, Box2.FromCornerSize(location, new(1, 1)));
         EcsCoordinator.AddRenderableComponent(entity, $"Data/Buildings/{buildingTemplate.FileName}.png", OcclusionScale: 1,
             LightEmission: buildingTemplate.EmitLight?.Color.ToVector4(1) ?? default, LightRange: buildingTemplate.EmitLight?.Range ?? 0f);
-        EcsCoordinator.AddBuildingComponent(entity, isBuilt, buildingTemplate.BuildCost);
+        EcsCoordinator.AddBuildingComponent(entity, isBuilt, buildingTemplate.BuildCost, buildingTemplate.BuildWorkTicks);
         EcsCoordinator.AddInventoryComponent(entity);
         EcsCoordinator.AddWorkableComponent(entity)
-            .ResizeSlots(buildingTemplate.MaxWorkersAmount);
+            .ResizeSlots(isBuilt ? buildingTemplate.MaxWorkersAmount : 1);
 
         return entity;
     }
@@ -371,6 +374,10 @@ internal class World
     public TimeSpan WorldTime { get; private set; }
     public string? WorldTimeString { get; private set; }
     public TimeSpan DeltaWorldTime { get; private set; }
+
+    public static TimeSpan GetWorldTimeFromTicks(double ticks) =>
+        TimeSpan.FromSeconds(ticks * worldTimeMultiplier);
+
     public void Update(double deltaSec)
     {
         TotalRealTime += TimeSpan.FromSeconds(deltaSec);
@@ -378,11 +385,11 @@ internal class World
         Offset += deltaOffsetNextFrame * (float)deltaSec * deltaOffsetPerSecond;
 
         var wt = WorldTime.TotalMinutes;
-        var min = wt % 60; wt /= 60;
-        var hour = wt % 24; wt /= 24;
-        var day = wt % 30 + 1; wt /= 30;
-        var month = wt % 12 + 1; wt /= 12;
-        var year = wt + 1;
+        var min = (int)(wt % 60); wt /= 60;
+        var hour = (int)(wt % 24); wt /= 24;
+        var day = (int)(wt % 30 + 1); wt /= 30;
+        var month = (int)(wt % 12 + 1); wt /= 12;
+        var year = (int)(wt + 1);
         WorldTimeString = $"{year:00}-{month:00}-{day:00} {hour:00}:{min:00}";
     }
 }

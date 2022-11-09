@@ -6,26 +6,60 @@ internal class ResourceBucket
     public ResourceBucket(IEnumerable<ResourceQuantity> rqs)
     {
         foreach (var rq in rqs)
-            Add(rq);
+            Add(rq, ResourceMarker.Default);
     }
 
     readonly List<(ResourceQuantity rq, ResourceMarker marker)> resources = new();
 
-    public void Add(ResourceQuantity rq)
+    public void Add(ResourceQuantity rq, ResourceMarker marker)
     {
-        foreach (var (dstRq, _) in resources)
+        if (marker == ResourceMarker.All)
+            marker = ResourceMarker.Default;
+
+        foreach (var dstRq in GetResourceQuantities(marker))
             if (dstRq.Resource == rq.Resource)
             {
                 dstRq.Quantity += rq.Quantity;
                 return;
             }
-        resources.Add((rq, ResourceMarker.Default));
+        resources.Add((rq, marker));
     }
 
-    public static void MarkResources(ResourceMarker marker, IEnumerable<ResourceBucket> source, ResourceMarker sourceMarker, double maxWeight, ResourceBucket desired)
+    public static void MarkResources(ResourceMarker marker, IEnumerable<ResourceBucket> sourceRBs, ResourceMarker sourceMarker, double maxWeight, ResourceBucket desired,
+        Action<ResourceQuantity>? selectedFeedbackAction, out double usedWeight)
     {
+        desired = desired.Clone();
+        usedWeight = 0;
 
+        foreach (var srcRB in sourceRBs)
+        {
+            changedRetry:
+            foreach (var srcRQ in srcRB.GetResourceQuantities(sourceMarker))
+                foreach (var desiredRQ in desired.GetResourceQuantities(ResourceMarker.All))
+                    if (desiredRQ.Resource == srcRQ.Resource)
+                    {
+                        var qtyUsed = Math.Min(Math.Min(srcRQ.Quantity, desiredRQ.Quantity), (maxWeight - usedWeight) / srcRQ.Resource.Weight);
+
+                        if (qtyUsed > 0)
+                        {
+                            desiredRQ.Quantity -= qtyUsed;
+                            srcRQ.Quantity -= qtyUsed;
+
+                            srcRB.Add(new(srcRQ.Resource, qtyUsed), marker);
+                            usedWeight += qtyUsed * srcRQ.Resource.Weight;
+                            selectedFeedbackAction?.Invoke(new(srcRQ.Resource, qtyUsed));
+
+                            if (desired.IsEmpty(ResourceMarker.All))
+                                return;
+                            else
+                                goto changedRetry;
+                        }
+                    }
+        }
     }
+
+    public bool IsEmpty(ResourceMarker marker) =>
+        GetResourceQuantities(marker).All(w => w.Quantity == 0);
 
     public void Remove(ResourceQuantity rq)
     {
@@ -58,8 +92,8 @@ internal class ResourceBucket
 
     public bool Contains(ResourceMarker marker, ResourceBucket other, ResourceMarker otherMarker)
     {
-        foreach (var thisRq in GetResourceQuantities(marker).GroupBy(w => w.Resource, w => w.Quantity))
-            if (other.GetResourceQuantities(otherMarker).Where(w => w.Resource == thisRq.Key).Sum(w => w.Quantity) < thisRq.Sum())
+        foreach (var otherRQ in other.GetResourceQuantities(otherMarker).GroupBy(w => w.Resource, w => w.Quantity))
+            if (GetResourceQuantities(marker).Where(w => w.Resource == otherRQ.Key).Sum(w => w.Quantity) < otherRQ.Sum())
                 return false;
         return true;
     }
@@ -94,4 +128,17 @@ internal class ResourceBucket
         GetResourceQuantities(marker).Sum(w => w.Weight);
 
     public void Clear() => resources.Clear();
+
+    public bool HasMarker(ResourceMarker marker) =>
+        GetResourceQuantities(marker).Any();
+
+    public void MoveTo(ResourceMarker srcMarker, ResourceBucket dstRB, ResourceMarker dstMarker)
+    {
+        foreach (var srcRQ in GetResourceQuantities(srcMarker))
+            dstRB.Add(new(srcRQ.Resource, srcRQ.Quantity), dstMarker);
+        resources.RemoveAll(w => w.marker == srcMarker);
+    }
+
+    internal void Remove(ResourceMarker marker) =>
+        resources.RemoveAll(w => w.marker == marker);
 }

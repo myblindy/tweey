@@ -3,5 +3,5 @@
 [EcsComponent]
 struct WorkerComponent
 {
-    public AIHighPlan? Plan { get; set; }
+    public AIHighLevelPlan[]? Plans { get; set; }
 }

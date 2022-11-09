@@ -6,9 +6,9 @@
   "ticksPerDay": 72000, // 20mins
   "maximumGroundDropSpillOverRange": 2,
 
-  "baseMovementSpeed": 2,
-  "basePickupSpeed": 1,
-  "baseWorkSpeed": 5,
+  "baseMovementSpeed": 0.005,
+  "basePickupSpeed": 0.2,
+  "baseWorkSpeed": 0.2,
   "baseHungerMax": 100,
   "baseHungerPerRealTimeSecond": 1,
   "baseEatSpeed": 1,

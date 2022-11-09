@@ -80,6 +80,7 @@ class Program : GameWindow
 
         EcsCoordinator.ConstructSetPlacedResourceAtlasEntrySystem(() => new());
         EcsCoordinator.ConstructRenderSystem(() => new(world));
+        EcsCoordinator.ConstructAIHighLevelSystem(() => new(world));
         EcsCoordinator.SendResizeMessageToRenderSystem(Size.X, Size.Y);
     }
 
