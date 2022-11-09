@@ -1,5 +1,5 @@
 ﻿namespace Tweey.Support;
-
-class AIPlan
+class AIHighPlan
 {
+
 }

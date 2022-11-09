@@ -1,5 +1,4 @@
 ﻿using System.IO.Compression;
-using Tweey.Loaders;
 
 namespace Tweey.WorldData;
 
@@ -45,14 +44,14 @@ internal class World
     }
 
     #region AddEntities
-    internal static Entity AddVillagerEntity(string name, Vector2 location)
+    internal Entity AddVillagerEntity(string name, Vector2 location)
     {
         var entity = EcsCoordinator.CreateEntity();
         EcsCoordinator.AddLocationComponent(entity, Box2.FromCornerSize(location, new(1, 1)));
         EcsCoordinator.AddRenderableComponent(entity, "Data/Misc/villager.png",
             LightEmission: Colors4.White, LightRange: 12, LightAngleRadius: .1f);
         EcsCoordinator.AddHeadingComponent(entity);
-        EcsCoordinator.AddVillagerComponent(entity, name);
+        EcsCoordinator.AddVillagerComponent(entity, name, Configuration.Data.BaseCarryWeight);
 
         return entity;
     }
@@ -74,7 +73,7 @@ internal class World
         // obey the maximum ground stack weight
         List<(Vector2i pt, ResourceBucket? rb)> availableNeighbours = new();
         int availableNeighboursSearchRadius = -1;
-        while (resourceBucket.AvailableWeight > 0)
+        while (resourceBucket.GetWeight(ResourceMarker.All) > 0)
         {
             // take any spill-over and put it in a random direction, up to maximumGroundDropSpillOverRange range
             while (availableNeighbours.Count == 0)
@@ -92,7 +91,7 @@ internal class World
                             if (EcsCoordinator.HasResourceComponent(entity))
                             {
                                 ref var inventoryComponent = ref EcsCoordinator.GetInventoryComponent(entity);
-                                if (inventoryComponent.Inventory.AvailableWeight < Configuration.Data.GroundStackMaximumWeight)
+                                if (inventoryComponent.Inventory.GetWeight(ResourceMarker.All) < Configuration.Data.GroundStackMaximumWeight)
                                 {
                                     okay = false;
                                     break;
@@ -120,16 +119,12 @@ internal class World
                 EcsCoordinator.AddResourceComponent(entity);
                 newRB = EcsCoordinator.AddInventoryComponent(entity).Inventory;
             }
-            var newRBWeight = newRB.AvailableWeight;
-            int resourceIndex = 0;
-            for (; resourceIndex < resourceBucket.ResourceQuantities.Count && resourceBucket.ResourceQuantities[resourceIndex].Quantity == 0; resourceIndex++) { }
+            var newRBWeight = newRB.GetWeight(ResourceMarker.Default);
 
-            while (resourceIndex < resourceBucket.ResourceQuantities.Count)
+            foreach (var resQ in resourceBucket.GetResourceQuantities(ResourceMarker.All).Where(w => w.Quantity != 0))
             {
-                var resQ = resourceBucket.ResourceQuantities[resourceIndex];
-
                 // only allow one resource kind on the ground
-                if (!newRB.ResourceQuantities.Any() || newRB.ResourceQuantities.Any(rq => rq.Resource == resQ.Resource))
+                if (!newRB.GetResourceQuantities(ResourceMarker.All).Any() || newRB.GetResourceQuantities(ResourceMarker.All).Any(rq => rq.Resource == resQ.Resource))
                 {
                     var maxNewWeight = Configuration.Data.GroundStackMaximumWeight - newRBWeight;
                     var quantityToMove = (int)Math.Floor(Math.Min(maxNewWeight, resQ.Weight) / resQ.Resource.Weight);
@@ -141,8 +136,6 @@ internal class World
                         break;  // couldn't finish the stack
                     newRBWeight += resQ.Resource.Weight * quantityToMove;
                 }
-
-                for (++resourceIndex; resourceIndex < resourceBucket.ResourceQuantities.Count && resourceBucket.ResourceQuantities[resourceIndex].Quantity == 0; resourceIndex++) { }
             }
         }
     }
@@ -153,7 +146,8 @@ internal class World
         EcsCoordinator.AddLocationComponent(entity, Box2.FromCornerSize(location, new(1, 1)));
         EcsCoordinator.AddRenderableComponent(entity, $"Data/Buildings/{buildingTemplate.FileName}.png", OcclusionScale: 1,
             LightEmission: buildingTemplate.EmitLight?.Color.ToVector4(1) ?? default, LightRange: buildingTemplate.EmitLight?.Range ?? 0f);
-        EcsCoordinator.AddBuildingComponent(entity, isBuilt);
+        EcsCoordinator.AddBuildingComponent(entity, isBuilt, buildingTemplate.BuildCost);
+        EcsCoordinator.AddInventoryComponent(entity);
         EcsCoordinator.AddWorkableComponent(entity)
             .ResizeSlots(buildingTemplate.MaxWorkersAmount);
 
@@ -352,7 +346,7 @@ internal class World
 
     class SaveData
     {
-        public EcsDataDump EcsDataDump { get; set; }
+        public required EcsDataDump EcsDataDump { get; set; }
         public Vector2 WorldOffset { get; set; }
         public float WorldZoom { get; set; }
     }

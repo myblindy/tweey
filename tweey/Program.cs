@@ -51,8 +51,8 @@ class Program : GameWindow
         GL.Disable(EnableCap.CullFace);
         GL.Enable(EnableCap.Blend);
 
-        var villager = world.SelectedEntity = World.AddVillagerEntity("Sana", new(5, 1));
-        World.AddVillagerEntity("Momo", new(15, 20));
+        var villager = world.SelectedEntity = world.AddVillagerEntity("Sana", new(5, 1));
+        world.AddVillagerEntity("Momo", new(15, 20));
 
         world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["bread"], 100)), new(3, 3));
 
@@ -123,8 +123,10 @@ class Program : GameWindow
 
     protected override void OnRenderFrame(FrameEventArgs args)
     {
-        EcsCoordinator.RunSystems(args.Time, UpdateTime, RenderTime);
+        EcsCoordinator.RunSystems();
         SwapBuffers();
+
+        FrameData.NewFrame(TimeSpan.FromSeconds(args.Time), TimeSpan.FromSeconds(UpdateTime), TimeSpan.FromSeconds(RenderTime));
     }
 
     static unsafe void Main()

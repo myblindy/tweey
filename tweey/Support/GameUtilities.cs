@@ -27,6 +27,6 @@ public static class GameUtilities
         }
     }
 
-    internal static IEnumerable<Entity> OrderByDistanceFrom(this IEnumerable<(Entity entity, LocationComponent location)> source, LocationComponent targetLocation) =>
-        source.OrderBy(b => (b.location.Box.Center - targetLocation.Box.Center).LengthSquared()).Select(w => w.entity);
+    internal static IEnumerable<Entity> OrderByDistanceFrom(this IEnumerable<(Entity entity, Vector2 location)> source, Vector2 targetLocation) =>
+        source.OrderBy(b => (b.location - targetLocation).LengthSquared()).Select(w => w.entity);
 }

@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-
-namespace Tweey.Systems;
+﻿namespace Tweey.Systems;
 
 [EcsSystem(Archetypes.Render)]
 partial class RenderSystem
@@ -216,7 +214,7 @@ partial class RenderSystem
         }
     }
 
-    public void Run(double deltaSec, double updateDeltaSec, double renderDeltaSec)
+    public partial void Run()
     {
         // render lightmap to texture
         RenderLightMapToFrameBuffer();
@@ -245,7 +243,6 @@ partial class RenderSystem
                 ref var zoneComponent = ref EcsCoordinator.GetZoneComponent(w.Entity);
                 RenderZone(w.LocationComponent.Box, zoneComponent.Type, false, false);
             }
-            return true;
         });
 
         var countTri0 = guiVAO.Vertices.Count;
@@ -269,7 +266,6 @@ partial class RenderSystem
             //        new Vector2((villager.InterpolatedLocation.X + .5f - world.Offset.X) * world.Zoom, (villager.InterpolatedLocation.Y + 1 - world.Offset.Y) * world.Zoom),
             //        Colors4.White, new(0, 0, 0, .4f), HorizontalAlignment.Center);
 
-            return true;
         });
 
         // building template
@@ -304,8 +300,5 @@ partial class RenderSystem
         guiShaderProgram.Use();
         guiVAO.Draw(PrimitiveType.Lines, countTri0, countLines1);
         guiVAO.Draw(PrimitiveType.Triangles, countTri0 + countLines1, countTri2);
-
-        // frame data
-        FrameData.NewFrame(TimeSpan.FromSeconds(deltaSec), TimeSpan.FromSeconds(updateDeltaSec), TimeSpan.FromSeconds(renderDeltaSec));
     }
 }

@@ -299,7 +299,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                 // systems
                 {{string.Join(Environment.NewLine, systems.Select(s => $$"""
                     {{(s!.Namespace is not null ? $"namespace {s!.Namespace} {{" : "")}}
-                    partial class {{s!.TypeName}}
+                    sealed partial class {{s!.TypeName}}
                     {
                         internal HashSet<Entity> Entities { get; } = 
                             EcsCoordinator.{{s.UsedArchetypeName}}Entities;
@@ -329,6 +329,8 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                                     {{string.Concat(archetypes.First(at => at.Name == s.UsedArchetypeName).Components.Select(c => $", ref EcsCoordinator.Get{c!.TypeRootName}Component(entity)"))}}
                                 ));
                         }
+
+                        public partial void Run();
                     }
                     {{(s!.Namespace is not null ? "}" : "")}}
                     """))}}
@@ -370,9 +372,9 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                                     """))}}
                             }
                         }
-                        internal delegate bool Iterate{{at.Name}}ArchetypeProcessDelegate(in {{at.Name}}IterationResult iterationResult);
 
-                        public static void Iterate{{at.Name}}Archetype(Iterate{{at.Name}}ArchetypeProcessDelegate process)
+                        internal delegate bool Iterate{{at.Name}}ArchetypeProcessDelegateWithInterruption(in {{at.Name}}IterationResult iterationResult);
+                        public static void Iterate{{at.Name}}Archetype(Iterate{{at.Name}}ArchetypeProcessDelegateWithInterruption process)
                         {
                             foreach(var entity in {{at.Name}}Entities)
                                 if(!process(new(entity
@@ -381,6 +383,15 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                                 {
                                     break;
                                 }
+                        }
+                        
+                        internal delegate void Iterate{{at.Name}}ArchetypeProcessDelegate(in {{at.Name}}IterationResult iterationResult);
+                        public static void Iterate{{at.Name}}Archetype(Iterate{{at.Name}}ArchetypeProcessDelegate process)
+                        {
+                            foreach(var entity in {{at.Name}}Entities)
+                                process(new(entity
+                                    {{string.Concat(archetypes.First(at2 => at2.Name == at.Name).Components.Select(c => $", ref EcsCoordinator.Get{c!.TypeRootName}Component(entity)"))}}
+                                ));
                         }
                         """)))}}
 
@@ -483,7 +494,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
 
                     // system data
                     {{string.Join(Environment.NewLine, systems.Select(s => $$"""
-                        static {{s!.FullName}} {{s!.TypeRootName}}System;
+                        static {{s!.FullName}}? {{s!.TypeRootName}}System;
                         public static void Construct{{s!.TypeRootName}}System(Func<{{s!.FullName}}> generator) => 
                             {{s!.TypeRootName}}System = generator();
 
@@ -492,14 +503,14 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         {{string.Join(Environment.NewLine, s.Messages.Select(m => $$"""
                             public static {{m.FullReturnTypeName}} Send{{m.RootName}}MessageTo{{s.TypeRootName}}System(
                                 {{string.Join(", ", m.Parameters.Select(p => $"{p.FullTypeName} {p.Name}"))}}) =>
-                                {{s!.TypeRootName}}System.{{m.Name}}({{string.Join(", ", m.Parameters.Select(p => p.Name))}});
+                                {{s!.TypeRootName}}System!.{{m.Name}}({{string.Join(", ", m.Parameters.Select(p => p.Name))}});
                             """))}}
                         """))}}
 
-                    public static void RunSystems(double deltaSec, double updateDeltaSec, double renderDeltaSec)
+                    public static void RunSystems()
                     {
                         {{string.Join(Environment.NewLine, systems.Select(s => $$"""
-                            {{s!.TypeRootName}}System?.Run(deltaSec, updateDeltaSec, renderDeltaSec);
+                            {{s!.TypeRootName}}System?.Run();
                             """))}}
                     }
 

@@ -3,7 +3,7 @@
 [EcsSystem(Archetypes.PlacedResource)]
 partial class SetPlacedResourceAtlasEntrySystem
 {
-    public void Run(double deltaSec, double updateDeltaSec, double renderDeltaSec) =>
+    public partial void Run() =>
         IterateComponents((in IterationResult w) => w.RenderableComponent.AtlasEntryName ??=
-            w.InventoryComponent.Inventory.ResourceQuantities.FirstOrDefault()?.Resource.FileName is { } resFileName ? $"Data/Resources/{resFileName}.png" : null);
+            w.InventoryComponent.Inventory.GetResourceQuantities(ResourceMarker.Default).FirstOrDefault()?.Resource.FileName is { } resFileName ? $"Data/Resources/{resFileName}.png" : null);
 }
