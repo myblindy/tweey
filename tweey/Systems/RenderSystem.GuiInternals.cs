@@ -129,7 +129,7 @@ partial class RenderSystem
 
     bool MouseEvent(View view, Vector2i position, InputAction inputAction, MouseButton mouseButton, KeyModifiers keyModifiers)
     {
-        if ((view.Visible?.Invoke() ?? true) && GetTemplatedView(view) is { } realView && realView.ViewData.Box.Contains(position))
+        if ((view.IsVisible?.Invoke() ?? true) && GetTemplatedView(view) is { } realView && realView.ViewData.Box.Contains(position))
             switch (realView)
             {
                 case IClickable clickable:
@@ -166,7 +166,7 @@ partial class RenderSystem
 
     void TemplateView(View view)
     {
-        if (view.Visible is not null && !view.Visible()) return;
+        if (view.IsVisible is not null && !view.IsVisible()) return;
 
         switch (view)
         {
@@ -197,7 +197,7 @@ partial class RenderSystem
 
     Vector2 MeasureView(View view)
     {
-        if (view.Visible is not null && !view.Visible()) return new();
+        if (view.IsVisible is not null && !view.IsVisible()) return new();
 
         Vector2 size = new(view.Padding.Left + view.Padding.Right + view.Margin.Left + view.Margin.Right,
             view.Padding.Top + view.Padding.Bottom + view.Margin.Top + view.Margin.Bottom);
@@ -260,7 +260,7 @@ partial class RenderSystem
 
     Vector2 LayoutView(View view, Vector2 offset, Vector2 multiplier)
     {
-        if (view.Visible is not null && !view.Visible()) return default;
+        if (view.IsVisible is not null && !view.IsVisible()) return default;
         view = GetTemplatedView(view);
 
         var boxSize = view.ViewData.Box.Size;
@@ -292,7 +292,7 @@ partial class RenderSystem
                         }
 
                     var start = boxStart;
-                    foreach (var child in stackView.Children.Where(v => v.Visible?.Invoke() ?? true).Select(GetTemplatedView))
+                    foreach (var child in stackView.Children.Where(v => v.IsVisible?.Invoke() ?? true).Select(GetTemplatedView))
                     {
                         var childExtraSize = LayoutView(child, start, new(1, 1));
                         extraSize = stackView.Type != StackType.Horizontal ? new Vector2(Math.Max(childExtraSize.X, extraSize.X), extraSize.Y + childExtraSize.Y)
@@ -335,7 +335,7 @@ partial class RenderSystem
 
     void RenderView(View view)
     {
-        if (view.Visible is not null && !view.Visible()) return;
+        if (view.IsVisible is not null && !view.IsVisible()) return;
         view = GetTemplatedView(view);
 
         var box = view.ViewData.Box;
@@ -389,7 +389,7 @@ partial class RenderSystem
 
     void RenderGui()
     {
-        foreach (var rootViewDescription in gui.RootViewDescriptions.Where(rvd => rvd.View.Visible?.Invoke() != false))
+        foreach (var rootViewDescription in gui.RootViewDescriptions.Where(rvd => rvd.View.IsVisible?.Invoke() != false))
         {
             var view = GetTemplatedView(rootViewDescription.View);
             TemplateView(view);

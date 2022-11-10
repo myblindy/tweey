@@ -4,6 +4,7 @@ partial class RenderSystem
 {
     void InitializeGui()
     {
+        Vector4 panelBackgroundColor = new(.1f, .1f, .1f, 1);
         var descriptionColor = new Vector4(.8f, .8f, .8f, 1);
         var highlightColor = Colors4.Aqua;
         var defaultFontSize = 18;
@@ -11,6 +12,7 @@ partial class RenderSystem
         gui.RootViewDescriptions.Add(new(
             new StackView(StackType.Vertical)
             {
+                BackgroundColor = panelBackgroundColor,
                 Children =
                 {
                     new LabelView { Text = () => $"Time: {world.WorldTimeString}" },
@@ -18,6 +20,12 @@ partial class RenderSystem
                     {
                         Children=
                         {
+                            new ButtonView
+                            {
+                                Child = new LabelView { Text = () => "0x" },
+                                IsChecked = () => world.TimeSpeedUp == 0,
+                                Clicked = () => world.TimeSpeedUp = 0,
+                            },
                             new ButtonView
                             {
                                 Child = new LabelView { Text = () => "1x" },
@@ -47,10 +55,114 @@ partial class RenderSystem
                 }
             }, Anchor.BottomRight));
 
+        static string? getEntityDescription(Entity entity) =>
+            EcsCoordinator.HasVillagerComponent(entity) ? "Villager"
+            : EcsCoordinator.HasResourceComponent(entity) ? "Resource"
+            : EcsCoordinator.HasBuildingComponent(entity) ? !EcsCoordinator.GetBuildingComponent(entity).IsBuilt ? "Building Site" : "Building"
+            : EcsCoordinator.HasTreeComponent(entity) ? "Tree"
+            : throw new NotImplementedException();
+
+        View getResourceRowView(bool labor, Resource? resource, Func<double> quantity) =>
+            new StackView(StackType.Horizontal)
+            {
+                Children =
+                {
+                    new LabelView
+                    {
+                        Text = () => quantity().ToString(),
+                        FontSize = defaultFontSize,
+                        MinWidth = () => 50,
+                        Margin = new(10,0,10,0),
+                        HorizontalTextAlignment = HorizontalAlignment.Right,
+                        ForegroundColor = () => highlightColor
+                    },
+                    new ImageView
+                    {
+                        Source = () => labor ? "Data/Resources/labor.png" : resource!.ImageFileName,
+                        InheritParentSize = true
+                    },
+                    new LabelView
+                    {
+                        Text = () => $" {(labor ? "Work" : resource!.Name)}",
+                        FontSize = defaultFontSize,
+                        ForegroundColor = () => descriptionColor
+                    }
+                }
+            };
+
+        // selection box
         gui.RootViewDescriptions.Add(new(
             new StackView(StackType.Vertical)
             {
-                BackgroundColor = new(.1f, .1f, .1f, 1),
+                BackgroundColor = panelBackgroundColor,
+                IsVisible = () => world.SelectedEntity.HasValue,
+                Children =
+                {
+                    // header
+                    new StackView(StackType.Horizontal)
+                    {
+                        Children =
+                        {
+                            new ImageView
+                            {
+                                Source = () => EcsCoordinator.GetRenderableComponent(world.SelectedEntity!.Value).AtlasEntryName,
+                                InheritParentSize = true,
+                            },
+                            new LabelView
+                            {
+                                Text = () => getEntityDescription(world.SelectedEntity!.Value),
+                                FontSize = 30,
+                                ForegroundColor = () => descriptionColor
+                            },
+                            new LabelView
+                            {
+                                Text = () => EcsCoordinator.GetIdentityComponent(world.SelectedEntity!.Value).Name,
+                                FontSize = 30,
+                                Padding = new(10, 0, 0, 0),
+                                ForegroundColor = () => highlightColor
+                            },
+                        }
+                    },
+
+                    // building site details
+                    new StackView(StackType.Vertical)
+                    {
+                        IsVisible = () => EcsCoordinator.HasBuildingComponent(world.SelectedEntity!.Value)
+                            && !EcsCoordinator.GetBuildingComponent(world.SelectedEntity!.Value).IsBuilt,
+                        Children =
+                        {
+                            new LabelView
+                            {
+                                Padding = new(25, 15, 0, 0),
+                                FontSize = defaultFontSize,
+                                Text = () => "Required:"
+                            },
+                            new RepeaterView<ResourceQuantity>
+                            {
+                                Source = () => EcsCoordinator.GetBuildingComponent(world.SelectedEntity!.Value).BuildCost
+                                    .WithRemove(ResourceMarker.All, EcsCoordinator.GetInventoryComponent(world.SelectedEntity!.Value).Inventory, ResourceMarker.Default, ResourceMarker.Default)
+                                    .GetResourceQuantities(ResourceMarker.All),
+                                ContainerView = new StackView(StackType.Vertical),
+                                ItemView = rq => getResourceRowView(false, rq.Resource, () => rq.Quantity),
+                                EmptyView = new LabelView
+                                {
+                                    Text = () => "No resources",
+                                    FontSize = defaultFontSize,
+                                    ForegroundColor = () => descriptionColor
+                                }
+                            },
+                            getResourceRowView(true, null, () => EcsCoordinator.GetBuildingComponent(world.SelectedEntity!.Value).BuildWorkTicks),
+                        }
+                    }
+                }
+            }, Anchor.BottomLeft));
+
+        // orders
+        gui.RootViewDescriptions.Add(new(
+            new StackView(StackType.Vertical)
+            {
+                IsVisible = () => !world.SelectedEntity.HasValue,
+                BackgroundColor = panelBackgroundColor,
                 Padding = new(8),
                 Children =
                 {
@@ -73,33 +185,6 @@ partial class RenderSystem
         //                Visible = () => world.SelectedEntity is not null,
         //                Children =
         //                {
-        //                    new StackView(StackType.Horizontal)
-        //                    {
-        //                        Children =
-        //                        {
-        //                            new ImageView
-        //                            {
-        //                                Source = () => GetImagePath(world.SelectedEntity!),
-        //                                InheritParentSize = true,
-        //                            },
-        //                            new LabelView
-        //                            {
-        //                                Text = () => world.SelectedEntity is Building building ? building.IsBuilt ? "Building " : "Building Site "
-        //                                    : world.SelectedEntity is ResourceBucket ? "Resource "
-        //                                    : world.SelectedEntity is Villager ? "Villager "
-        //                                    : world.SelectedEntity is Tree ? "Tree "
-        //                                    : throw new InvalidOperationException(),
-        //                                FontSize = 30,
-        //                                ForegroundColor = () => descriptionColor
-        //                            },
-        //                            new LabelView
-        //                            {
-        //                                Text = () => world.SelectedEntity!.Name,
-        //                                FontSize = 30,
-        //                                ForegroundColor = () => highlightColor
-        //                            },
-        //                        }
-        //                    },
         //                    new LabelView
         //                    {
         //                        Text = () => world.SelectedEntity is Villager villager ? villager.AIPlan is { } aiPlan ? aiPlan.Description : "Idle."
@@ -280,7 +365,7 @@ partial class RenderSystem
                     new LabelView
                     {
                         Text = () => "PAUSED",
-                        Visible = () => world.Paused,
+                        IsVisible = () => world.TimeSpeedUp == 0,
                         FontSize = 22,
                         Padding = new(2, 0),
                         ForegroundColor = () => Colors4.Red,

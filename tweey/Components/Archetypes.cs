@@ -10,7 +10,7 @@ static class Archetypes
         EcsComponents.Building | EcsComponents.Location | EcsComponents.Inventory | EcsComponents.Workable;
 
     public const EcsComponents Villager =
-        EcsComponents.Villager | EcsComponents.Location;
+        EcsComponents.Villager | EcsComponents.Location | EcsComponents.Identity;
 
     public const EcsComponents Zone =
         EcsComponents.Zone | EcsComponents.Location;

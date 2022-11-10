@@ -3,7 +3,7 @@
 abstract class AILowLevelPlan
 {
     protected World World { get; }
-    protected Entity MainEntity { get; }
+    public Entity MainEntity { get; }
 
     public AILowLevelPlan(World world, Entity entity)
     {
@@ -18,21 +18,29 @@ abstract class AILowLevelPlan
     public abstract bool Run();
 }
 
-class WalkToEntityLowLevelPlan : AILowLevelPlan
+abstract class AILowLevelPlanWithTargetEntity : AILowLevelPlan
 {
-    private readonly Entity targetEntity;
+    public Entity TargetEntity { get; }
 
-    public WalkToEntityLowLevelPlan(World world, Entity entity, Entity target)
+    public AILowLevelPlanWithTargetEntity(World world, Entity entity, Entity targetEntity)
         : base(world, entity)
     {
-        this.targetEntity = target;
+        TargetEntity = targetEntity;
+    }
+}
+
+class WalkToEntityLowLevelPlan : AILowLevelPlanWithTargetEntity
+{
+    public WalkToEntityLowLevelPlan(World world, Entity entity, Entity target)
+        : base(world, entity, target)
+    {
     }
 
     public override bool Run()
     {
 
         ref var entityLocationComponent = ref EcsCoordinator.GetLocationComponent(MainEntity);
-        ref var targetLocationComponent = ref EcsCoordinator.GetLocationComponent(targetEntity);
+        ref var targetLocationComponent = ref EcsCoordinator.GetLocationComponent(TargetEntity);
 
         // already next to the resource?
         if (entityLocationComponent.Box.Intersects(targetLocationComponent.Box.WithExpand(Vector2.One)))
@@ -58,16 +66,14 @@ class WaitLowLevelPlan : AILowLevelPlan
     public override bool Run() => World.WorldTime < targetWorldTime;
 }
 
-class MoveInventoryLowLevelPlan : AILowLevelPlan
+class MoveInventoryLowLevelPlan : AILowLevelPlanWithTargetEntity
 {
-    private readonly Entity targetEntity;
     private readonly ResourceMarker sourceMarker, targetMarker;
     private readonly bool clearDestination;
 
     public MoveInventoryLowLevelPlan(World world, Entity sourceEntity, ResourceMarker sourceMarker, Entity targetEntity, ResourceMarker targetMarker, bool clearDestination = false)
-        : base(world, sourceEntity)
+        : base(world, sourceEntity, targetEntity)
     {
-        this.targetEntity = targetEntity;
         this.targetMarker = targetMarker;
         this.clearDestination = clearDestination;
         this.sourceMarker = sourceMarker;
@@ -75,7 +81,7 @@ class MoveInventoryLowLevelPlan : AILowLevelPlan
 
     public override bool Run()
     {
-        var targetRB = EcsCoordinator.GetInventoryComponent(targetEntity).Inventory;
+        var targetRB = EcsCoordinator.GetInventoryComponent(TargetEntity).Inventory;
         if (clearDestination)
             targetRB.Remove(sourceMarker);
         EcsCoordinator.GetInventoryComponent(MainEntity).Inventory.MoveTo(sourceMarker, targetRB, targetMarker);

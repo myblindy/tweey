@@ -6,7 +6,7 @@ internal class ResourceBucket
     public ResourceBucket(IEnumerable<ResourceQuantity> rqs)
     {
         foreach (var rq in rqs)
-            Add(rq, ResourceMarker.Default);
+            Add(new(rq.Resource, rq.Quantity), ResourceMarker.Default);
     }
 
     readonly List<(ResourceQuantity rq, ResourceMarker marker)> resources = new();
@@ -105,6 +105,28 @@ internal class ResourceBucket
         {
             var qty = rq.Quantity;
             foreach (var (newRQ, _) in newRB.resources)
+                if (newRQ.Resource == rq.Resource)
+                {
+                    var qtyUsed = Math.Max(newRQ.Quantity, qty);
+                    qty -= qtyUsed;
+                    newRQ.Quantity -= qtyUsed;
+                }
+        }
+
+        return newRB;
+    }
+
+    public ResourceBucket WithRemove(ResourceMarker keepMarker, ResourceBucket other, ResourceMarker otherMarker, ResourceMarker destMarker)
+    {
+        if (destMarker == ResourceMarker.All)
+            destMarker = ResourceMarker.Default;
+
+        var newRB = new ResourceBucket(GetResourceQuantities(keepMarker));
+
+        foreach (var rq in other.GetResourceQuantities(otherMarker))
+        {
+            var qty = rq.Quantity;
+            foreach (var newRQ in newRB.GetResourceQuantities(destMarker))
                 if (newRQ.Resource == rq.Resource)
                 {
                     var qtyUsed = Math.Max(newRQ.Quantity, qty);

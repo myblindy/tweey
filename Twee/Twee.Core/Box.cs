@@ -48,8 +48,8 @@ public readonly struct Box2 : IEquatable<Box2>
     public Box2 WithOffset(Vector2i offset) => WithOffset(offset.ToNumericsVector2());
 
     public bool Intersects(Box2 other) => Left <= other.Right && Right >= other.Left && Top <= other.Bottom && Bottom >= other.Top;
-    public bool Contains(Vector2 location) => Left <= location.X && Right >= location.X && Top <= location.Y && Bottom >= location.Y;
-    public bool Contains(Vector2i location) => Left <= location.X && Right >= location.X && Top <= location.Y && Bottom >= location.Y;
+    public bool Contains(Vector2 location) => Left <= location.X && Right + 1 >= location.X && Top <= location.Y && Bottom + 1 >= location.Y;
+    public bool Contains(Vector2i location) => Contains(location.ToNumericsVector2());
 
     public bool Equals(Box2 other) => other.TopLeft == TopLeft && other.BottomRight == BottomRight;
     public override bool Equals(object? obj) => obj is Box2 box && Equals(box);

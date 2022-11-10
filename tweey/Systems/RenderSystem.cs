@@ -248,7 +248,21 @@ partial class RenderSystem
         var countTri0 = guiVAO.Vertices.Count;
 
         // store the ai plan targets' vertices (lines)
-        // ...
+        if (world.ShowDetails)
+        {
+            EcsCoordinator.IterateWorkerArchetype((in EcsCoordinator.WorkerIterationResult w) =>
+            {
+                if (w.WorkerComponent.CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity aiLowLevelPlanWithTargetEntity)
+                    ScreenLine(w.LocationComponent.Box,
+                        EcsCoordinator.GetLocationComponent(aiLowLevelPlanWithTargetEntity.TargetEntity).Box, Colors4.Yellow);
+            });
+        }
+        else if (world.SelectedEntity.HasValue && EcsCoordinator.HasWorkerComponent(world.SelectedEntity.Value)
+            && EcsCoordinator.GetWorkerComponent(world.SelectedEntity.Value).CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity { } aiLowLevelPlanWithTargetEntity)
+        {
+            ScreenLine(EcsCoordinator.GetLocationComponent(world.SelectedEntity.Value).Box,
+                EcsCoordinator.GetLocationComponent(aiLowLevelPlanWithTargetEntity.TargetEntity).Box, Colors4.Yellow);
+        }
 
         // selection box (lines)
         if (world.SelectedEntity is { } entity)
@@ -258,7 +272,7 @@ partial class RenderSystem
         // render top layer (tri2)
         EcsCoordinator.IterateVillagerArchetype((in EcsCoordinator.VillagerIterationResult w) =>
         {
-            ScreenString(w.VillagerComponent.Name, new() { Size = 16 },
+            ScreenString(w.IdentityComponent.Name, new() { Size = 16 },
                 new Vector2((w.LocationComponent.Box.Left + .5f - world.Offset.X) * world.Zoom, (w.LocationComponent.Box.Top - world.Offset.Y) * world.Zoom - 20),
                 Colors4.White, new(0, 0, 0, .4f), HorizontalAlignment.Center);
             //if (world.ShowDetails)
@@ -273,7 +287,7 @@ partial class RenderSystem
 
         // zone template
         if (world.CurrentZoneType is not null && world.CurrentZoneStartPoint is not null
-            && Box2.FromCornerSize(world.CurrentZoneStartPoint.Value, world.MouseWorldPosition - world.CurrentZoneStartPoint.Value + Vector2i.One) is { } zoneBox)
+            && Box2.FromCornerSize(world.CurrentZoneStartPoint.Value, (world.MouseWorldPosition - world.CurrentZoneStartPoint.Value.ToNumericsVector2() + Vector2.One).ToVector2i()) is { } zoneBox)
         {
             RenderZone(zoneBox, world.CurrentZoneType.Value, !World.IsZoneValid(zoneBox), true);
         }

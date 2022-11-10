@@ -8,7 +8,8 @@
     <Nullable>enable</Nullable>
     <LangVersion>preview</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AnalysisLevel>6.0-recommended</AnalysisLevel>
+    <AnalysisLevel>7.0-recommended</AnalysisLevel>
+    <TieredCompilation>true</TieredCompilation>
   </PropertyGroup>
 
   <ItemGroup>

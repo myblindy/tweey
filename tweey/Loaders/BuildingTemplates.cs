@@ -18,7 +18,7 @@ internal class BuildingLightTemplate
 
 internal class BuildingTemplate : ITemplateFileName
 {
-    public string? Name { get; set; }
+    public string Name { get; set; } = null!;
     public int Width { get; set; }
     public int Height { get; set; }
     public BuildingType Type { get; set; }

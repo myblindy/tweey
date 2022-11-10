@@ -296,13 +296,14 @@ public sealed class ECSSourceGen : IIncrementalGenerator
             sb.AppendLine($$"""
                 #nullable enable
 
+                using System.Runtime.CompilerServices;
+
                 // systems
                 {{string.Join(Environment.NewLine, systems.Select(s => $$"""
                     {{(s!.Namespace is not null ? $"namespace {s!.Namespace} {{" : "")}}
                     sealed partial class {{s!.TypeName}}
                     {
-                        internal HashSet<Entity> Entities { get; } = 
-                            EcsCoordinator.{{s.UsedArchetypeName}}Entities;
+                        internal HashSet<Entity> Entities { get; } = EcsCoordinator.{{s.UsedArchetypeName}}Entities;
 
                         readonly ref struct IterationResult
                         {
@@ -472,12 +473,16 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             }
                             """)}}
 
+                        [MethodImpl(MethodImplOptions.AggressiveInlining)]
                         public static bool Has{{c!.TypeRootName}}Component(Entity entity) =>
                             entityComponents[entity].HasFlag(EcsComponents.{{c!.TypeRootName}});
 
-                        public static ref {{c!.FullName}} Get{{c!.TypeRootName}}Component(Entity entity) 
+                        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                        public static ref {{c!.FullName}} Get{{c!.TypeRootName}}Component(Entity entity)
                         {
-                            return ref CollectionsMarshal.AsSpan({{c!.TypeName}}s)[entityComponentMapping[entity, {{findIndex(components, w => w == c)}}]];
+                            if(entityComponentMapping[entity, {{findIndex(components, w => w == c)}}] is { } idx && idx >= 0)
+                                return ref CollectionsMarshal.AsSpan({{c!.TypeName}}s)[idx];
+                            return ref Unsafe.NullRef<{{c!.FullName}}>();
                         }
                         
                         public static void Remove{{c!.TypeRootName}}Component(Entity entity) 

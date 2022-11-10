@@ -1,13 +1,11 @@
-﻿using System.Buffers;
-
-namespace Tweey.Systems;
+﻿namespace Tweey.Systems;
 
 [EcsSystem(Archetypes.Worker)]
-partial class AIHighLevelSystem
+partial class AISystem
 {
     private readonly World world;
 
-    public AIHighLevelSystem(World world)
+    public AISystem(World world)
     {
         this.world = world;
     }
@@ -105,9 +103,12 @@ partial class AIHighLevelSystem
                 highLevelEnumerator = EcsCoordinator.GetWorkerComponent(Entity).Plans!.Select(w => w).GetEnumerator();
                 if (!highLevelEnumerator.MoveNext())
                 {
+                    EcsCoordinator.GetWorkerComponent(Entity).CurrentHighLevelPlan = null;
+                    EcsCoordinator.GetWorkerComponent(Entity).CurrentLowLevelPlan = null;
                     highLevelEnumerator.Dispose();
                     return false;
                 }
+                EcsCoordinator.GetWorkerComponent(Entity).CurrentHighLevelPlan = highLevelEnumerator.Current;
             }
 
             if (lowLevelEnumerator is null)
@@ -123,9 +124,11 @@ partial class AIHighLevelSystem
                         highLevelEnumerator.Dispose();
                         return false;
                     }
+                    EcsCoordinator.GetWorkerComponent(Entity).CurrentHighLevelPlan = highLevelEnumerator.Current;
                     lowLevelEnumerator = highLevelEnumerator.Current.GetLowLevelPlans().GetEnumerator();
                     goto retry0;
                 }
+                EcsCoordinator.GetWorkerComponent(Entity).CurrentLowLevelPlan = lowLevelEnumerator.Current;
             }
 
             if (!lowLevelEnumerator.Current.Run())
@@ -139,9 +142,11 @@ partial class AIHighLevelSystem
                         highLevelEnumerator.Dispose();
                         return false;
                     }
+                    EcsCoordinator.GetWorkerComponent(Entity).CurrentHighLevelPlan = highLevelEnumerator.Current;
                     lowLevelEnumerator = highLevelEnumerator.Current.GetLowLevelPlans().GetEnumerator();
                     goto retry1;
                 }
+                EcsCoordinator.GetWorkerComponent(Entity).CurrentLowLevelPlan = lowLevelEnumerator.Current;
             }
 
             return true;

@@ -1,4 +1,5 @@
 ﻿using System.IO.Compression;
+using Tweey.Loaders;
 
 namespace Tweey.WorldData;
 
@@ -16,7 +17,6 @@ internal class World
 
     public double TimeSpeedUp { get; set; } = 1;
 
-    public bool Paused { get; private set; }
     public bool ShowDetails { get; private set; }
     public bool DebugShowLightAtMouse { get; private set; }
 
@@ -28,7 +28,7 @@ internal class World
     /// <summary>
     /// The position of the mouse in world coordinates.
     /// </summary>
-    public Vector2i MouseWorldPosition { get; private set; }
+    public Vector2 MouseWorldPosition { get; private set; }
 
     public Vector2 Offset { get; set; }
     public float Zoom { get; set; } = 35;
@@ -51,10 +51,11 @@ internal class World
         EcsCoordinator.AddRenderableComponent(entity, "Data/Misc/villager.png",
             LightEmission: Colors4.White, LightRange: 12, LightAngleRadius: .1f);
         EcsCoordinator.AddHeadingComponent(entity);
-        EcsCoordinator.AddVillagerComponent(entity, name, Configuration.Data.BaseCarryWeight, Configuration.Data.BasePickupSpeed, Configuration.Data.BaseMovementSpeed,
+        EcsCoordinator.AddVillagerComponent(entity, Configuration.Data.BaseCarryWeight, Configuration.Data.BasePickupSpeed, Configuration.Data.BaseMovementSpeed,
             Configuration.Data.BaseWorkSpeed);
         EcsCoordinator.AddWorkerComponent(entity);
         EcsCoordinator.AddInventoryComponent(entity);
+        EcsCoordinator.AddIdentityComponent(entity, name);
 
         return entity;
     }
@@ -67,6 +68,8 @@ internal class World
             OcclusionCircle: true, OcclusionScale: .3f);
         EcsCoordinator.AddWorkableComponent(entity)
             .ResizeSlots(1);
+        EcsCoordinator.AddTreeComponent(entity);
+        EcsCoordinator.AddIdentityComponent(entity, treeTemplate.Name);
 
         return entity;
     }
@@ -74,72 +77,89 @@ internal class World
     public void AddResourceEntity(ResourceBucket resourceBucket, Vector2 location)
     {
         // obey the maximum ground stack weight
-        List<(Vector2i pt, ResourceBucket? rb)> availableNeighbours = new();
-        int availableNeighboursSearchRadius = -1;
-        while (resourceBucket.GetWeight(ResourceMarker.All) > 0)
+        var availableNeighbours = ObjectPool<List<(Vector2i pt, Entity? entity, ResourceBucket? rb)>>.Shared.Get();
+
+        try
         {
-            // take any spill-over and put it in a random direction, up to maximumGroundDropSpillOverRange range
-            while (availableNeighbours.Count == 0)
+            int availableNeighboursSearchRadius = -1;
+            while (resourceBucket.GetWeight(ResourceMarker.All) > 0)
             {
-                ++availableNeighboursSearchRadius;
-
-                foreach (var dv in GameUtilities.EnumerateNeighbourLocations(location, radiusMin: availableNeighboursSearchRadius, radiusMax: availableNeighboursSearchRadius))
+                // take any spill-over and put it in a random direction, up to maximumGroundDropSpillOverRange range
+                while (availableNeighbours.Count == 0)
                 {
-                    var okay = true;
-                    ResourceBucket? foundResourceBucket = default;
+                    ++availableNeighboursSearchRadius;
 
-                    foreach (var entity in EcsCoordinator.Entities)
+                    foreach (var dv in GameUtilities.EnumerateNeighbourLocations(location, radiusMin: availableNeighboursSearchRadius, radiusMax: availableNeighboursSearchRadius))
                     {
-                        if (EcsCoordinator.GetLocationComponent(entity).Box.Contains(location + dv.ToNumericsVector2()))
-                            if (EcsCoordinator.HasResourceComponent(entity))
+                        var okay = true;
+                        ResourceBucket? foundResourceBucket = default;
+                        Entity? foundEntity = default;
+
+                        EcsCoordinator.IteratePlacedResourceArchetype((in EcsCoordinator.PlacedResourceIterationResult w) =>
+                        {
+                            if (w.LocationComponent.Box.Contains(location + dv.ToNumericsVector2()))
                             {
-                                ref var inventoryComponent = ref EcsCoordinator.GetInventoryComponent(entity);
-                                if (inventoryComponent.Inventory.GetWeight(ResourceMarker.All) < Configuration.Data.GroundStackMaximumWeight)
+                                if (w.InventoryComponent.Inventory.GetWeight(ResourceMarker.All) >= Configuration.Data.GroundStackMaximumWeight)
                                 {
                                     okay = false;
-                                    break;
+                                    return false;
                                 }
                                 else
-                                    foundResourceBucket = inventoryComponent.Inventory;
+                                    (foundEntity, foundResourceBucket) = (w.Entity, w.InventoryComponent.Inventory);
                             }
+                            return true;
+                        });
+
+                        if (okay)
+                            availableNeighbours.Add((dv, foundEntity, foundResourceBucket));
                     }
-
-                    if (okay)
-                        availableNeighbours.Add((dv, foundResourceBucket));
                 }
-            }
 
-            var chosenNeighbourIndex = Random.Shared.Next(availableNeighbours.Count);
-            var chosenNeighbour = availableNeighbours[chosenNeighbourIndex];
-            availableNeighbours.Remove(chosenNeighbour);
+                var chosenNeighbourIndex = Random.Shared.Next(availableNeighbours.Count);
+                var chosenNeighbour = availableNeighbours[chosenNeighbourIndex];
+                availableNeighbours.Remove(chosenNeighbour);
 
-            var newRB = chosenNeighbour.rb;
-            if (newRB is null)
-            {
-                var entity = EcsCoordinator.CreateEntity();
-                EcsCoordinator.AddRenderableComponent(entity, null);
-                EcsCoordinator.AddLocationComponent(entity, Box2.FromCornerSize(chosenNeighbour.pt, new(1, 1)));
-                EcsCoordinator.AddResourceComponent(entity);
-                newRB = EcsCoordinator.AddInventoryComponent(entity).Inventory;
-            }
-            var newRBWeight = newRB.GetWeight(ResourceMarker.Default);
-
-            foreach (var resQ in resourceBucket.GetResourceQuantities(ResourceMarker.All).Where(w => w.Quantity != 0))
-            {
-                // only allow one resource kind on the ground
-                if (!newRB.GetResourceQuantities(ResourceMarker.All).Any() || newRB.GetResourceQuantities(ResourceMarker.All).Any(rq => rq.Resource == resQ.Resource))
+                var newRB = chosenNeighbour.rb;
+                var newEntity = chosenNeighbour.entity ?? Entity.Invalid;
+                if (newRB is null)
                 {
-                    var maxNewWeight = Configuration.Data.GroundStackMaximumWeight - newRBWeight;
-                    var quantityToMove = (int)Math.Floor(Math.Min(maxNewWeight, resQ.Weight) / resQ.Resource.Weight);
+                    newEntity = EcsCoordinator.CreateEntity();
+                    EcsCoordinator.AddRenderableComponent(newEntity, null);
+                    EcsCoordinator.AddLocationComponent(newEntity, Box2.FromCornerSize(chosenNeighbour.pt, new(1, 1)));
+                    EcsCoordinator.AddResourceComponent(newEntity);
+                    newRB = EcsCoordinator.AddInventoryComponent(newEntity).Inventory;
+                    EcsCoordinator.AddIdentityComponent(newEntity);
+                }
+                var newRBWeight = newRB.GetWeight(ResourceMarker.Default);
 
-                    var newResQ = new ResourceQuantity(resQ.Resource, quantityToMove);
-                    newRB.Add(newResQ, ResourceMarker.Default);
-                    resourceBucket.Remove(newResQ);
-                    if (resQ.Quantity > 0)
-                        break;  // couldn't finish the stack
-                    newRBWeight += resQ.Resource.Weight * quantityToMove;
+                foreach (var resQ in resourceBucket.GetResourceQuantities(ResourceMarker.All).Where(w => w.Quantity != 0))
+                {
+                    // only allow one resource kind on the ground
+                    if (!newRB.GetResourceQuantities(ResourceMarker.All).Any() || newRB.GetResourceQuantities(ResourceMarker.All).Any(rq => rq.Resource == resQ.Resource))
+                    {
+                        var maxNewWeight = Configuration.Data.GroundStackMaximumWeight - newRBWeight;
+                        var quantityToMove = (int)Math.Floor(Math.Min(maxNewWeight, resQ.Weight) / resQ.Resource.Weight);
+
+                        var newResQ = new ResourceQuantity(resQ.Resource, quantityToMove);
+                        newRB.Add(newResQ, ResourceMarker.Default);
+                        resourceBucket.Remove(newResQ);
+                        if (resQ.Quantity > 0)
+                            break;  // couldn't finish the stack
+                        newRBWeight += resQ.Resource.Weight * quantityToMove;
+                    }
+                }
+
+                if (newRB.GetResourceQuantities(ResourceMarker.All).FirstOrDefault() is { } newRQ)
+                {
+                    // once we finished this resource clump, set its name and render image
+                    EcsCoordinator.GetIdentityComponent(newEntity).Name = newRQ.Resource.Name;
+                    EcsCoordinator.GetRenderableComponent(newEntity).AtlasEntryName = $"Data/Resources/{newRQ.Resource.FileName}.png";
                 }
             }
+        }
+        finally
+        {
+            ObjectPool<List<(Vector2i pt, Entity? entity, ResourceBucket? rb)>>.Shared.Return(availableNeighbours);
         }
     }
 
@@ -153,6 +173,7 @@ internal class World
         EcsCoordinator.AddInventoryComponent(entity);
         EcsCoordinator.AddWorkableComponent(entity)
             .ResizeSlots(isBuilt ? buildingTemplate.MaxWorkersAmount : 1);
+        EcsCoordinator.AddIdentityComponent(entity, buildingTemplate.Name);
 
         return entity;
     }
@@ -202,23 +223,24 @@ internal class World
         return okay;
     }
 
-    public Vector2i GetWorldLocationFromScreenPoint(Vector2i screenPoint) =>
-        new((int)MathF.Floor(((screenPoint.X) / Zoom + Offset.X)), (int)MathF.Floor(((screenPoint.Y) / Zoom + Offset.Y)));
+    public Vector2 GetWorldLocationFromScreenPoint(Vector2i screenPoint) =>
+        new((screenPoint.X) / Zoom + Offset.X, (screenPoint.Y) / Zoom + Offset.Y);
 
     event Action<Entity>? PlacedBuilding;
-    public void MouseEvent(Vector2i screenPosition, Vector2i worldLocation, InputAction? inputAction = null, MouseButton? mouseButton = null, KeyModifiers? keyModifiers = null)
+    public void MouseEvent(Vector2i screenPosition, Vector2 worldLocation, InputAction? inputAction = null, MouseButton? mouseButton = null, KeyModifiers? keyModifiers = null)
     {
         if (inputAction == InputAction.Press && mouseButton == MouseButton.Button1)
         {
             if (CurrentZoneType is not null && CurrentZoneStartPoint is null)
             {
                 // first point
-                CurrentZoneStartPoint = MouseWorldPosition;
+                CurrentZoneStartPoint = MouseWorldPosition.ToVector2i();
             }
             else if (CurrentZoneType is not null)
             {
                 // second point, add the zone entity
-                var box = Box2.FromCornerSize(CurrentZoneStartPoint!.Value, MouseWorldPosition - CurrentZoneStartPoint.Value + Vector2i.One);
+                var box = Box2.FromCornerSize(CurrentZoneStartPoint.Value,
+                    (MouseWorldPosition - CurrentZoneStartPoint.Value.ToNumericsVector2() + Vector2.One).ToVector2i());
                 if (IsZoneValid(box))
                     AddZoneEntity(CurrentZoneType.Value, box);
                 CurrentZoneType = null;
@@ -239,7 +261,7 @@ internal class World
 
                 if (okay)
                 {
-                    var building = AddBuildingEntity(CurrentBuildingTemplate, worldLocation.ToNumericsVector2(), false);
+                    var building = AddBuildingEntity(CurrentBuildingTemplate, worldLocation, false);
                     PlacedBuilding?.Invoke(building);
                     if (keyModifiers?.HasFlag(KeyModifiers.Shift) != true)
                         CurrentBuildingTemplate = null;
@@ -317,7 +339,7 @@ internal class World
     public void KeyEvent(InputAction inputAction, Keys key, int scanCode, KeyModifiers keyModifiers)
     {
         if (inputAction == InputAction.Press && key == Keys.Space)
-            Paused = !Paused;
+            TimeSpeedUp = 0;
         else if (inputAction == InputAction.Press && key is Keys.LeftAlt or Keys.RightAlt)
             ShowDetails = true;
         else if (inputAction == InputAction.Release && key is Keys.LeftAlt or Keys.RightAlt)
