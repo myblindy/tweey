@@ -1,4 +1,6 @@
-﻿namespace Tweey.Systems;
+﻿using System.Data;
+
+namespace Tweey.Systems;
 
 [EcsSystem(Archetypes.Render)]
 partial class RenderSystem
@@ -283,13 +285,17 @@ partial class RenderSystem
         });
 
         // building template
-        // ...
+        if (world.CurrentBuildingTemplate is not null)
+        {
+            var box = Box2.FromCornerSize(world.MouseWorldPosition.ToVector2i(), world.CurrentBuildingTemplate.Width, world.CurrentBuildingTemplate.Height);
+            ScreenFillQuad(box, World.IsBoxFreeOfBuildings(box) ? Colors4.Lime : Colors4.Red, atlas[world.CurrentBuildingTemplate.ImageFileName]);
+        }
 
         // zone template
         if (world.CurrentZoneType is not null && world.CurrentZoneStartPoint is not null
             && Box2.FromCornerSize(world.CurrentZoneStartPoint.Value, (world.MouseWorldPosition - world.CurrentZoneStartPoint.Value.ToNumericsVector2() + Vector2.One).ToVector2i()) is { } zoneBox)
         {
-            RenderZone(zoneBox, world.CurrentZoneType.Value, !World.IsZoneValid(zoneBox), true);
+            RenderZone(zoneBox, world.CurrentZoneType.Value, !World.IsBoxFreeOfBuildings(zoneBox), true);
         }
 
         // render gui (tri2)

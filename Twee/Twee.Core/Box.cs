@@ -1,4 +1,5 @@
-﻿using Twee.Core.Support;
+﻿using System.Runtime.CompilerServices;
+using Twee.Core.Support;
 
 namespace Twee.Core;
 
@@ -23,32 +24,51 @@ public readonly struct Box2 : IEquatable<Box2>
     public Vector2 BottomLeft => new(Left, Bottom);
 
     public Vector2 Center => TopLeft + new Vector2((Right - Left) / 2, (Bottom - Top) / 2);
-
     public Vector2 Size => BottomRight - TopLeft + Vector2.One;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Box2 FromCornerSize(Vector2 topLeft, Vector2 size) =>
         new(topLeft, topLeft + size - Vector2.One);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Box2 FromCornerSize(Vector2i topLeft, Vector2i size) =>
         FromCornerSize(topLeft.ToNumericsVector2(), size.ToNumericsVector2());
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Box2 FromCornerSize(float left, float top, float width, float height) =>
         FromCornerSize(new Vector2(left, top), new Vector2(width, height));
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Box2 FromCornerSize(int left, int top, int width, int height) =>
         FromCornerSize(new Vector2i(left, top), new Vector2i(width, height));
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Box2 FromCornerSize(Vector2 topLeft, float width, float height) =>
         new(topLeft, topLeft + new Vector2(width - 1, height - 1));
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Box2 FromCornerSize(Vector2i topLeft, float width, float height) =>
         FromCornerSize(topLeft.ToNumericsVector2(), width, height);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Box2 WithExpand(Vector2 offset) => new(TopLeft - offset, BottomRight + offset);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Box2 WithExpand(Vector2i offset) => WithExpand(offset.ToNumericsVector2());
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Box2 WithOffset(Vector2 offset) => new(TopLeft + offset, BottomRight + offset);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Box2 WithOffset(Vector2i offset) => WithOffset(offset.ToNumericsVector2());
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Intersects(Box2 other) => Left <= other.Right && Right >= other.Left && Top <= other.Bottom && Bottom >= other.Top;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Contains(Vector2 location) => Left <= location.X && Right + 1 >= location.X && Top <= location.Y && Bottom + 1 >= location.Y;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Contains(Vector2i location) => Contains(location.ToNumericsVector2());
 
     public bool Equals(Box2 other) => other.TopLeft == TopLeft && other.BottomRight == BottomRight;

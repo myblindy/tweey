@@ -207,7 +207,7 @@ internal class World
         return entity.Delete();
     }
 
-    public static bool IsZoneValid(Box2 box)
+    public static bool IsBoxFreeOfBuildings(Box2 box)
     {
         var okay = true;
         EcsCoordinator.IterateBuildingArchetype((in EcsCoordinator.BuildingIterationResult w) =>
@@ -241,25 +241,13 @@ internal class World
                 // second point, add the zone entity
                 var box = Box2.FromCornerSize(CurrentZoneStartPoint!.Value,
                     (MouseWorldPosition - CurrentZoneStartPoint.Value.ToNumericsVector2() + Vector2.One).ToVector2i());
-                if (IsZoneValid(box))
+                if (IsBoxFreeOfBuildings(box))
                     AddZoneEntity(CurrentZoneType.Value, box);
                 CurrentZoneType = null;
             }
             else if (CurrentBuildingTemplate is not null)
             {
-                var okay = true;
-                EcsCoordinator.IterateBuildingArchetype((in EcsCoordinator.BuildingIterationResult w) =>
-                {
-                    if (w.LocationComponent.Box.Intersects(Box2.FromCornerSize(worldLocation, new(CurrentBuildingTemplate.Width, CurrentBuildingTemplate.Height))))
-                    {
-                        okay = false;
-                        return false;
-                    }
-
-                    return true;
-                });
-
-                if (okay)
+                if (IsBoxFreeOfBuildings(Box2.FromCornerSize(worldLocation.ToVector2i(), CurrentBuildingTemplate.Width, CurrentBuildingTemplate.Height)))
                 {
                     var building = AddBuildingEntity(CurrentBuildingTemplate, worldLocation, false);
                     PlacedBuilding?.Invoke(building);

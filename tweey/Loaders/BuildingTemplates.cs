@@ -28,6 +28,8 @@ internal class BuildingTemplate : ITemplateFileName
     public int MaxWorkersAmount { get; set; }
     public ReadOnlyCollection<BuildingProductionLineTemplate> ProductionLines { get; set; } = null!;
     public BuildingLightTemplate? EmitLight { get; set; }
+
+    public string ImageFileName => $"Data/Buildings/{FileName}.png";
 }
 
 internal class BuildingProductionLineTemplateIn
