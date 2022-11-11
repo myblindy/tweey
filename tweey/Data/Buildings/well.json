@@ -1,7 +1,6 @@
 {
   "$schema": "./_schema.json",
   "name": "Well",
-  "type": "production",
   "buildCost": {
     "workTicks": 60,
     "resources": [

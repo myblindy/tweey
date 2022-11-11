@@ -3,4 +3,4 @@
 [EcsComponent]
 record struct ZoneComponent(ZoneType Type);
 
-enum ZoneType { Grow }
+enum ZoneType { Storage, Grow }

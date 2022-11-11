@@ -182,7 +182,7 @@ partial class RenderSystem
 
             addLight((w.LocationComponent.Box.Center + new Vector2(.5f) - world.Offset) * world.Zoom, w.RenderableComponent.LightRange * world.Zoom,
                 w.RenderableComponent.LightEmission.GetXYZ(), w.RenderableComponent.LightFullCircle ? LightMapFBUbo.Light.FullAngle :
-                    getAngleMinMaxFromHeading(EcsCoordinator.GetHeadingComponent(w.Entity).Heading, w.RenderableComponent.LightAngleRadius));
+                    getAngleMinMaxFromHeading(w.Entity.GetHeadingComponent().Heading, w.RenderableComponent.LightAngleRadius));
         });
 
         if (world.DebugShowLightAtMouse)
@@ -238,9 +238,9 @@ partial class RenderSystem
         {
             if (w.RenderableComponent.AtlasEntryName is { } atlasEntryName)
                 ScreenFillQuad(w.LocationComponent.Box, Colors4.White, atlas[atlasEntryName]);
-            else if (EcsCoordinator.HasZoneComponent(w.Entity))
+            else if (w.Entity.HasZoneComponent())
             {
-                ref var zoneComponent = ref EcsCoordinator.GetZoneComponent(w.Entity);
+                ref var zoneComponent = ref w.Entity.GetZoneComponent();
                 RenderZone(w.LocationComponent.Box, zoneComponent.Type, false, false);
             }
         });
@@ -254,19 +254,19 @@ partial class RenderSystem
             {
                 if (w.WorkerComponent.CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity aiLowLevelPlanWithTargetEntity)
                     ScreenLine(w.LocationComponent.Box,
-                        EcsCoordinator.GetLocationComponent(aiLowLevelPlanWithTargetEntity.TargetEntity).Box, Colors4.Yellow);
+                        aiLowLevelPlanWithTargetEntity.TargetEntity.GetLocationComponent().Box, Colors4.Yellow);
             });
         }
-        else if (world.SelectedEntity.HasValue && EcsCoordinator.HasWorkerComponent(world.SelectedEntity.Value)
-            && EcsCoordinator.GetWorkerComponent(world.SelectedEntity.Value).CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity { } aiLowLevelPlanWithTargetEntity)
+        else if (world.SelectedEntity.HasValue && world.SelectedEntity.Value.HasWorkerComponent()
+            && world.SelectedEntity.Value.GetWorkerComponent().CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity { } aiLowLevelPlanWithTargetEntity)
         {
-            ScreenLine(EcsCoordinator.GetLocationComponent(world.SelectedEntity.Value).Box,
-                EcsCoordinator.GetLocationComponent(aiLowLevelPlanWithTargetEntity.TargetEntity).Box, Colors4.Yellow);
+            ScreenLine(world.SelectedEntity.Value.GetLocationComponent().Box,
+                aiLowLevelPlanWithTargetEntity.TargetEntity.GetLocationComponent().Box, Colors4.Yellow);
         }
 
         // selection box (lines)
         if (world.SelectedEntity is { } entity)
-            ScreenLineQuad(EcsCoordinator.GetLocationComponent(entity).Box, Colors4.White);
+            ScreenLineQuad(entity.GetLocationComponent().Box, Colors4.White);
         var countLines1 = guiVAO.Vertices.Count - countTri0;
 
         // render top layer (tri2)

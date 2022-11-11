@@ -10,11 +10,10 @@ namespace Twee.Roslyn;
 [Generator]
 public sealed class ECSSourceGen : IIncrementalGenerator
 {
-    const string TweeCoreAssemblyName = "Twee.Core";
-    const string ComponentAttributeFullName = "Twee.Ecs.EcsComponentAttribute";
+    const string ComponentAttributeFullName = "Twee.Core.Ecs.EcsComponentAttribute";
     const string SystemAttributeFullName = "Twee.Ecs.EcsSystemAttribute";
-    const string MessageAttributeFullName = "Twee.Ecs.MessageAttribute";
-    const string ArchetypeAttributeFullName = "Twee.Ecs.EcsArchetypesAttribute";
+    const string MessageAttributeFullName = "Twee.Core.Ecs.MessageAttribute";
+    const string ArchetypeAttributeFullName = "Twee.Core.Ecs.EcsArchetypesAttribute";
 
     static readonly Regex typeRootNameRegex = new(@"^.*?([^.]+?)(?:Component|System|Message)?$");
     static string GetTypeRootName(string name) =>
@@ -188,46 +187,12 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                 namespace Twee.Ecs;
 
                 {{Common.GeneratedCodeAttributeText}}
-                [AttributeUsage(AttributeTargets.Struct)]
-                internal sealed class EcsComponentAttribute : Attribute
-                {
-                }
-
-                {{Common.GeneratedCodeAttributeText}}
-                internal readonly struct Entity : IEquatable<Entity>
-                {
-                    public required int ID { get; init; }
-
-                    public static Entity Invalid = new() { ID = -1 };
-
-                    public override bool Equals(object? obj) => obj is Entity entity && Equals(entity);
-                    public bool Equals(Entity other) => ID == other.ID;
-                    public static bool operator ==(Entity a, Entity b) => a.Equals(b);
-                    public static bool operator !=(Entity a, Entity b) => !a.Equals(b);
-                    public override int GetHashCode() => ID;
-
-                    public static implicit operator int(Entity entity) => entity.ID;
-                }
-                
-                {{Common.GeneratedCodeAttributeText}}
                 [AttributeUsage(AttributeTargets.Class)]
                 internal sealed class EcsSystemAttribute : Attribute
                 {
                     public EcsSystemAttribute(EcsComponents components) { }
                 }
                 
-                {{Common.GeneratedCodeAttributeText}}
-                [AttributeUsage(AttributeTargets.Method)]
-                internal sealed class MessageAttribute : Attribute
-                {
-                }
-                
-                {{Common.GeneratedCodeAttributeText}}
-                [AttributeUsage(AttributeTargets.Class)]
-                internal sealed class EcsArchetypesAttribute : Attribute
-                {
-                }
-
                 {{Common.GeneratedCodeAttributeText}}
                 internal static partial class EcsCoordinator
                 {
@@ -244,19 +209,6 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         while(entityComponents.Count <= idx)
                             entityComponents.Add(0);
                     }
-                }
-
-                class EntityJsonConverter : JsonConverter<Entity>
-                {
-                    public override Entity Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-                    {
-                        if (!reader.Read())
-                            throw new JsonException();
-                        return new() { ID = reader.GetInt32() };
-                    }
-                    
-                    public override void Write(Utf8JsonWriter writer, Entity value, JsonSerializerOptions options) =>
-                        writer.WriteNumberValue(value.ID);
                 }
                 """);
             });
@@ -403,7 +355,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             var id = extraAvailableEntityIDs.Min;
                             extraAvailableEntityIDs.Remove(id);
                 
-                            var entity = new Entity() { ID = id };
+                            var entity = new Entity { ID = id };
                 
                             EnsureEntityComponentsListEntityExists(entity);
                             entityComponents[entity] = 0;
@@ -415,7 +367,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             return entity;
                         }
                 
-                        var entity0 = new Entity() { ID = maxGeneratedEntityID++ };
+                        var entity0 = new Entity { ID = maxGeneratedEntityID++ };
                 
                         EnsureEntityComponentsListEntityExists(entity0);
                         entityComponents[entity0] = 0;
@@ -542,6 +494,40 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                     public List<int> ExtraAvailableEntitiesIDs { get; } = new();
                     {{string.Join(Environment.NewLine, components.Select(c => $$"""
                         public List<(Entity Entity, {{c!.FullName}} Component)> {{c!.TypeRootName}}s { get; } = new();
+                        """))}}
+                }
+
+                internal static class EntityExtensions
+                {
+                    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                    public static bool Delete(this Entity entity) => 
+                        EcsCoordinator.DeleteEntity(entity);
+
+                     // component functions
+                    {{string.Join(Environment.NewLine, components.Select(c => $$"""
+                        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                        public static ref {{c!.FullName}} Add{{c!.TypeRootName}}Component(this Entity entity) => 
+                            ref EcsCoordinator.Add{{c!.TypeRootName}}Component(entity);
+
+                        {{(c.Parameters.Length == 0 ? "" : $$"""
+                            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                            public static ref {{c!.FullName}} Add{{c!.TypeRootName}}Component(this Entity entity,
+                                {{string.Join(", ", c.Parameters.Select(p =>
+                                    $"{p.FullTypeName} {p.Name} {(p.Default is null ? "" : $" = {p.Default}")}"))}}) =>
+                                ref EcsCoordinator.Add{{c!.TypeRootName}}Component(entity, 
+                                    {{string.Join(", ", c.Parameters.Select(p => p.Name))}});
+                            """)}}
+
+                        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                        public static bool Has{{c!.TypeRootName}}Component(this Entity entity) =>
+                            EcsCoordinator.Has{{c!.TypeRootName}}Component(entity);
+
+                        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                        public static ref {{c!.FullName}} Get{{c!.TypeRootName}}Component(this Entity entity) =>
+                            ref EcsCoordinator.Get{{c!.TypeRootName}}Component(entity);
+                        
+                        public static void Remove{{c!.TypeRootName}}Component(this Entity entity) =>
+                            EcsCoordinator.Remove{{c!.TypeRootName}}Component(entity);
                         """))}}
                 }
                 }

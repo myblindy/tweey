@@ -9,11 +9,16 @@ struct WorkableComponent
     [MemberNotNull(nameof(WorkerSlots))]
     public void ResizeSlots(int slots)
     {
-        var extraNewSlots = slots - (WorkerSlots?.Length ?? 0);
-        WorkerSlots = new WorkerSlot[slots];
+        if (slots == 0)
+            WorkerSlots = Array.Empty<WorkerSlot>();
+        else
+        {
+            var extraNewSlots = slots - (WorkerSlots?.Length ?? 0);
+            WorkerSlots = new WorkerSlot[slots];
 
-        while (extraNewSlots-- > 0)
-            WorkerSlots[extraNewSlots] = new();
+            while (extraNewSlots-- > 0)
+                WorkerSlots[extraNewSlots] = new();
+        }
     }
 
     public ref WorkerSlot GetEmptyWorkerSlot()

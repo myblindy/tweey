@@ -39,8 +39,8 @@ class WalkToEntityLowLevelPlan : AILowLevelPlanWithTargetEntity
     public override bool Run()
     {
 
-        ref var entityLocationComponent = ref EcsCoordinator.GetLocationComponent(MainEntity);
-        ref var targetLocationComponent = ref EcsCoordinator.GetLocationComponent(TargetEntity);
+        ref var entityLocationComponent = ref MainEntity.GetLocationComponent();
+        ref var targetLocationComponent = ref TargetEntity.GetLocationComponent();
 
         // already next to the resource?
         if (entityLocationComponent.Box.Intersects(targetLocationComponent.Box.WithExpand(Vector2.One)))
@@ -48,7 +48,7 @@ class WalkToEntityLowLevelPlan : AILowLevelPlanWithTargetEntity
 
         entityLocationComponent.Box = entityLocationComponent.Box.WithOffset(
             Vector2.Normalize((targetLocationComponent.Box.Center - entityLocationComponent.Box.Center))
-                * (float)(EcsCoordinator.GetVillagerComponent(MainEntity).MovementRateMultiplier * World.DeltaWorldTime.TotalSeconds));
+                * (float)(MainEntity.GetVillagerComponent().MovementRateMultiplier * World.DeltaWorldTime.TotalSeconds));
         return true;
     }
 }
@@ -81,10 +81,10 @@ class MoveInventoryLowLevelPlan : AILowLevelPlanWithTargetEntity
 
     public override bool Run()
     {
-        var targetRB = EcsCoordinator.GetInventoryComponent(TargetEntity).Inventory;
+        var targetRB = TargetEntity.GetInventoryComponent().Inventory;
         if (clearDestination)
             targetRB.Remove(sourceMarker);
-        EcsCoordinator.GetInventoryComponent(MainEntity).Inventory.MoveTo(sourceMarker, targetRB, targetMarker);
+        MainEntity.GetInventoryComponent().Inventory.MoveTo(sourceMarker, targetRB, targetMarker);
         return false;
     }
 }

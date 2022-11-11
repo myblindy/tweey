@@ -56,10 +56,10 @@ partial class RenderSystem
             }, Anchor.BottomRight));
 
         static string? getEntityDescription(Entity entity) =>
-            EcsCoordinator.HasVillagerComponent(entity) ? "Villager"
-            : EcsCoordinator.HasResourceComponent(entity) ? "Resource"
-            : EcsCoordinator.HasBuildingComponent(entity) ? !EcsCoordinator.GetBuildingComponent(entity).IsBuilt ? "Building Site" : "Building"
-            : EcsCoordinator.HasTreeComponent(entity) ? "Tree"
+            entity.HasVillagerComponent() ? "Villager"
+            : entity.HasResourceComponent() ? "Resource"
+            : entity.HasBuildingComponent() ? !entity.GetBuildingComponent().IsBuilt ? "Building Site" : "Building"
+            : entity.HasTreeComponent() ? "Tree"
             : throw new NotImplementedException();
 
         View getResourceRowView(bool labor, Resource? resource, Func<double> quantity) =>
@@ -103,22 +103,22 @@ partial class RenderSystem
                     {
                         Children =
                         {
-                            new ImageView
-                            {
-                                Source = () => EcsCoordinator.GetRenderableComponent(world.SelectedEntity!.Value).AtlasEntryName,
-                                InheritParentSize = true,
-                            },
                             new LabelView
                             {
                                 Text = () => getEntityDescription(world.SelectedEntity!.Value),
                                 FontSize = 30,
                                 ForegroundColor = () => descriptionColor
                             },
+                            new ImageView
+                            {
+                                Padding = new(10, 0, 0, 0),
+                                Source = () => world.SelectedEntity!.Value.GetRenderableComponent().AtlasEntryName,
+                                InheritParentSize = true,
+                            },
                             new LabelView
                             {
-                                Text = () => EcsCoordinator.GetIdentityComponent(world.SelectedEntity!.Value).Name,
+                                Text = () => world.SelectedEntity!.Value.GetIdentityComponent().Name,
                                 FontSize = 30,
-                                Padding = new(10, 0, 0, 0),
                                 ForegroundColor = () => highlightColor
                             },
                         }
@@ -127,8 +127,8 @@ partial class RenderSystem
                     // building site details
                     new StackView(StackType.Vertical)
                     {
-                        IsVisible = () => EcsCoordinator.HasBuildingComponent(world.SelectedEntity!.Value)
-                            && !EcsCoordinator.GetBuildingComponent(world.SelectedEntity!.Value).IsBuilt,
+                        IsVisible = () => world.SelectedEntity!.Value.HasBuildingComponent()
+                            &&!world.SelectedEntity!.Value.GetBuildingComponent().IsBuilt,
                         Children =
                         {
                             new LabelView
@@ -139,8 +139,8 @@ partial class RenderSystem
                             },
                             new RepeaterView<ResourceQuantity>
                             {
-                                Source = () => EcsCoordinator.GetBuildingComponent(world.SelectedEntity!.Value).BuildCost
-                                    .WithRemove(ResourceMarker.All, EcsCoordinator.GetInventoryComponent(world.SelectedEntity!.Value).Inventory, ResourceMarker.Default, ResourceMarker.Default)
+                                Source = () => world.SelectedEntity!.Value.GetBuildingComponent().BuildCost
+                                    .WithRemove(ResourceMarker.All, world.SelectedEntity!.Value.GetInventoryComponent().Inventory, ResourceMarker.Default, ResourceMarker.Default)
                                     .GetResourceQuantities(ResourceMarker.All),
                                 ContainerView = new StackView(StackType.Vertical),
                                 ItemView = rq => getResourceRowView(false, rq.Resource, () => rq.Quantity),
@@ -151,7 +151,7 @@ partial class RenderSystem
                                     ForegroundColor = () => descriptionColor
                                 }
                             },
-                            getResourceRowView(true, null, () => EcsCoordinator.GetBuildingComponent(world.SelectedEntity!.Value).BuildWorkTicks),
+                            getResourceRowView(true, null, () => world.SelectedEntity!.Value.GetBuildingComponent().BuildWorkTicks),
                         }
                     }
                 }
@@ -159,190 +159,44 @@ partial class RenderSystem
 
         // orders
         gui.RootViewDescriptions.Add(new(
-            new StackView(StackType.Vertical)
+            new StackView(StackType.Horizontal)
             {
                 IsVisible = () => !world.SelectedEntity.HasValue,
                 BackgroundColor = panelBackgroundColor,
-                Padding = new(8),
                 Children =
                 {
                     new StackView(StackType.Vertical)
                     {
                         Children =
                         {
-                            new LabelView() { Text = () => "Zones" },
-                            new ButtonView()
+                            new LabelView { Text = () => "Zones:" },
+                            new ButtonView
                             {
-                                Child = new LabelView() { Text = () => "Grow Zone" },
+                                Child = new LabelView { Text = () => "Grow Zone" },
                                 IsChecked = () => world.CurrentZoneType.HasValue,
-                                Clicked = () => (world.CurrentZoneType, world.CurrentZoneStartPoint) =
-                                    (ZoneType.Grow, null),
+                                Clicked = () => (world.CurrentZoneType, world.CurrentZoneStartPoint, world.CurrentBuildingTemplate) =
+                                    (ZoneType.Grow, null, null),
                             }
                         }
-                    }
-        //            new StackView(StackType.Vertical)
-        //            {
-        //                Visible = () => world.SelectedEntity is not null,
-        //                Children =
-        //                {
-        //                    new LabelView
-        //                    {
-        //                        Text = () => world.SelectedEntity is Villager villager ? villager.AIPlan is { } aiPlan ? aiPlan.Description : "Idle."
-        //                            : world.SelectedEntity is Building { IsBuilt: false} buildingSite ? $"This is a building site, waiting for {buildingSite.BuildCost} and {buildingSite.BuildWorkTicks} work ticks."
-        //                            : $"This is a {(world.SelectedEntity switch { Building => "building", Tree => "cute tree", _ => "fluffy resource" })}, it's just existing.",
-        //                        FontSize = defaultFontSize,
-        //                        MinHeight = () => 35,
-        //                        ForegroundColor = () => descriptionColor
-        //                    },
-        //                    new StackView(StackType.Horizontal)
-        //                    {
-        //                        Visible = () => world.SelectedEntity is Villager,
-        //                        Children =
-        //                        {
-        //                            new LabelView
-        //                            {
-        //                                Text = () => "Needs:",
-        //                                FontSize = defaultFontSize,
-        //                                ForegroundColor = () => descriptionColor
-        //                            },
-        //                            // hunger block
-        //                            new LabelView
-        //                            {
-        //                                Text = () => "Hunger",
-        //                                ForegroundColor = () => descriptionColor,
-        //                                FontSize = defaultFontSize,
-        //                                Padding = new(20, 0, 0, 0)
-        //                            },
-        //                            new ProgressView
-        //                            {
-        //                                Value = () => ((Villager)world.SelectedEntity!).Needs.Hunger,
-        //                                Maximum = () => ((Villager)world.SelectedEntity!).Needs.HungerMax,
-        //                                StringFormat = () => "{0:0.0}%",
-        //                                ForegroundColor = () => ((Villager)world.SelectedEntity!).Needs.Hunger / ((Villager)world.SelectedEntity!).Needs.HungerMax < ((Villager)world.SelectedEntity!).HungerThreshold
-        //                                    ? Colors4.DarkGreen : Colors4.DarkRed,
-        //                                TextColor = descriptionColor,
-        //                                FontSize = defaultFontSize - 2,
-        //                                MinWidth = () => 120
-        //                            }
-        //                        }
-        //                    },
-        //                    new StackView(StackType.Horizontal)
-        //                    {
-        //                        Visible = () => world.SelectedEntity is Building { IsBuilt: true, AssignedWorkers.Length: >0 },
-        //                        Children =
-        //                        {
-        //                            new LabelView
-        //                            {
-        //                                Text = () => "Assigned workers: ",
-        //                                FontSize = defaultFontSize,
-        //                                ForegroundColor = () => descriptionColor
-        //                            },
-        //                            new RepeaterView<AssignedWorker>
-        //                            {
-        //                                Source = () => ((Building)world.SelectedEntity!).AssignedWorkers,
-        //                                ContainerView = new StackView(StackType.Horizontal),
-        //                                ItemView = aw => new StackView(StackType.Horizontal)
-        //                                {
-        //                                    Children =
-        //                                    {
-        //                                        new LabelView
-        //                                        {
-        //                                            Text = () => aw.Villager is { } assignedVillager ? assignedVillager.Name + (aw.VillagerWorking ? "" : "[SLK]") :"--",
-        //                                            FontSize = defaultFontSize,
-        //                                            ForegroundColor = () => highlightColor,
-        //                                            Padding = new(10, 0, 0, 0)
-        //                                        }
-        //                                    }
-        //                                }
-        //                            }
-        //                        }
-        //                    },
-        //                    new LabelView
-        //                    {
-        //                        Text = () => "Inventory:",
-        //                        FontSize = defaultFontSize,
-        //                        ForegroundColor = () => descriptionColor
-        //                    },
-        //                    new RepeaterView<ResourceQuantity>
-        //                    {
-        //                        Padding = new(20, 0, 0, 0),
-        //                        Source = () => world.SelectedEntity switch
-        //                        {
-        //                            Villager villager => villager.Inventory.ResourceQuantities.Where(rq => rq.Quantity > 0),
-        //                            Building building => building.Inventory.ResourceQuantities.Where(rq => rq.Quantity > 0),
-        //                            ResourceBucket resourceBucket => resourceBucket.ResourceQuantities.Where(rq => rq.Quantity > 0),
-        //                            Tree tree => tree.Inventory.ResourceQuantities.Where(rq => rq.Quantity > 0),
-        //                            _ => null
-        //                        },
-        //                        ContainerView = new StackView(StackType.Vertical),
-        //                        ItemView = rq => new StackView(StackType.Horizontal)
-        //                        {
-        //                            Children =
-        //                            {
-        //                                new LabelView
-        //                                {
-        //                                    Text = () => rq.Quantity.ToString(),
-        //                                    FontSize = defaultFontSize,
-        //                                    MinWidth = () => 50,
-        //                                    Margin = new(0,0,10,0),
-        //                                    HorizontalTextAlignment = HorizontalAlignment.Right,
-        //                                    ForegroundColor = () => highlightColor
-        //                                },
-        //                                new ImageView
-        //                                {
-        //                                    Source = () => GetImagePath(rq.Resource),
-        //                                    InheritParentSize = true
-        //                                },
-        //                                new LabelView
-        //                                {
-        //                                    Text = () => $" {rq.Resource.Name}",
-        //                                    FontSize = defaultFontSize,
-        //                                    ForegroundColor = () => descriptionColor
-        //                                }
-        //                            }
-        //                        },
-        //                        EmptyView = new LabelView
-        //                        {
-        //                            Text = () => "Nothing",
-        //                            FontSize = defaultFontSize,
-        //                            ForegroundColor = () => descriptionColor
-        //                        }
-        //                    }
-        //                }
-        //            },
-        //            new RepeaterView<string>
-        //            {
-        //                Visible = () => world.SelectedEntity is null,
-        //                Source = () => world.BuildingTemplates,
-        //                ContainerView = new StackView(StackType.Horizontal),
-        //                ItemView = key => new ButtonView
-        //                {
-        //                    Clicked = () =>
-        //                    {
-        //                        world.CurrentBuildingTemplate = world.BuildingTemplates[key];
-        //                        world.FireCurrentBuildingTemplateChanged();
-        //                    },
-        //                    Child = new StackView(StackType.Vertical)
-        //                    {
-        //                        Margin = new(0, 0, 20, 0),
-        //                        Children =
-        //                        {
-        //                            new ImageView
-        //                            {
-        //                                Source = () => GetImagePath(world.BuildingTemplates[key]),
-        //                                MinWidth = () => 0,
-        //                            },
-        //                            new LabelView
-        //                            {
-        //                                Text = () => world.BuildingTemplates[key].Name,
-        //                                Margin = new(0, 5, 0, 0),
-        //                                FontSize = defaultFontSize,
-        //                                HorizontalTextAlignment = HorizontalAlignment.Center,
-        //                            },
-        //                        }
-        //                    }
-        //                }
-        //            }
+                    },
+                    new StackView(StackType.Vertical)
+                    {
+                        Children =
+                        {
+                            new LabelView { Text = () => "Buildings:" },
+                            new RepeaterView<BuildingTemplate>
+                            {
+                                Source = () => world.BuildingTemplates,
+                                ContainerView = new StackView(StackType.Horizontal),
+                                ItemView = bt => new ButtonView
+                                {
+                                    Child = new LabelView { Text = () => bt.Name },
+                                    IsChecked = () => world.CurrentBuildingTemplate == bt,
+                                    Clicked = () => (world.CurrentZoneType, world.CurrentBuildingTemplate) = (default, bt),
+                                }
+                            }
+                        }
+                    },
                 }
             }, Anchor.BottomLeft));
 

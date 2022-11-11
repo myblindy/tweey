@@ -35,12 +35,12 @@ class GatherResourcesAIHighLevelPlan : AIHighLevelPlan
                     targets.Add((w.Entity, w.LocationComponent.Box.Center));
             });
 
-            foreach (var targetEntity in targets.OrderByDistanceFrom(EcsCoordinator.GetLocationComponent(MainEntity).Box.Center))
+            foreach (var targetEntity in targets.OrderByDistanceFrom(MainEntity.GetLocationComponent().Box.Center))
             {
                 yield return new WalkToEntityLowLevelPlan(World, MainEntity, targetEntity);
                 yield return new WaitLowLevelPlan(World, MainEntity, World.WorldTime + World.GetWorldTimeFromTicks(
-                    EcsCoordinator.GetVillagerComponent(MainEntity).PickupSpeedMultiplier * World.Configuration.Data.BasePickupSpeed
-                        * EcsCoordinator.GetInventoryComponent(targetEntity).Inventory.GetWeight(marker)));
+                    MainEntity.GetVillagerComponent().PickupSpeedMultiplier * World.Configuration.Data.BasePickupSpeed
+                        * targetEntity.GetInventoryComponent().Inventory.GetWeight(marker)));
                 yield return new MoveInventoryLowLevelPlan(World, targetEntity, marker, MainEntity, marker);       // from the resource (marked) to the villager (marked)
             }
         }
@@ -67,7 +67,7 @@ class DropResourcesToInventoryAIHighLevelPlan : AIHighLevelPlan
     {
         yield return new WalkToEntityLowLevelPlan(World, MainEntity, targetEntity);
         yield return new WaitLowLevelPlan(World, MainEntity, World.WorldTime + World.GetWorldTimeFromTicks(
-            EcsCoordinator.GetVillagerComponent(MainEntity).PickupSpeedMultiplier * EcsCoordinator.GetInventoryComponent(MainEntity).Inventory.GetWeight(marker)));
+            MainEntity.GetVillagerComponent().PickupSpeedMultiplier * MainEntity.GetInventoryComponent().Inventory.GetWeight(marker)));
         yield return new MoveInventoryLowLevelPlan(World, MainEntity, marker, targetEntity, ResourceMarker.Default, true);    // from the villager (marked) to the building (unmarked)
     }
 }
@@ -88,10 +88,10 @@ class WorkAIHighLevelPlan : AIHighLevelPlan
     {
         yield return new WalkToEntityLowLevelPlan(World, MainEntity, workableEntity);
 
-        EcsCoordinator.GetWorkableComponent(workableEntity).GetAssignedWorkerSlot(MainEntity).EntityWorking = true;
-        while (EcsCoordinator.GetBuildingComponent(workableEntity).BuildWorkTicks-- > 0)
-            yield return new WaitLowLevelPlan(World, MainEntity, World.WorldTime + World.GetWorldTimeFromTicks(EcsCoordinator.GetVillagerComponent(MainEntity).WorkSpeedMultiplier));
-        EcsCoordinator.GetWorkableComponent(workableEntity).GetAssignedWorkerSlot(MainEntity).Clear();
+        workableEntity.GetWorkableComponent().GetAssignedWorkerSlot(MainEntity).EntityWorking = true;
+        while (workableEntity.GetBuildingComponent().BuildWorkTicks-- > 0)
+            yield return new WaitLowLevelPlan(World, MainEntity, World.WorldTime + World.GetWorldTimeFromTicks(MainEntity.GetVillagerComponent().WorkSpeedMultiplier));
+        workableEntity.GetWorkableComponent().GetAssignedWorkerSlot(MainEntity).Clear();
 
         doneAction?.Invoke(MainEntity, workableEntity);
     }

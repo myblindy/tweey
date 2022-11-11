@@ -18,6 +18,7 @@ global using System.Text.Json.Serialization;
 //global using SixLabors.Fonts;
 
 global using Twee.Core;
+global using Twee.Core.Ecs;
 global using Twee.Core.JsonConverters;
 global using Twee.Core.Support;
 global using Twee.Ecs;

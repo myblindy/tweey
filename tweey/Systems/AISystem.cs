@@ -38,7 +38,7 @@ partial class AISystem
                         // we found some resources, order them by distance and plan them out
                         var planMarker = ResourceMarker.Create();
                         ResourceBucket.MarkResources(planMarker,
-                            foundResources.OrderByDistanceFrom(entityLocation).Select(e => EcsCoordinator.GetInventoryComponent(e).Inventory),
+                            foundResources.OrderByDistanceFrom(entityLocation).Select(e => e.GetInventoryComponent().Inventory),
                             ResourceMarker.Default, villagerAvailableWeight, bw.BuildingComponent.BuildCost, rq => buildingInventory.Add(rq, planMarker), out _);
 
                         selectedPlans = new AIHighLevelPlan[]
@@ -75,7 +75,7 @@ partial class AISystem
                 selectedPlans = new AIHighLevelPlan[]
                 {
                     new WorkAIHighLevelPlan(world, workerEntity, bw.Entity,
-                        static (worker, workable) => EcsCoordinator.GetBuildingComponent(workable).IsBuilt = true)
+                        static (worker, workable) => workable.GetBuildingComponent().IsBuilt = true)
                 };
                 return false;
             }
@@ -100,15 +100,15 @@ partial class AISystem
         {
             if (highLevelEnumerator is null)
             {
-                highLevelEnumerator = EcsCoordinator.GetWorkerComponent(Entity).Plans!.Select(w => w).GetEnumerator();
+                highLevelEnumerator = Entity.GetWorkerComponent().Plans!.Select(w => w).GetEnumerator();
                 if (!highLevelEnumerator.MoveNext())
                 {
-                    EcsCoordinator.GetWorkerComponent(Entity).CurrentHighLevelPlan = null;
-                    EcsCoordinator.GetWorkerComponent(Entity).CurrentLowLevelPlan = null;
+                    Entity.GetWorkerComponent().CurrentHighLevelPlan = null;
+                    Entity.GetWorkerComponent().CurrentLowLevelPlan = null;
                     highLevelEnumerator.Dispose();
                     return false;
                 }
-                EcsCoordinator.GetWorkerComponent(Entity).CurrentHighLevelPlan = highLevelEnumerator.Current;
+                Entity.GetWorkerComponent().CurrentHighLevelPlan = highLevelEnumerator.Current;
             }
 
             if (lowLevelEnumerator is null)
@@ -124,11 +124,11 @@ partial class AISystem
                         highLevelEnumerator.Dispose();
                         return false;
                     }
-                    EcsCoordinator.GetWorkerComponent(Entity).CurrentHighLevelPlan = highLevelEnumerator.Current;
+                    Entity.GetWorkerComponent().CurrentHighLevelPlan = highLevelEnumerator.Current;
                     lowLevelEnumerator = highLevelEnumerator.Current.GetLowLevelPlans().GetEnumerator();
                     goto retry0;
                 }
-                EcsCoordinator.GetWorkerComponent(Entity).CurrentLowLevelPlan = lowLevelEnumerator.Current;
+                Entity.GetWorkerComponent().CurrentLowLevelPlan = lowLevelEnumerator.Current;
             }
 
             if (!lowLevelEnumerator.Current.Run())
@@ -142,11 +142,11 @@ partial class AISystem
                         highLevelEnumerator.Dispose();
                         return false;
                     }
-                    EcsCoordinator.GetWorkerComponent(Entity).CurrentHighLevelPlan = highLevelEnumerator.Current;
+                    Entity.GetWorkerComponent().CurrentHighLevelPlan = highLevelEnumerator.Current;
                     lowLevelEnumerator = highLevelEnumerator.Current.GetLowLevelPlans().GetEnumerator();
                     goto retry1;
                 }
-                EcsCoordinator.GetWorkerComponent(Entity).CurrentLowLevelPlan = lowLevelEnumerator.Current;
+                Entity.GetWorkerComponent().CurrentLowLevelPlan = lowLevelEnumerator.Current;
             }
 
             return true;

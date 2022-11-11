@@ -47,15 +47,15 @@ internal class World
     internal Entity AddVillagerEntity(string name, Vector2 location)
     {
         var entity = EcsCoordinator.CreateEntity();
-        EcsCoordinator.AddLocationComponent(entity, Box2.FromCornerSize(location, new(1, 1)));
-        EcsCoordinator.AddRenderableComponent(entity, "Data/Misc/villager.png",
+        entity.AddLocationComponent(Box2.FromCornerSize(location, new(1, 1)));
+        entity.AddRenderableComponent("Data/Misc/villager.png",
             LightEmission: Colors4.White, LightRange: 12, LightAngleRadius: .1f);
-        EcsCoordinator.AddHeadingComponent(entity);
-        EcsCoordinator.AddVillagerComponent(entity, Configuration.Data.BaseCarryWeight, Configuration.Data.BasePickupSpeed, Configuration.Data.BaseMovementSpeed,
+        entity.AddHeadingComponent();
+        entity.AddVillagerComponent(Configuration.Data.BaseCarryWeight, Configuration.Data.BasePickupSpeed, Configuration.Data.BaseMovementSpeed,
             Configuration.Data.BaseWorkSpeed);
-        EcsCoordinator.AddWorkerComponent(entity);
-        EcsCoordinator.AddInventoryComponent(entity);
-        EcsCoordinator.AddIdentityComponent(entity, name);
+        entity.AddWorkerComponent();
+        entity.AddInventoryComponent();
+        entity.AddIdentityComponent(name);
 
         return entity;
     }
@@ -63,13 +63,13 @@ internal class World
     internal static Entity AddTreeEntity(TreeTemplate treeTemplate, Vector2 location)
     {
         var entity = EcsCoordinator.CreateEntity();
-        EcsCoordinator.AddLocationComponent(entity, Box2.FromCornerSize(location, new(1, 1)));
-        EcsCoordinator.AddRenderableComponent(entity, $"Data/Trees/{treeTemplate.FileName}.png",
+        entity.AddLocationComponent(Box2.FromCornerSize(location, new(1, 1)));
+        entity.AddRenderableComponent($"Data/Trees/{treeTemplate.FileName}.png",
             OcclusionCircle: true, OcclusionScale: .3f);
-        EcsCoordinator.AddWorkableComponent(entity)
+        entity.AddWorkableComponent()
             .ResizeSlots(1);
-        EcsCoordinator.AddTreeComponent(entity);
-        EcsCoordinator.AddIdentityComponent(entity, treeTemplate.Name);
+        entity.AddTreeComponent();
+        entity.AddIdentityComponent(treeTemplate.Name);
 
         return entity;
     }
@@ -124,11 +124,11 @@ internal class World
                 if (newRB is null)
                 {
                     newEntity = EcsCoordinator.CreateEntity();
-                    EcsCoordinator.AddRenderableComponent(newEntity, null);
-                    EcsCoordinator.AddLocationComponent(newEntity, Box2.FromCornerSize(chosenNeighbour.pt, new(1, 1)));
-                    EcsCoordinator.AddResourceComponent(newEntity);
-                    newRB = EcsCoordinator.AddInventoryComponent(newEntity).Inventory;
-                    EcsCoordinator.AddIdentityComponent(newEntity);
+                    newEntity.AddRenderableComponent(null);
+                    newEntity.AddLocationComponent(Box2.FromCornerSize(chosenNeighbour.pt, new(1, 1)));
+                    newEntity.AddResourceComponent();
+                    newRB = newEntity.AddInventoryComponent().Inventory;
+                    newEntity.AddIdentityComponent();
                 }
                 var newRBWeight = newRB.GetWeight(ResourceMarker.Default);
 
@@ -152,8 +152,8 @@ internal class World
                 if (newRB.GetResourceQuantities(ResourceMarker.All).FirstOrDefault() is { } newRQ)
                 {
                     // once we finished this resource clump, set its name and render image
-                    EcsCoordinator.GetIdentityComponent(newEntity).Name = newRQ.Resource.Name;
-                    EcsCoordinator.GetRenderableComponent(newEntity).AtlasEntryName = $"Data/Resources/{newRQ.Resource.FileName}.png";
+                    newEntity.GetIdentityComponent().Name = newRQ.Resource.Name;
+                    newEntity.GetRenderableComponent().AtlasEntryName = $"Data/Resources/{newRQ.Resource.FileName}.png";
                 }
             }
         }
@@ -166,14 +166,14 @@ internal class World
     public static Entity AddBuildingEntity(BuildingTemplate buildingTemplate, Vector2 location, bool isBuilt)
     {
         var entity = EcsCoordinator.CreateEntity();
-        EcsCoordinator.AddLocationComponent(entity, Box2.FromCornerSize(location, new(1, 1)));
-        EcsCoordinator.AddRenderableComponent(entity, $"Data/Buildings/{buildingTemplate.FileName}.png", OcclusionScale: 1,
+        entity.AddLocationComponent(Box2.FromCornerSize(location, new(1, 1)));
+        entity.AddRenderableComponent($"Data/Buildings/{buildingTemplate.FileName}.png", OcclusionScale: 1,
             LightEmission: buildingTemplate.EmitLight?.Color.ToVector4(1) ?? default, LightRange: buildingTemplate.EmitLight?.Range ?? 0f);
-        EcsCoordinator.AddBuildingComponent(entity, isBuilt, buildingTemplate.BuildCost, buildingTemplate.BuildWorkTicks);
-        EcsCoordinator.AddInventoryComponent(entity);
-        EcsCoordinator.AddWorkableComponent(entity)
+        entity.AddBuildingComponent(isBuilt, buildingTemplate.BuildCost, buildingTemplate.BuildWorkTicks);
+        entity.AddInventoryComponent();
+        entity.AddWorkableComponent()
             .ResizeSlots(isBuilt ? buildingTemplate.MaxWorkersAmount : 1);
-        EcsCoordinator.AddIdentityComponent(entity, buildingTemplate.Name);
+        entity.AddIdentityComponent(buildingTemplate.Name);
 
         return entity;
     }
@@ -181,9 +181,9 @@ internal class World
     public static Entity AddZoneEntity(ZoneType zoneType, Box2 box)
     {
         var entity = EcsCoordinator.CreateEntity();
-        EcsCoordinator.AddLocationComponent(entity, box);
-        EcsCoordinator.AddRenderableComponent(entity, null);
-        EcsCoordinator.AddZoneComponent(entity, zoneType);
+        entity.AddLocationComponent(box);
+        entity.AddRenderableComponent(null);
+        entity.AddZoneComponent(zoneType);
 
         return entity;
     }
@@ -204,7 +204,7 @@ internal class World
     internal bool RemoveEntity(Entity entity)
     {
         if (SelectedEntity == entity) SelectedEntity = null;
-        return EcsCoordinator.DeleteEntity(entity);
+        return entity.Delete();
     }
 
     public static bool IsZoneValid(Box2 box)
@@ -239,7 +239,7 @@ internal class World
             else if (CurrentZoneType is not null)
             {
                 // second point, add the zone entity
-                var box = Box2.FromCornerSize(CurrentZoneStartPoint.Value,
+                var box = Box2.FromCornerSize(CurrentZoneStartPoint!.Value,
                     (MouseWorldPosition - CurrentZoneStartPoint.Value.ToNumericsVector2() + Vector2.One).ToVector2i());
                 if (IsZoneValid(box))
                     AddZoneEntity(CurrentZoneType.Value, box);
@@ -295,7 +295,7 @@ internal class World
     event Action<Entity /* workable */, Entity /* worker */>? StartedJob;
     public static void PlanWork(Entity workable, Entity worker)
     {
-        ref var workableComponent = ref EcsCoordinator.GetWorkableComponent(workable);
+        ref var workableComponent = ref workable.GetWorkableComponent();
         ref var emptyWorkerSlot = ref workableComponent.GetEmptyWorkerSlot();
 
         if (emptyWorkerSlot.Entity != Entity.Invalid)
@@ -308,7 +308,7 @@ internal class World
     {
         StartedJob?.Invoke(workable, worker);
 
-        ref var workableComponent = ref EcsCoordinator.GetWorkableComponent(workable);
+        ref var workableComponent = ref workable.GetWorkableComponent();
         ref var emptyWorkerSlot = ref workableComponent.GetAssignedWorkerSlot(worker);
 
         if (emptyWorkerSlot.Entity != Entity.Invalid)
@@ -320,7 +320,7 @@ internal class World
     event Action<Entity /* workable */, Entity /* worker */, bool /* last */>? EndedBuildingJob;
     public void EndWork(Entity workable, Entity worker)
     {
-        ref var workableComponent = ref EcsCoordinator.GetWorkableComponent(workable);
+        ref var workableComponent = ref workable.GetWorkableComponent();
         ref var emptyWorkerSlot = ref workableComponent.GetAssignedWorkerSlot(worker);
 
         if (emptyWorkerSlot.Entity != Entity.Invalid)
