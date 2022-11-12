@@ -1,4 +1,7 @@
-﻿namespace Tweey;
+﻿using System.Diagnostics;
+using System.Drawing;
+
+namespace Tweey;
 
 class Program : GameWindow
 {
@@ -72,9 +75,6 @@ class Program : GameWindow
             new ResourceQuantity(world.Resources["wood"], 67),
             new ResourceQuantity(world.Resources["iron"], 125)),
             new(20, 20));
-
-        World.PlantForest(world.TreeTemplates["pine"], new(3, 20), 6, .9f, .2f);
-        World.PlantForest(world.TreeTemplates["pine"], new(40, 12), 12, .8f, .1f);
 
         World.AddBuildingEntity(world.BuildingTemplates["well"], new(8, 12), false);
 

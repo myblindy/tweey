@@ -10,6 +10,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.ObjectPool" Version="7.0.0" />
     <PackageReference Include="OpenTK.Mathematics" Version="5.0.0-pre.8" />
+    <PackageReference Include="Simplex" Version="2.0.6" />
     <PackageReference Include="SuperLinq" Version="4.4.0" />
   </ItemGroup>
 

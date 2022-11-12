@@ -371,6 +371,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                 
                         EnsureEntityComponentsListEntityExists(entity0);
                         entityComponents[entity0] = 0;
+                        entityComponentMapping.EnsureEntityExists(entity0);
                         {{string.Join(Environment.NewLine, components.Select(c => $$"""
                             entityComponentMapping[entity0, {{findIndex(components, w => w == c)}}] = -1;
                             """))}}

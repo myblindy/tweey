@@ -1,14 +1,16 @@
-﻿using System.IO.Compression;
-using Tweey.Loaders;
+﻿using System.Text.RegularExpressions;
 
 namespace Tweey.WorldData;
 
-internal class World
+internal partial class World
 {
     public ResourceTemplates Resources { get; }
     public TreeTemplates TreeTemplates { get; }
     public BuildingTemplates BuildingTemplates { get; }
     public Configuration Configuration { get; }
+    public Biomes Biomes { get; }
+
+    public string[,] TerrainTileNames { get; private set; }
 
     internal Entity? SelectedEntity { get; set; }
     public ZoneType? CurrentZoneType { get; set; }
@@ -41,6 +43,54 @@ internal class World
     {
         (Resources, Configuration) = (new(loader), new(loader));
         (BuildingTemplates, TreeTemplates) = (new(loader, Resources), new(loader, Resources));
+        Biomes = new(loader, TreeTemplates);
+
+        GenerateMap();
+    }
+
+    [MemberNotNull(nameof(TerrainTileNames))]
+    private void GenerateMap()
+    {
+        // generate the terrain
+        const int size = 400;
+        var map = MapGeneration.Generate(size, size,
+            new MapGenerationWave[]
+            {
+                new(Random.Shared.Next(), 0.004f, 1),
+                new(Random.Shared.Next(), 0.02f, 0.5f),
+            },
+            new MapGenerationWave[]
+            {
+                new(Random.Shared.Next(), 0.02f, 1),
+            },
+            new MapGenerationWave[]
+            {
+                new(Random.Shared.Next(), 0.02f, 1),
+                new(Random.Shared.Next(), 0.01f, 0.5f),
+            },
+            Biomes.Values.Select(b => new MapGenerationBiome(b.MinHeight, b.MinMoisture, b.MinHeat)).ToArray());
+
+        var biomeTiles = DiskLoader.Instance.VFS.EnumerateFiles("Data/Biomes", SearchOption.AllDirectories)
+            .Select(p => ExtractBiomeNameFromPathRegex().Match(p))
+            .Where(m => m.Success)
+            .GroupBy(w => w.Groups[1].Value)
+            .ToDictionary(w => w.Key, w => w.Select(ww => ww.Groups[0].Value).ToList());
+
+        TerrainTileNames = new string[size, size];
+        for (var y = 0; y < size; y++)
+            for (var x = 0; x < size; x++)
+            {
+                var biome = Biomes[map[x, y].BiomeIndex];
+                TerrainTileNames[x, y] = biomeTiles[biome.TileName].RandomSubset(1).First();
+
+                // plant a tree?
+                foreach (var (template, chance) in biome.Trees)
+                    if (Random.Shared.NextDouble() < chance)
+                    {
+                        AddTreeEntity(template, new(x, y));
+                        break;
+                    }
+            }
     }
 
     #region AddEntities
@@ -81,7 +131,7 @@ internal class World
 
         try
         {
-            int availableNeighboursSearchRadius = -1;
+            var availableNeighboursSearchRadius = -1;
             while (resourceBucket.GetWeight(ResourceMarker.All) > 0)
             {
                 // take any spill-over and put it in a random direction, up to maximumGroundDropSpillOverRange range
@@ -98,7 +148,6 @@ internal class World
                         EcsCoordinator.IteratePlacedResourceArchetype((in EcsCoordinator.PlacedResourceIterationResult w) =>
                         {
                             if (w.LocationComponent.Box.Contains(location + dv.ToNumericsVector2()))
-                            {
                                 if (w.InventoryComponent.Inventory.GetWeight(ResourceMarker.All) >= Configuration.Data.GroundStackMaximumWeight)
                                 {
                                     okay = false;
@@ -106,7 +155,6 @@ internal class World
                                 }
                                 else
                                     (foundEntity, foundResourceBucket) = (w.Entity, w.InventoryComponent.Inventory);
-                            }
                             return true;
                         });
 
@@ -133,7 +181,6 @@ internal class World
                 var newRBWeight = newRB.GetWeight(ResourceMarker.Default);
 
                 foreach (var resQ in resourceBucket.GetResourceQuantities(ResourceMarker.All).Where(w => w.Quantity != 0))
-                {
                     // only allow one resource kind on the ground
                     if (!newRB.GetResourceQuantities(ResourceMarker.All).Any() || newRB.GetResourceQuantities(ResourceMarker.All).Any(rq => rq.Resource == resQ.Resource))
                     {
@@ -147,7 +194,6 @@ internal class World
                             break;  // couldn't finish the stack
                         newRBWeight += resQ.Resource.Weight * quantityToMove;
                     }
-                }
 
                 if (newRB.GetResourceQuantities(ResourceMarker.All).FirstOrDefault() is { } newRQ)
                 {
@@ -191,8 +237,8 @@ internal class World
 
     public static void PlantForest(TreeTemplate treeTemplate, Vector2i center, float radius, float chanceCenter, float chanceEdge)
     {
-        for (int y = (int)MathF.Ceiling(center.Y + radius); y >= MathF.Floor(center.Y - radius); --y)
-            for (int x = (int)MathF.Ceiling(center.X + radius); x >= MathF.Floor(center.X - radius); --x)
+        for (var y = (int)MathF.Ceiling(center.Y + radius); y >= MathF.Floor(center.Y - radius); --y)
+            for (var x = (int)MathF.Ceiling(center.X + radius); x >= MathF.Floor(center.X - radius); --x)
             {
                 var distanceFromCenter = new Vector2i(Math.Abs(y - center.Y), Math.Abs(y - center.Y)).EuclideanLength;
                 var chance = chanceCenter * (radius - distanceFromCenter) / radius + chanceEdge * distanceFromCenter / radius;
@@ -224,18 +270,15 @@ internal class World
     }
 
     public Vector2 GetWorldLocationFromScreenPoint(Vector2i screenPoint) =>
-        new((screenPoint.X) / Zoom + Offset.X, (screenPoint.Y) / Zoom + Offset.Y);
+        new(screenPoint.X / Zoom + Offset.X, screenPoint.Y / Zoom + Offset.Y);
 
     event Action<Entity>? PlacedBuilding;
     public void MouseEvent(Vector2i screenPosition, Vector2 worldLocation, InputAction? inputAction = null, MouseButton? mouseButton = null, KeyModifiers? keyModifiers = null)
     {
         if (inputAction == InputAction.Press && mouseButton == MouseButton.Button1)
-        {
             if (CurrentZoneType is not null && CurrentZoneStartPoint is null)
-            {
                 // first point
                 CurrentZoneStartPoint = MouseWorldPosition.ToVector2i();
-            }
             else if (CurrentZoneType is not null)
             {
                 // second point, add the zone entity
@@ -246,7 +289,6 @@ internal class World
                 CurrentZoneType = null;
             }
             else if (CurrentBuildingTemplate is not null)
-            {
                 if (IsBoxFreeOfBuildings(Box2.FromCornerSize(worldLocation.ToVector2i(), CurrentBuildingTemplate.Width, CurrentBuildingTemplate.Height)))
                 {
                     var building = AddBuildingEntity(CurrentBuildingTemplate, worldLocation, false);
@@ -254,28 +296,26 @@ internal class World
                     if (keyModifiers?.HasFlag(KeyModifiers.Shift) != true)
                         CurrentBuildingTemplate = null;
                 }
-            }
-            else
-            {
-                var foundAny = false;
-                EcsCoordinator.IterateRenderArchetype((in EcsCoordinator.RenderIterationResult w) =>
+                else
                 {
-                    if (w.LocationComponent.Box.Contains(worldLocation))
+                    var foundAny = false;
+                    EcsCoordinator.IterateRenderArchetype((in EcsCoordinator.RenderIterationResult w) =>
                     {
-                        SelectedEntity = w.Entity;
-                        foundAny = true;
-                        return false;
-                    }
+                        if (w.LocationComponent.Box.Contains(worldLocation))
+                        {
+                            SelectedEntity = w.Entity;
+                            foundAny = true;
+                            return false;
+                        }
 
-                    return true;
-                });
+                        return true;
+                    });
 
-                if (!foundAny)
-                    SelectedEntity = null;
-            }
-        }
-        else if (inputAction == InputAction.Press && mouseButton == MouseButton.Button2)
-            CurrentBuildingTemplate = null;
+                    if (!foundAny)
+                        SelectedEntity = null;
+                }
+            else if (inputAction == InputAction.Press && mouseButton == MouseButton.Button2)
+                CurrentBuildingTemplate = null;
 
         (MouseScreenPosition, MouseWorldPosition) = (screenPosition, worldLocation);
     }
@@ -402,4 +442,7 @@ internal class World
         var year = (int)(wt + 1);
         WorldTimeString = $"{year:00}-{month:00}-{day:00} {hour:00}:{min:00}";
     }
+
+    [GeneratedRegex("Data[/\\\\]Biomes[/\\\\](.*)[/\\\\].*\\.png", RegexOptions.IgnoreCase)]
+    private static partial Regex ExtractBiomeNameFromPathRegex();
 }

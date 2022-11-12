@@ -28,7 +28,7 @@ public readonly struct Box2 : IEquatable<Box2>
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Box2 FromCornerSize(Vector2 topLeft, Vector2 size) =>
-        new(topLeft, topLeft + size - Vector2.One);
+        new(topLeft, new(topLeft.X + size.X - 1, topLeft.Y + size.Y - 1));
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Box2 FromCornerSize(Vector2i topLeft, Vector2i size) =>
@@ -77,4 +77,7 @@ public readonly struct Box2 : IEquatable<Box2>
 
     public static bool operator ==(Box2 left, Box2 right) => left.Equals(right);
     public static bool operator !=(Box2 left, Box2 right) => !(left == right);
+
+    public static Box2 operator *(Box2 left, float right) =>
+        new(left.TopLeft * right, left.BottomRight * right);
 }

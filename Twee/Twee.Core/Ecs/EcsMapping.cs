@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 
-namespace Twee.Core;
+namespace Twee.Core.Ecs;
 
 public struct EcsMapping
 {
@@ -8,8 +8,7 @@ public struct EcsMapping
 
     readonly int componentCount;
     int[] data;
-
-    int EntityCount => (data?.Length ?? 0) / componentCount;
+    int entityCount;
 
     public EcsMapping(int componentCount)
     {
@@ -26,17 +25,18 @@ public struct EcsMapping
         Array.Fill(newData, -1, data?.Length ?? 0, newData.Length - (data?.Length ?? 0));
 
         data = newData;
+        this.entityCount = entityCount;
     }
 
-    void EnsureEntityExists(int entityId)
+    public void EnsureEntityExists(int entityId)
     {
-        if (entityId >= EntityCount)
+        if (entityId >= entityCount)
         {
-            int newCount = EntityCount;
+            int newCount = entityCount;
             do
             {
                 newCount = (int)(newCount * 1.5);
-            } while (newCount <= EntityCount);
+            } while (newCount <= entityId);
 
             ResizeData(newCount);
         }
@@ -44,15 +44,7 @@ public struct EcsMapping
 
     public int this[int entityId, int componentId]
     {
-        get
-        {
-            EnsureEntityExists(entityId);
-            return data[componentCount * entityId + componentId];
-        }
-        set
-        {
-            EnsureEntityExists(entityId);
-            data[componentCount * entityId + componentId] = value;
-        }
+        get => data[componentCount * entityId + componentId];
+        set => data[componentCount * entityId + componentId] = value;
     }
 }

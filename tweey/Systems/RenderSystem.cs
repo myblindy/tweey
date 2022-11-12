@@ -19,7 +19,7 @@ partial class RenderSystem
     readonly GuiSpace gui = new();
 
     const string grassTilePath = "Data/Misc/grass.png";
-    readonly AtlasEntry grassAtlasEntry, blankAtlasEntry;
+    readonly AtlasEntry blankAtlasEntry;
 
     readonly StaticVertexArrayObject<LightMapFBVertex> lightMapFBVao =
         new(new LightMapFBVertex[]
@@ -63,7 +63,6 @@ partial class RenderSystem
         guiLightMapShaderProgram.Uniform("atlasSampler", 0);
         guiLightMapShaderProgram.Uniform("lightMapSampler", 1);
 
-        grassAtlasEntry = atlas[grassTilePath];
         blankAtlasEntry = atlas[GrowableTextureAtlas3D.BlankName];
 
         using (var lightMapOcclusionCircleTextureStream = DiskLoader.Instance.VFS.OpenRead(@"Data\Misc\large-circle.png")!)
@@ -126,7 +125,7 @@ partial class RenderSystem
 
         IterateComponents((in IterationResult w) =>
         {
-            if (w.RenderableComponent.OcclusionScale > 0)
+            if (w.RenderableComponent.OcclusionScale > 0 && IsWorldViewBoxInView(w.LocationComponent.Box))
                 markOcclusionBox(w.LocationComponent.Box, w.RenderableComponent.OcclusionCircle, w.RenderableComponent.OcclusionScale);
         });
 
@@ -225,40 +224,40 @@ partial class RenderSystem
         GraphicsEngine.UnbindFrameBuffer();
 
         // render the background (tri0)
-        const int grassTileSize = 6;
-        var normalizedGrassOffset = (world.Offset / grassTileSize).ToVector2i().ToNumericsVector2() * grassTileSize;
+        var normalizedGrassOffset = world.Offset.ToVector2i().ToNumericsVector2();
 
-        for (int y = -grassTileSize; y < windowUbo.Data.WindowSize.Y / world.Zoom + grassTileSize; y += grassTileSize)
-            for (int x = -grassTileSize; x < windowUbo.Data.WindowSize.X / world.Zoom + grassTileSize; x += grassTileSize)
-            {
-                ScreenFillQuad(Box2.FromCornerSize(new Vector2(x, y) + normalizedGrassOffset,
-                    new(grassTileSize)), new(.8f, .8f, .8f, 1), grassAtlasEntry);
-            }
+        for (int y = -1; y < windowUbo.Data.WindowSize.Y / world.Zoom + 1; ++y)
+            for (int x = -1; x < windowUbo.Data.WindowSize.X / world.Zoom + 1; ++x)
+                if ((int)(x + normalizedGrassOffset.X) is { } xIdx && (int)(y + normalizedGrassOffset.Y) is { } yIdx
+                    && xIdx >= 0 && yIdx >= 0 && xIdx < world.TerrainTileNames.GetLength(0) && yIdx < world.TerrainTileNames.GetLength(1))
+                {
+                    ScreenFillQuad(Box2.FromCornerSize(new Vector2(x, y) + normalizedGrassOffset, 1, 1), Colors4.White,
+                        atlas[world.TerrainTileNames[(int)(x + normalizedGrassOffset.X), (int)(y + normalizedGrassOffset.Y)]]);
+                }
 
         // store the actual entities' vertices(tri0)
         EcsCoordinator.IterateRenderArchetype((in EcsCoordinator.RenderIterationResult w) =>
         {
-            if (w.RenderableComponent.AtlasEntryName is { } atlasEntryName)
-                ScreenFillQuad(w.LocationComponent.Box, Colors4.White, atlas[atlasEntryName]);
-            else if (w.Entity.HasZoneComponent())
-            {
-                ref var zoneComponent = ref w.Entity.GetZoneComponent();
-                RenderZone(w.LocationComponent.Box, zoneComponent.Type, false, false);
-            }
+            if (IsWorldViewBoxInView(w.LocationComponent.Box))
+                if (w.RenderableComponent.AtlasEntryName is { } atlasEntryName)
+                    ScreenFillQuad(w.LocationComponent.Box, Colors4.White, atlas[atlasEntryName]);
+                else if (w.Entity.HasZoneComponent())
+                {
+                    ref var zoneComponent = ref w.Entity.GetZoneComponent();
+                    RenderZone(w.LocationComponent.Box, zoneComponent.Type, false, false);
+                }
         });
 
         var countTri0 = guiVAO.Vertices.Count;
 
         // store the ai plan targets' vertices (lines)
         if (world.ShowDetails)
-        {
             EcsCoordinator.IterateWorkerArchetype((in EcsCoordinator.WorkerIterationResult w) =>
             {
                 if (w.WorkerComponent.CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity aiLowLevelPlanWithTargetEntity)
                     ScreenLine(w.LocationComponent.Box,
                         aiLowLevelPlanWithTargetEntity.TargetEntity.GetLocationComponent().Box, Colors4.Yellow);
             });
-        }
         else if (world.SelectedEntity.HasValue && world.SelectedEntity.Value.HasWorkerComponent()
             && world.SelectedEntity.Value.GetWorkerComponent().CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity { } aiLowLevelPlanWithTargetEntity)
         {

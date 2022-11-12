@@ -9,9 +9,13 @@ partial class RenderSystem
 
     enum GuiTransformType { None, Rotate90, Rotate180, Rotate270, MirrorH, MirrorV }
 
+    bool IsWorldViewBoxInView(Box2 box) =>
+        Box2.FromCornerSize(world.Offset, windowUbo.Data.WindowSize / world.Zoom).Intersects(box);
+
     void ScreenFillQuad(Box2 box, Vector4 color, AtlasEntry entry, bool asWorldCoords = true, GuiTransformType transform = GuiTransformType.None)
     {
-        if (color.W == 0) return;
+        if (color.W == 0)
+            return;
 
         var uv0 = entry.TextureCoordinate0;
         var uv1 = entry.TextureCoordinate1;
