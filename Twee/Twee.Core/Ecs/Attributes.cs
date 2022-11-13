@@ -15,3 +15,9 @@ public sealed class EcsArchetypesAttribute : Attribute
 {
 }
 
+public interface IEcsPartition
+{
+    int Width { get; }
+    int Height { get; }
+}
+

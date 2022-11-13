@@ -14,6 +14,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
     const string SystemAttributeFullName = "Twee.Ecs.EcsSystemAttribute";
     const string MessageAttributeFullName = "Twee.Core.Ecs.MessageAttribute";
     const string ArchetypeAttributeFullName = "Twee.Core.Ecs.EcsArchetypesAttribute";
+    const string PartitionAttributeFullName = "Twee.Ecs.EcsPartitionAttribute";
 
     static readonly Regex typeRootNameRegex = new(@"^.*?([^.]+?)(?:Component|System|Message)?$");
     static string GetTypeRootName(string name) =>
@@ -69,6 +70,17 @@ public sealed class ECSSourceGen : IIncrementalGenerator
             : base(name)
         {
             Archetypes = ImmutableArray.CreateRange(archetypes.Select(w => (w.Name, ImmutableArray.CreateRange(w.Components))));
+        }
+    }
+
+    class EcsPartitionsClass : EcsClass
+    {
+        public string UsedArchetypeName { get; }
+
+        public EcsPartitionsClass(string name, string usedArchetypeName)
+            : base(name)
+        {
+            UsedArchetypeName = usedArchetypeName;
         }
     }
 
@@ -181,6 +193,26 @@ public sealed class ECSSourceGen : IIncrementalGenerator
             return new EcsArchetypesClass(className, archetypes);
         });
 
+        var partitionDeclarations = getDeclarations(PartitionAttributeFullName, (className, semanticModel, tds) =>
+        {
+            string? usedArchetypeName = null;
+            foreach (var attributeListSyntax in tds.AttributeLists)
+                foreach (var attributeSyntax in attributeListSyntax.Attributes)
+                    if (semanticModel.GetSymbolInfo(attributeSyntax).Symbol is IMethodSymbol attributeSymbol
+                        && attributeSymbol.ContainingType.ToDisplayString() is PartitionAttributeFullName
+                        && attributeSymbol.Parameters.Length == 1
+                        && attributeSyntax.ArgumentList?.Arguments.Count == 1
+                        && attributeSyntax.ArgumentList.Arguments[0] is { } argumentSyntax
+                        && argumentSyntax.Expression is MemberAccessExpressionSyntax argumentExpressionSyntax
+                        && argumentExpressionSyntax.Name is IdentifierNameSyntax { } argumentIdentifierNameSyntax)
+                    {
+                        usedArchetypeName = argumentIdentifierNameSyntax.Identifier.ValueText;
+                        break;
+                    }
+
+            return new EcsPartitionsClass(className, usedArchetypeName!);
+        });
+
         context.RegisterPostInitializationOutput(ctx =>
             {
                 ctx.AddSource("ECS.gg.cs", $$"""
@@ -210,21 +242,30 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             entityComponents.Add(0);
                     }
                 }
+
+                {{Common.GeneratedCodeAttributeText}}         
+                [AttributeUsage(AttributeTargets.Class)]
+                internal sealed class EcsPartitionAttribute : Attribute
+                {
+                    public EcsPartitionAttribute(EcsComponents components) { }
+                }
                 """);
             });
 
-        context.RegisterSourceOutput(componentDeclarations.Collect().Combine(systemDeclarations.Collect()).Combine(archetypeDeclarations.Collect()),
+        context.RegisterSourceOutput(componentDeclarations.Collect().Combine(systemDeclarations.Collect())
+            .Combine(archetypeDeclarations.Collect()).Combine(partitionDeclarations.Collect()),
             static (spc, input) =>
         {
             //Debugger.Launch();
 
             var sb = new StringBuilder();
 
-            var components = input.Left.Left;
-            var systems = input.Left.Right;
-            var rawArchetypes = input.Right.FirstOrDefault();
+            var components = input.Left.Left.Left;
+            var systems = input.Left.Left.Right;
+            var rawArchetypes = input.Left.Right.FirstOrDefault();
             var archetypes = rawArchetypes?.Archetypes.Select(at => (at.Name,
                 Components: at.Components.Select(c => components.First(w => w.TypeRootName == c)).ToList())).ToList();
+            var partitions = input.Right;
 
             static int findIndex<T>(IEnumerable<T> enumerable, Func<T, bool> test)
             {
@@ -250,9 +291,58 @@ public sealed class ECSSourceGen : IIncrementalGenerator
 
                 using System.Runtime.CompilerServices;
 
+                // partitions
+                {{string.Join(Environment.NewLine, partitions.Select(p => $$"""
+                    {{(p.Namespace is not null ? $"namespace {p.Namespace} {{" : "")}}
+                    partial class {{p.TypeRootName}} : IEcsPartition
+                    {
+                        readonly List<int> entityPositions = new();
+                        readonly HashSet<Entity>[] entityPartitions;
+
+                        public {{p.TypeRootName}}()
+                        {
+                            entityPartitions = new HashSet<Entity>[Width * Height];
+                            for (int y = 0; y < Height; ++y)
+                                for (int x = 0; x < Width; ++x)
+                                    entityPartitions[x + y * Width] = new();
+                        }
+
+                        public partial int GetLocation({{string.Join(", ", archetypes.First(a=>a.Name == p.UsedArchetypeName).Components.Select(c=>$$"""
+                            in {{c!.FullName}} {{c!.TypeRootName}}Component
+                            """))}}, Box2 worldSize);
+
+                        public void UpdateEntity(Entity entity, Box2 worldSize)
+                        {
+                            if (entityPositions.Count <= entity)
+                                entityPositions.Resize(entity + 1);
+                            entityPartitions[entityPositions[entity]].Remove(entity);
+
+                            var newLocation = GetLocation({{string.Join(", ", archetypes.First(a => a.Name == p.UsedArchetypeName).Components.Select(c => $$"""
+                                in entity.Get{{c!.TypeRootName}}Component()
+                                """))}}, worldSize);
+                            entityPartitions[entityPositions[entity] = newLocation].Add(entity);
+                        }
+
+                        public IEnumerable<Entity> GetEntities(Vector2 worldLocation, Box2 worldSize, Box2 screenSize)
+                        {
+                            var partitionLocation = worldLocation / worldSize.Size;
+                            var partitionCount = (screenSize.Size / (worldSize.Size / new Vector2(Width, Height))).Ceiling();
+
+                            int ys = (int)MathF.Max(0, partitionLocation.Y - partitionCount.Y), ye = (int)MathF.Max(Height, partitionLocation.Y + partitionCount.Y);
+                            int xs = (int)MathF.Max(0, partitionLocation.X - partitionCount.X), xe = (int)MathF.Max(Width, partitionLocation.X + partitionCount.X);
+
+                            for (var y = ys; y <= ye; ++y)
+                                for (var x = xs; x <= xe; ++x)
+                                    foreach (var item in entityPartitions[y * Width + x])
+                                        yield return item;
+                        }
+                    }
+                    {{(p.Namespace is not null ? "}" : "")}}
+                    """))}}
+
                 // systems
                 {{string.Join(Environment.NewLine, systems.Select(s => $$"""
-                    {{(s!.Namespace is not null ? $"namespace {s!.Namespace} {{" : "")}}
+                    {{(s.Namespace is not null ? $"namespace {s.Namespace} {{" : "")}}
                     sealed partial class {{s!.TypeName}}
                     {
                         internal HashSet<Entity> Entities { get; } = EcsCoordinator.{{s.UsedArchetypeName}}Entities;
@@ -285,7 +375,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
 
                         public partial void Run();
                     }
-                    {{(s!.Namespace is not null ? "}" : "")}}
+                    {{(s.Namespace is not null ? "}" : "")}}
                     """))}}
 
                 namespace Twee.Ecs {

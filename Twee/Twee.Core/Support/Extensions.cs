@@ -77,4 +77,18 @@ public static class Extensions
         sourceStream.CopyTo(memoryStream);
         return memoryStream;
     }
+
+    public static void Resize<T>(this List<T> lst, int size)
+    {
+        if (lst.Count < size)
+        {
+            lst.Capacity = Math.Max(size + 50, (int)(size * 1.3));
+            lst.AddRange(Enumerable.Repeat(default(T)!, size - lst.Count));
+        }
+        else if (lst.Count > size)
+            lst.RemoveRange(size, lst.Count - size);
+    }
+
+    public static Vector2 Ceiling(this Vector2 vector) =>
+        new(MathF.Ceiling(vector.X), MathF.Ceiling(vector.Y));
 }
