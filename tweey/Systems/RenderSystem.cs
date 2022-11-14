@@ -18,7 +18,6 @@ partial class RenderSystem
     readonly ShaderProgram guiLightMapShaderProgram;
     readonly GuiSpace gui = new();
 
-    const string grassTilePath = "Data/Misc/grass.png";
     readonly AtlasEntry blankAtlasEntry;
 
     readonly StaticVertexArrayObject<LightMapFBVertex> lightMapFBVao =

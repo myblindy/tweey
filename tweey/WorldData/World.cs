@@ -289,7 +289,7 @@ internal partial class World
             {
                 if (IsBoxFreeOfBuildings(Box2.FromCornerSize(worldLocation.ToVector2i(), CurrentBuildingTemplate.Width, CurrentBuildingTemplate.Height)))
                 {
-                    var building = AddBuildingEntity(CurrentBuildingTemplate, worldLocation, false);
+                    var building = AddBuildingEntity(CurrentBuildingTemplate, worldLocation.Floor(), false);
                     PlacedBuilding?.Invoke(building);
                     if (keyModifiers?.HasFlag(KeyModifiers.Shift) != true)
                         CurrentBuildingTemplate = null;

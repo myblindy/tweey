@@ -91,4 +91,7 @@ public static class Extensions
 
     public static Vector2 Ceiling(this Vector2 vector) =>
         new(MathF.Ceiling(vector.X), MathF.Ceiling(vector.Y));
+
+    public static Vector2 Floor(this Vector2 vector) =>
+        new(MathF.Floor(vector.X), MathF.Floor(vector.Y));
 }
