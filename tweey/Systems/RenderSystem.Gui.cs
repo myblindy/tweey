@@ -60,7 +60,11 @@ partial class RenderSystem
             : entity.HasResourceComponent() ? "Resource"
             : entity.HasBuildingComponent() ? !entity.GetBuildingComponent().IsBuilt ? "Building Site" : "Building"
             : entity.HasTreeComponent() ? "Tree"
+            : entity.HasZoneComponent() ? "Zone"
             : throw new NotImplementedException();
+
+        static string? getEntityName(Entity entity) =>
+            entity.HasIdentityComponent() ? entity.GetIdentityComponent().Name : entity.HasZoneComponent() ? entity.GetZoneComponent().Type.ToString() : null;
 
         View getResourceRowView(bool labor, Resource? resource, Func<double> quantity) =>
             new StackView(StackType.Horizontal)
@@ -117,7 +121,7 @@ partial class RenderSystem
                             },
                             new LabelView
                             {
-                                Text = () => world.SelectedEntity!.Value.GetIdentityComponent().Name,
+                                Text = () => getEntityName(world.SelectedEntity!.Value),
                                 FontSize = 30,
                                 ForegroundColor = () => highlightColor
                             },
@@ -139,7 +143,7 @@ partial class RenderSystem
                             },
                             new RepeaterView<ResourceQuantity>
                             {
-                                Source = () => world.SelectedEntity!.Value.GetBuildingComponent().BuildCost
+                                Source = () => world.SelectedEntity!.Value.GetBuildingComponent().Template.BuildCost
                                     .WithRemove(ResourceMarker.All, world.SelectedEntity!.Value.GetInventoryComponent().Inventory, ResourceMarker.Default, ResourceMarker.Default)
                                     .GetResourceQuantities(ResourceMarker.All),
                                 ContainerView = new StackView(StackType.Vertical),

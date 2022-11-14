@@ -212,7 +212,7 @@ internal partial class World
         entity.AddLocationComponent(Box2.FromCornerSize(location, new(1, 1)));
         entity.AddRenderableComponent($"Data/Buildings/{buildingTemplate.FileName}.png", OcclusionScale: 1,
             LightEmission: buildingTemplate.EmitLight?.Color.ToVector4(1) ?? default, LightRange: buildingTemplate.EmitLight?.Range ?? 0f);
-        entity.AddBuildingComponent(isBuilt, buildingTemplate.BuildCost, buildingTemplate.BuildWorkTicks);
+        entity.AddBuildingComponent(buildingTemplate, isBuilt ? 0 : buildingTemplate.BuildWorkTicks);
         entity.AddInventoryComponent();
         entity.AddWorkableComponent()
             .ResizeSlots(isBuilt ? buildingTemplate.MaxWorkersAmount : 1);

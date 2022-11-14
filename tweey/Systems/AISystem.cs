@@ -19,9 +19,9 @@ partial class AISystem
 
         EcsCoordinator.IterateBuildingArchetype((in EcsCoordinator.BuildingIterationResult bw) =>
         {
-            if (!bw.BuildingComponent.IsBuilt && !bw.InventoryComponent.Inventory.Contains(ResourceMarker.All, bw.BuildingComponent.BuildCost, ResourceMarker.Default))
+            if (!bw.BuildingComponent.IsBuilt && !bw.InventoryComponent.Inventory.Contains(ResourceMarker.All, bw.BuildingComponent.Template.BuildCost, ResourceMarker.Default))
             {
-                var neededResources = bw.BuildingComponent.BuildCost.WithRemove(bw.InventoryComponent.Inventory);
+                var neededResources = bw.BuildingComponent.Template.BuildCost.WithRemove(bw.InventoryComponent.Inventory);
                 var buildingInventory = bw.InventoryComponent.Inventory;
                 var foundResources = ObjectPool<List<(Entity entity, Vector2 location)>>.Shared.Get();
 
@@ -39,7 +39,7 @@ partial class AISystem
                         var planMarker = ResourceMarker.Create();
                         ResourceBucket.MarkResources(planMarker,
                             foundResources.OrderByDistanceFrom(entityLocation).Select(e => e.GetInventoryComponent().Inventory),
-                            ResourceMarker.Default, villagerAvailableWeight, bw.BuildingComponent.BuildCost, rq => buildingInventory.Add(rq, planMarker), out _);
+                            ResourceMarker.Default, villagerAvailableWeight, bw.BuildingComponent.Template.BuildCost, rq => buildingInventory.Add(rq, planMarker), out _);
 
                         selectedPlans = new AIHighLevelPlan[]
                         {
@@ -69,13 +69,12 @@ partial class AISystem
         EcsCoordinator.IterateBuildingArchetype((in EcsCoordinator.BuildingIterationResult bw) =>
         {
             if (!bw.BuildingComponent.IsBuilt && bw.WorkableComponent.WorkerSlots.Any(s => s.Entity == Entity.Invalid)
-                && bw.InventoryComponent.Inventory.Contains(ResourceMarker.Default, bw.BuildingComponent.BuildCost, ResourceMarker.All))
+                && bw.InventoryComponent.Inventory.Contains(ResourceMarker.Default, bw.BuildingComponent.Template.BuildCost, ResourceMarker.All))
             {
                 bw.WorkableComponent.GetEmptyWorkerSlot().Entity = workerEntity;
                 selectedPlans = new AIHighLevelPlan[]
                 {
-                    new WorkAIHighLevelPlan(world, workerEntity, bw.Entity,
-                        static (worker, workable) => workable.GetBuildingComponent().IsBuilt = true)
+                    new WorkAIHighLevelPlan(world, workerEntity, bw.Entity)
                 };
                 return false;
             }

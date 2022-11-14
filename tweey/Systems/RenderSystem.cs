@@ -196,7 +196,7 @@ partial class RenderSystem
         renderLights();
     }
 
-    void RenderZone(Box2 box, ZoneType zoneType, bool error, bool showGrid)
+    void RenderZone(in Box2 box, ZoneType zoneType, bool error, bool showGrid)
     {
         const float zoneBackgroundAlpha = .7f;
         ScreenFillQuad(box, error ? world.Configuration.Data.ZoneErrorColor.ToVector4(zoneBackgroundAlpha) : zoneType switch
@@ -211,6 +211,26 @@ partial class RenderSystem
             for (var y = box.Top; y <= box.Bottom; ++y)
                 for (var x = box.Left; x <= box.Right; ++x)
                     ScreenFillQuad(Box2.FromCornerSize(x, y, 1, 1), Colors4.White, cellAtlas);
+        }
+    }
+
+    void RenderBuildingSite(in Box2 box, in BuildingComponent buildingComponent)
+    {
+        var worldBox = Box2.FromCornerSize((box.TopLeft + world.Offset) * world.Zoom, new(world.Zoom));
+        ScreenFillFrame(worldBox, "BuildingSite", world.Zoom / 3, FrameType.NoEdges | FrameType.NoBackground);
+
+        var percentageFilled = 1 - buildingComponent.BuildWorkTicks / buildingComponent.Template.BuildWorkTicks;
+        const int subDivisions = 2;
+        var totalCells = box.Size * subDivisions;
+
+        for (int cellsToFill = (int)Math.Ceiling(totalCells.X * totalCells.Y * percentageFilled), row = 0, col = 0; cellsToFill > 0; --cellsToFill)
+        {
+            ScreenStrokeQuad(
+                Box2.FromCornerSize(worldBox.BottomRight - new Vector2(col + 1, row + 1) * world.Zoom / subDivisions, new(world.Zoom / subDivisions)).WithExpand(new Vector2(-2)),
+                2, Colors4.DarkGray, blankAtlasEntry);
+
+            if (++col == totalCells.Y)
+                (row, col) = (row + 1, 0);
         }
     }
 
@@ -241,7 +261,16 @@ partial class RenderSystem
         // store the actual entities' vertices(tri0)
         IterateRenderPartitionByLocationComponents(worldViewBox.Center, screenBox, (in IterationResult w) =>
         {
-            //if (IsWorldViewBoxInView(w.LocationComponent.Box))
+            if (w.Entity.HasBuildingComponent())
+            {
+                ref var buildingComponent = ref w.Entity.GetBuildingComponent();
+                if (!buildingComponent.IsBuilt)
+                {
+                    RenderBuildingSite(w.LocationComponent.Box, buildingComponent);
+                    return;
+                }
+            }
+
             if (w.RenderableComponent.AtlasEntryName is { } atlasEntryName)
                 ScreenFillQuad(w.LocationComponent.Box, Colors4.White, atlas[atlasEntryName]);
             else if (w.Entity.HasZoneComponent())
@@ -309,7 +338,7 @@ partial class RenderSystem
 
         // draw the world (with light mapping)
         guiLightMapShaderProgram.Use();
-        guiLightMapShaderProgram.Uniform("ambientColor", new Vector4(.3f, .3f, .3f, 1f));
+        guiLightMapShaderProgram.Uniform("ambientColor", /*new Vector4(.3f, .3f, .3f, 1f)*/Colors4.White);
         atlas.Bind(0);
         lightMapTexture.Bind(1);
 

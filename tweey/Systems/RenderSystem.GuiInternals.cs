@@ -12,7 +12,7 @@ partial class RenderSystem
     bool IsWorldViewBoxInView(Box2 box) =>
         Box2.FromCornerSize(world.Offset, windowUbo.Data.WindowSize / world.Zoom).Intersects(box);
 
-    void ScreenFillQuad(Box2 box, Vector4 color, AtlasEntry entry, bool asWorldCoords = true, GuiTransformType transform = GuiTransformType.None)
+    void ScreenFillQuad(in Box2 box, in Vector4 color, in AtlasEntry entry, bool asWorldCoords = true, GuiTransformType transform = GuiTransformType.None)
     {
         if (color.W == 0)
             return;
@@ -41,45 +41,70 @@ partial class RenderSystem
         guiVAO.Vertices.Add(new((box.TopLeft - offset) * zoom, color, uv0));
     }
 
-    enum FrameType { Normal = 0, Hover = 1 << 0, Checked = 1 << 2 }
+    void ScreenStrokeQuad(in Box2 box, float strokeWidth, in Vector4 color, in AtlasEntry entry)
+    {
+        ScreenFillQuad(Box2.FromCornerSize(box.TopLeft, new(box.Size.X, strokeWidth)), color, entry, false);
+        ScreenFillQuad(Box2.FromCornerSize(box.TopRight - new Vector2(strokeWidth - 1, 0), new(strokeWidth, box.Size.Y)), color, entry, false);
+        ScreenFillQuad(Box2.FromCornerSize(box.BottomLeft - new Vector2(0, strokeWidth - 1), new(box.Size.X, strokeWidth)), color, entry, false);
+        ScreenFillQuad(Box2.FromCornerSize(box.TopLeft, new(strokeWidth, box.Size.Y)), color, entry, false);
+    }
+
+    [Flags]
+    enum FrameType { Normal = 0, Hover = 1 << 0, Checked = 1 << 2, NoEdges = 1 << 3, NoCorners = 1 << 4, NoBackground = 1 << 5 }
+
     /// <summary>
     /// Fills a quad with a frame made by two textures, the corner and the edge textures respectively. 
     /// <para>Naming conventions:</para>
     /// <list type="bullet">
+    /// <item>Name starts with /Data/Frames/<c>name</c>/tex-</item>
     /// <item><see cref="FrameType.Hover"/> appends <c>-hover</c> to the file name.</item>
     /// <item>Corner textures append <c>-corner</c> to the file name.</item>
     /// <item>Edge textures append <c>-edge</c> to the file name.</item>
     /// </list>
-    /// Some examples: <c>button-corner.png</c>, <c>button-hover-edge.png</c>, etc.
+    /// Some examples: <c>/Data/Frames/button/tex-corner.png</c>, <c>/Data/Frames/button/tex-hover-edge.png</c>, etc.
     /// </summary>
     /// <param name="elementWidth">The width of the corner &amp; edge textures, in pixels. Looks best with the pixel width, but it scales as needed.</param>
-    void ScreenFillFrame(Box2 box, string baseTextureName, float elementWidth, FrameType frameType = FrameType.Normal)
+    void ScreenFillFrame(in Box2 box, string baseTextureName, float elementWidth, FrameType frameType = FrameType.Normal)
     {
-        var cornerTexture = atlas[$"Data/Misc/{baseTextureName}{(frameType.HasFlag(FrameType.Hover) ? "-hover" : "")}{(frameType.HasFlag(FrameType.Checked) ? "-checked" : "")}-corner.png"];
-        var edgeTexture = atlas[$"Data/Misc/{baseTextureName}{(frameType.HasFlag(FrameType.Hover) ? "-hover" : "")}{(frameType.HasFlag(FrameType.Checked) ? "-checked" : "")}-edge.png"];
+        var hoverPart = frameType.HasFlag(FrameType.Hover) ? "-hover" : null;
+        var checkedPart = frameType.HasFlag(FrameType.Checked) ? "-checked" : null;
 
-        ScreenFillQuad(Box2.FromCornerSize(box.TopLeft, new(elementWidth)),
-            Colors4.White, cornerTexture, false);
-        ScreenFillQuad(Box2.FromCornerSize(box.TopLeft + new Vector2(elementWidth - 1, 0), new(box.Size.X - 2 * elementWidth + 2, elementWidth)),
-            Colors4.White, edgeTexture, false);
+        Vector4 edgeColor = default;
+        if (!frameType.HasFlag(FrameType.NoCorners))
+        {
+            var cornerTexture = atlas[$"Data/Frames/{baseTextureName}/tex{hoverPart}{checkedPart}-corner.png"];
+            ScreenFillQuad(Box2.FromCornerSize(box.TopLeft, new(elementWidth)),
+                Colors4.White, cornerTexture, false);
+            ScreenFillQuad(Box2.FromCornerSize(box.TopRight - new Vector2(elementWidth + 1, -1), new(elementWidth)),
+                Colors4.White, cornerTexture, false, GuiTransformType.Rotate90);
+            ScreenFillQuad(Box2.FromCornerSize(box.BottomRight - new Vector2(elementWidth + 2), new(elementWidth)),
+                Colors4.White, cornerTexture, false, GuiTransformType.Rotate180);
+            ScreenFillQuad(Box2.FromCornerSize(box.BottomLeft - new Vector2(1, elementWidth + 3), new(elementWidth)),
+                Colors4.White, cornerTexture, false, GuiTransformType.Rotate270);
 
-        ScreenFillQuad(Box2.FromCornerSize(box.TopRight - new Vector2(elementWidth + 1, -1), new(elementWidth)),
-            Colors4.White, cornerTexture, false, GuiTransformType.Rotate90);
-        ScreenFillQuad(Box2.FromCornerSize(box.TopRight - new Vector2(elementWidth + 1, -elementWidth), new(elementWidth, box.Size.Y - 2 * elementWidth + 2)),
-            Colors4.White, edgeTexture, false, GuiTransformType.Rotate90);
+            if (edgeColor == default) edgeColor = cornerTexture.EdgeColor;
+        }
 
-        ScreenFillQuad(Box2.FromCornerSize(box.BottomRight - new Vector2(elementWidth + 2), new(elementWidth)),
-            Colors4.White, cornerTexture, false, GuiTransformType.Rotate180);
-        ScreenFillQuad(Box2.FromCornerSize(box.BottomLeft + new Vector2(elementWidth - 4, -elementWidth - 2), new(box.Size.X - 2 * elementWidth + 2, elementWidth)),
-            Colors4.White, edgeTexture, false, GuiTransformType.Rotate180);
+        if (!frameType.HasFlag(FrameType.NoEdges))
+        {
+            var edgeTexture = atlas[$"Data/Frames/{baseTextureName}/tex{hoverPart}{checkedPart}-edge.png"];
+            ScreenFillQuad(Box2.FromCornerSize(box.TopLeft + new Vector2(elementWidth - 1, 0), new(box.Size.X - 2 * elementWidth + 2, elementWidth)),
+                Colors4.White, edgeTexture, false);
+            ScreenFillQuad(Box2.FromCornerSize(box.TopRight - new Vector2(elementWidth + 1, -elementWidth), new(elementWidth, box.Size.Y - 2 * elementWidth + 2)),
+                Colors4.White, edgeTexture, false, GuiTransformType.Rotate90);
+            ScreenFillQuad(Box2.FromCornerSize(box.BottomLeft + new Vector2(elementWidth - 4, -elementWidth - 2), new(box.Size.X - 2 * elementWidth + 2, elementWidth)),
+                Colors4.White, edgeTexture, false, GuiTransformType.Rotate180);
+            ScreenFillQuad(Box2.FromCornerSize(box.TopLeft + new Vector2(-1, elementWidth - 3), new(elementWidth, box.Size.Y - 2 * elementWidth)),
+                Colors4.White, edgeTexture, false, GuiTransformType.Rotate270);
 
-        ScreenFillQuad(Box2.FromCornerSize(box.BottomLeft - new Vector2(1, elementWidth + 3), new(elementWidth)),
-            Colors4.White, cornerTexture, false, GuiTransformType.Rotate270);
-        ScreenFillQuad(Box2.FromCornerSize(box.TopLeft + new Vector2(-1, elementWidth - 3), new(elementWidth, box.Size.Y - 2 * elementWidth)),
-            Colors4.White, edgeTexture, false, GuiTransformType.Rotate270);
+            if (edgeColor == default) edgeColor = edgeTexture.EdgeColor;
+        }
 
-        ScreenFillQuad(Box2.FromCornerSize(box.TopLeft + new Vector2(elementWidth - 1), new(box.Size.X - 2 * elementWidth, box.Size.Y - 2 * elementWidth)),
-            edgeTexture.EdgeColor, blankAtlasEntry, false);
+        if (!frameType.HasFlag(FrameType.NoBackground))
+        {
+            ScreenFillQuad(Box2.FromCornerSize(box.TopLeft + new Vector2(elementWidth - 1), new(box.Size.X - 2 * elementWidth, box.Size.Y - 2 * elementWidth)),
+                edgeColor, blankAtlasEntry, false);
+        }
     }
 
     void ScreenString(string? s, FontDescription fontDescription, Box2 box, Vector4 fgColor, Vector4 bgColor, HorizontalAlignment horizontalAlignment = HorizontalAlignment.Left) =>

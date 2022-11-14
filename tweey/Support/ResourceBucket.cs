@@ -25,10 +25,10 @@ internal class ResourceBucket
         resources.Add((rq, marker));
     }
 
-    public static void MarkResources(ResourceMarker marker, IEnumerable<ResourceBucket> sourceRBs, ResourceMarker sourceMarker, double maxWeight, ResourceBucket desired,
+    public static void MarkResources(ResourceMarker marker, IEnumerable<ResourceBucket> sourceRBs, ResourceMarker sourceMarker, double maxWeight, in ResourceBucket _desired,
         Action<ResourceQuantity>? selectedFeedbackAction, out double usedWeight)
     {
-        desired = desired.Clone();
+        var desired = _desired.Clone();
         usedWeight = 0;
 
         foreach (var srcRB in sourceRBs)
