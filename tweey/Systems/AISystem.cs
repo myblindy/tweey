@@ -207,6 +207,8 @@ partial class AISystem
                     planRunners[w.Entity] = null;
                     w.WorkerComponent.Plans = null;
                 }
+
+                w.Entity.UpdateRenderPartitions();
             }
         });
     }

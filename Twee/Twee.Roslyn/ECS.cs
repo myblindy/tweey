@@ -214,43 +214,43 @@ public sealed class ECSSourceGen : IIncrementalGenerator
         });
 
         context.RegisterPostInitializationOutput(ctx =>
+        {
+            ctx.AddSource("ECS.gg.cs", $$"""
+            namespace Twee.Ecs;
+
+            {{Common.GeneratedCodeAttributeText}}
+            [AttributeUsage(AttributeTargets.Class)]
+            internal sealed class EcsSystemAttribute : Attribute
             {
-                ctx.AddSource("ECS.gg.cs", $$"""
-                namespace Twee.Ecs;
-
-                {{Common.GeneratedCodeAttributeText}}
-                [AttributeUsage(AttributeTargets.Class)]
-                internal sealed class EcsSystemAttribute : Attribute
-                {
-                    public EcsSystemAttribute(EcsComponents components) { }
-                }
+                public EcsSystemAttribute(EcsComponents components) { }
+            }
                 
-                {{Common.GeneratedCodeAttributeText}}
-                internal static partial class EcsCoordinator
+            {{Common.GeneratedCodeAttributeText}}
+            internal static partial class EcsCoordinator
+            {
+                static int maxGeneratedEntityID;
+                static readonly SortedSet<int> extraAvailableEntityIDs = new();
+                static readonly List<EcsComponents> entityComponents = new();
+
+                static readonly HashSet<Entity> entities = new();
+                public static IReadOnlyCollection<Entity> Entities { get; } = entities;
+
+                static void EnsureEntityComponentsListEntityExists(Entity entity)
                 {
-                    static int maxGeneratedEntityID;
-                    static readonly SortedSet<int> extraAvailableEntityIDs = new();
-                    static readonly List<EcsComponents> entityComponents = new();
-
-                    static readonly HashSet<Entity> entities = new();
-                    public static IReadOnlyCollection<Entity> Entities { get; } = entities;
-
-                    static void EnsureEntityComponentsListEntityExists(Entity entity)
-                    {
-                        int idx = entity;
-                        while(entityComponents.Count <= idx)
-                            entityComponents.Add(0);
-                    }
+                    int idx = entity;
+                    while(entityComponents.Count <= idx)
+                        entityComponents.Add(0);
                 }
+            }
 
-                {{Common.GeneratedCodeAttributeText}}         
-                [AttributeUsage(AttributeTargets.Class)]
-                internal sealed class EcsPartitionAttribute : Attribute
-                {
-                    public EcsPartitionAttribute(EcsComponents components) { }
-                }
-                """);
-            });
+            {{Common.GeneratedCodeAttributeText}}         
+            [AttributeUsage(AttributeTargets.Class)]
+            internal sealed class EcsPartitionAttribute : Attribute
+            {
+                public EcsPartitionAttribute(EcsComponents components) { }
+            }
+            """);
+        });
 
         context.RegisterSourceOutput(componentDeclarations.Collect().Combine(systemDeclarations.Collect())
             .Combine(archetypeDeclarations.Collect()).Combine(partitionDeclarations.Collect()),
@@ -299,42 +299,65 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         readonly List<int> entityPositions = new();
                         readonly HashSet<Entity>[] entityPartitions;
 
+                        internal Vector2i WorldSize;
+                        internal float Zoom;
+
                         public {{p.TypeRootName}}()
                         {
                             entityPartitions = new HashSet<Entity>[Width * Height];
-                            for (int y = 0; y < Height; ++y)
-                                for (int x = 0; x < Width; ++x)
-                                    entityPartitions[x + y * Width] = new();
                         }
 
-                        public partial int GetLocation({{string.Join(", ", archetypes.First(a=>a.Name == p.UsedArchetypeName).Components.Select(c=>$$"""
+                        public partial int GetLocation({{string.Join(", ", archetypes.First(a => a.Name == p.UsedArchetypeName).Components.Select(c => $$"""
                             in {{c!.FullName}} {{c!.TypeRootName}}Component
-                            """))}}, Box2 worldSize);
+                            """))}});
 
-                        public void UpdateEntity(Entity entity, Box2 worldSize)
+                        public void UpdateEntity(Entity entity)
                         {
                             if (entityPositions.Count <= entity)
-                                entityPositions.Resize(entity + 1);
-                            entityPartitions[entityPositions[entity]].Remove(entity);
+                                entityPositions.Resize(entity + 1, -1);
 
-                            var newLocation = GetLocation({{string.Join(", ", archetypes.First(a => a.Name == p.UsedArchetypeName).Components.Select(c => $$"""
-                                in entity.Get{{c!.TypeRootName}}Component()
-                                """))}}, worldSize);
-                            entityPartitions[entityPositions[entity] = newLocation].Add(entity);
+                            if({{string.Join(" && ", archetypes.First(a => a.Name == p.UsedArchetypeName).Components.Select(c => $$"""
+                                entity.Has{{c!.TypeRootName}}Component()
+                                """))}})
+                            {
+                                var oldPosition = entityPositions[entity];
+                                var newPosition = GetLocation({{string.Join(", ", archetypes.First(a => a.Name == p.UsedArchetypeName).Components.Select(c => $$"""
+                                    in entity.Get{{c!.TypeRootName}}Component()
+                                    """))}});
+
+                                if(oldPosition != newPosition)
+                                {
+                                    if(oldPosition >= 0)
+                                        entityPartitions[oldPosition].Remove(entity);
+                                    entityPositions[entity] = newPosition;
+                                    (entityPartitions[newPosition] ??= new()).Add(entity);
+                                }
+                            }
                         }
 
-                        public IEnumerable<Entity> GetEntities(Vector2 worldLocation, Box2 worldSize, Box2 screenSize)
+                        public void RemoveEntity(Entity entity)
                         {
-                            var partitionLocation = worldLocation / worldSize.Size;
-                            var partitionCount = (screenSize.Size / (worldSize.Size / new Vector2(Width, Height))).Ceiling();
+                            if(entity < entityPositions.Count && entityPositions[entity] >= 0)
+                            {
+                                entityPartitions[entityPositions[entity]].Remove(entity);
+                                entityPositions[entity] = -1;
+                            }
+                        }
 
-                            int ys = (int)MathF.Max(0, partitionLocation.Y - partitionCount.Y), ye = (int)MathF.Max(Height, partitionLocation.Y + partitionCount.Y);
-                            int xs = (int)MathF.Max(0, partitionLocation.X - partitionCount.X), xe = (int)MathF.Max(Width, partitionLocation.X + partitionCount.X);
+                        public IEnumerable<Entity> GetEntities(Vector2 worldLocation, Box2 screenSize)
+                        {
+                            var worldSize = WorldSize.ToNumericsVector2() - Vector2.One;
+                            var partitionLocation = worldLocation / worldSize * new Vector2(Width, Height);
+                            var halfPartitionCount = screenSize.Size / (worldSize * Zoom / new Vector2(Width, Height)) / 2;
+
+                            int ys = (int)MathF.Floor(MathF.Max(0, partitionLocation.Y - halfPartitionCount.Y)), ye = (int)MathF.Ceiling(MathF.Min(Height - 1, partitionLocation.Y + halfPartitionCount.Y));
+                            int xs = (int)MathF.Floor(MathF.Max(0, partitionLocation.X - halfPartitionCount.X)), xe = (int)MathF.Ceiling(MathF.Min(Width - 1, partitionLocation.X + halfPartitionCount.X));
 
                             for (var y = ys; y <= ye; ++y)
                                 for (var x = xs; x <= xe; ++x)
-                                    foreach (var item in entityPartitions[y * Width + x])
-                                        yield return item;
+                                    if(entityPartitions[y * Width + x] is { } set) 
+                                        foreach (var item in set)
+                                            yield return item;
                         }
                     }
                     {{(p.Namespace is not null ? "}" : "")}}
@@ -345,8 +368,6 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                     {{(s.Namespace is not null ? $"namespace {s.Namespace} {{" : "")}}
                     sealed partial class {{s!.TypeName}}
                     {
-                        internal HashSet<Entity> Entities { get; } = EcsCoordinator.{{s.UsedArchetypeName}}Entities;
-
                         readonly ref struct IterationResult
                         {
                             public readonly Entity Entity;
@@ -367,11 +388,21 @@ public sealed class ECSSourceGen : IIncrementalGenerator
 
                         void IterateComponents(IterateComponentsProcessDelegate process)
                         {
-                            foreach(var entity in Entities)
+                            foreach(var entity in EcsCoordinator.{{s.UsedArchetypeName}}Entities)
                                 process(new(entity
                                     {{string.Concat(archetypes.First(at => at.Name == s.UsedArchetypeName).Components.Select(c => $", ref EcsCoordinator.Get{c!.TypeRootName}Component(entity)"))}}
                                 ));
                         }
+
+                        {{string.Join(Environment.NewLine, partitions.Where(p => p.UsedArchetypeName == s.UsedArchetypeName).Select(p => $$"""
+                            void Iterate{{p.TypeRootName}}Components(Vector2 worldLocation, Box2 screenSize, IterateComponentsProcessDelegate process)
+                            {
+                                foreach(var entity in EcsCoordinator.{{p.TypeRootName}}Partition.GetEntities(worldLocation, screenSize))
+                                    process(new(entity
+                                        {{string.Concat(archetypes.First(at => at.Name == s.UsedArchetypeName).Components.Select(c => $", ref EcsCoordinator.Get{c!.TypeRootName}Component(entity)"))}}
+                                    ));
+                            }
+                            """))}}
 
                         public partial void Run();
                     }
@@ -394,7 +425,25 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         static readonly List<{{c!.FullName}}> {{c!.TypeName}}s = new();
                         static readonly SortedSet<int> extraAvailable{{c!.TypeName}}IDs = new();
                         """))}}
-                        
+
+                    // partitions
+                    {{string.Join(Environment.NewLine, partitions.Select(p => $$"""
+                        internal static {{p.FullName}}? {{p.TypeRootName}}Partition;
+
+                        public static void ConstructPartitions(Vector2i worldSize, float zoom) =>
+                            {{p.TypeRootName}}Partition = new() { WorldSize = worldSize, Zoom = zoom };
+                        """))}}
+                    
+                    // partition updates
+                    {{string.Join(Environment.NewLine, archetypes.Where(a => partitions.Any(p => p.UsedArchetypeName == a.Name)).Select(a => $$"""
+                        internal static void Update{{a.Name}}Partitions(Entity entity)
+                        {
+                            {{string.Join(Environment.NewLine, partitions.Where(p => p.UsedArchetypeName == a.Name).Select(p => $$"""
+                                {{p.TypeRootName}}Partition.UpdateEntity(entity);
+                                """))}}
+                        }
+                        """))}}
+                
                     // archetypes
                     {{(rawArchetypes is null ? null : string.Join(Environment.NewLine, rawArchetypes.Archetypes.Select(at => $$"""
                         internal static readonly HashSet<Entity> {{at.Name}}Entities = new();
@@ -499,7 +548,12 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             {{(rawArchetypes is null ? null : string.Join(Environment.NewLine, rawArchetypes.Archetypes.Select(at =>
                                 !at.Components.Contains(c.TypeRootName) ? null : $$"""
                                     if((((ulong)entityComponents[entity]) & {{getComponentsRawValue(at.Components)}}) == {{getComponentsRawValue(at.Components)}})
+                                    {
                                         {{at.Name}}Entities.Add(entity);
+                                        {{string.Join(Environment.NewLine, partitions.Where(p => p.UsedArchetypeName == at.Name).Select(p => $$"""
+                                            {{p.TypeRootName}}Partition.UpdateEntity(entity);
+                                            """))}}
+                                    }
                                     """)))}}
 
                             return ref CollectionsMarshal.AsSpan({{c!.TypeName}}s)[componentId]; 
@@ -512,6 +566,11 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             {
                                 ref var component = ref Add{{c!.TypeRootName}}Component(entity);
                                 {{string.Join(Environment.NewLine, c.Parameters.Select(p => $"component.{p.Name} = {p.Name};"))}}
+
+                                {{(rawArchetypes is null ? null : string.Join(Environment.NewLine, partitions.Where(p => archetypes.First(a => a.Name == p.UsedArchetypeName).Components.Contains(c)).Select(p => $$"""
+                                    {{p.TypeRootName}}Partition.UpdateEntity(entity);
+                                    """)))}}
+
                                 return ref component;
                             }
                             """)}}
@@ -536,15 +595,27 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             {{(rawArchetypes is null ? null : string.Join(Environment.NewLine, rawArchetypes.Archetypes.Select(at =>
                                 !at.Components.Contains(c.TypeRootName) ? null : $$"""
                                     {{at.Name}}Entities.Remove(entity);
+                                    {{string.Join(Environment.NewLine, partitions.Where(p => p.UsedArchetypeName == at.Name).Select(p => $$"""
+                                        {{p.TypeRootName}}Partition.RemoveEntity(entity);
+                                        """))}}
                                     """)))}}
                         }
                         """))}}
 
                     // system data
+                    static readonly List<(Action action, string name)> constructedSystems = new();
+                    public static readonly Dictionary<string, TimeSpan> SystemTimingInformation = new();
+                    public const int SystemsCount = {{systems.Length}};
                     {{string.Join(Environment.NewLine, systems.Select(s => $$"""
                         static {{s!.FullName}}? {{s!.TypeRootName}}System;
-                        public static void Construct{{s!.TypeRootName}}System(Func<{{s!.FullName}}> generator) => 
+
+                        public static void Construct{{s!.TypeRootName}}System(Func<{{s!.FullName}}> generator)
+                        {
+                            if(Is{{s!.TypeRootName}}SystemConstructed) return;
+
                             {{s!.TypeRootName}}System = generator();
+                            constructedSystems.Add((() => {{s!.TypeRootName}}System.Run(), "{{s!.TypeRootName}}System"));
+                        }
 
                         public static bool Is{{s!.TypeRootName}}SystemConstructed => {{s!.TypeRootName}}System is not null;
 
@@ -557,9 +628,13 @@ public sealed class ECSSourceGen : IIncrementalGenerator
 
                     public static void RunSystems()
                     {
-                        {{string.Join(Environment.NewLine, systems.Select(s => $$"""
-                            {{s!.TypeRootName}}System?.Run();
-                            """))}}
+                        var sw = System.Diagnostics.Stopwatch.StartNew();
+                        foreach(var (action, name) in constructedSystems)
+                        {
+                            action();
+                            SystemTimingInformation[name] = sw.Elapsed;
+                            sw.Restart();
+                        }
                     }
 
                     public static EcsDataDump DumpAllData() 
@@ -591,7 +666,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                 internal static class EntityExtensions
                 {
                     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                    public static bool Delete(this Entity entity) => 
+                    internal static bool Delete(this Entity entity) => 
                         EcsCoordinator.DeleteEntity(entity);
 
                      // component functions
@@ -619,6 +694,12 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         
                         public static void Remove{{c!.TypeRootName}}Component(this Entity entity) =>
                             EcsCoordinator.Remove{{c!.TypeRootName}}Component(entity);
+                        """))}}
+                    
+                    // partition updates
+                    {{string.Join(Environment.NewLine, archetypes.Where(a => partitions.Any(p => p.UsedArchetypeName == a.Name)).Select(a => $$"""
+                        internal static void Update{{a.Name}}Partitions(this Entity entity) =>
+                            EcsCoordinator.Update{{a.Name}}Partitions(entity);
                         """))}}
                 }
                 }

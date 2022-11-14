@@ -102,7 +102,7 @@ partial class RenderSystem
         lightMapOcclusionFrameBuffer = new(new[] { lightMapOcclusionTexture });
     }
 
-    unsafe void RenderLightMapToFrameBuffer()
+    unsafe void RenderLightMapToFrameBuffer(Box2 worldViewBox, Box2 screenBox)
     {
         // setup the occlusion map for rendering and build the occlusions
         void markOcclusionBox(Box2 box, bool circle = false, float scale = 1f)
@@ -123,9 +123,9 @@ partial class RenderSystem
             lightMapOcclusionVAO.Vertices.Add(new((center + new Vector2(-rx, ry)) * zoom, circle ? new(0, 0) : uvHalf));
         }
 
-        IterateComponents((in IterationResult w) =>
+        IterateRenderPartitionByLocationComponents(worldViewBox.Center, screenBox, (in IterationResult w) =>
         {
-            if (w.RenderableComponent.OcclusionScale > 0 && IsWorldViewBoxInView(w.LocationComponent.Box))
+            if (w.RenderableComponent.OcclusionScale > 0 /*&& IsWorldViewBoxInView(w.LocationComponent.Box)*/)
                 markOcclusionBox(w.LocationComponent.Box, w.RenderableComponent.OcclusionCircle, w.RenderableComponent.OcclusionScale);
         });
 
@@ -176,7 +176,7 @@ partial class RenderSystem
             new((float)((-heading - coneAngle + 2.25) % 1.0), (float)((-heading + coneAngle + 2.25) % 1.0));
 
         // call the engine once for each light
-        IterateComponents((in IterationResult w) =>
+        IterateRenderPartitionByLocationComponents(worldViewBox.Center, screenBox, (in IterationResult w) =>
         {
             if (w.RenderableComponent.LightEmission.W == 0)
                 return;
@@ -217,8 +217,11 @@ partial class RenderSystem
 
     public partial void Run()
     {
+        var worldViewBox = Box2.FromCornerSize(world.Offset, windowUbo.Data.WindowSize / world.Zoom);
+        var screenBox = Box2.FromCornerSize(Vector2.Zero, windowUbo.Data.WindowSize);
+
         // render lightmap to texture
-        RenderLightMapToFrameBuffer();
+        RenderLightMapToFrameBuffer(worldViewBox, screenBox);
 
         // render to screen
         GraphicsEngine.UnbindFrameBuffer();
@@ -226,26 +229,27 @@ partial class RenderSystem
         // render the background (tri0)
         var normalizedGrassOffset = world.Offset.ToVector2i().ToNumericsVector2();
 
-        for (int y = -1; y < windowUbo.Data.WindowSize.Y / world.Zoom + 1; ++y)
-            for (int x = -1; x < windowUbo.Data.WindowSize.X / world.Zoom + 1; ++x)
-                if ((int)(x + normalizedGrassOffset.X) is { } xIdx && (int)(y + normalizedGrassOffset.Y) is { } yIdx
-                    && xIdx >= 0 && yIdx >= 0 && xIdx < world.TerrainTileNames.GetLength(0) && yIdx < world.TerrainTileNames.GetLength(1))
-                {
-                    ScreenFillQuad(Box2.FromCornerSize(new Vector2(x, y) + normalizedGrassOffset, 1, 1), Colors4.White,
-                        atlas[world.TerrainTileNames[(int)(x + normalizedGrassOffset.X), (int)(y + normalizedGrassOffset.Y)]]);
-                }
+        if (world.TerrainTileNames is { })
+            for (int y = -1; y < windowUbo.Data.WindowSize.Y / world.Zoom + 1; ++y)
+                for (int x = -1; x < windowUbo.Data.WindowSize.X / world.Zoom + 1; ++x)
+                    if ((int)(x + normalizedGrassOffset.X) is { } xIdx && (int)(y + normalizedGrassOffset.Y) is { } yIdx
+                        && xIdx >= 0 && yIdx >= 0 && xIdx < world.TerrainTileNames.GetLength(0) && yIdx < world.TerrainTileNames.GetLength(1))
+                    {
+                        ScreenFillQuad(Box2.FromCornerSize(new Vector2(x, y) + normalizedGrassOffset, 1, 1), Colors4.White,
+                            atlas[world.TerrainTileNames[(int)(x + normalizedGrassOffset.X), (int)(y + normalizedGrassOffset.Y)]]);
+                    }
 
         // store the actual entities' vertices(tri0)
-        EcsCoordinator.IterateRenderArchetype((in EcsCoordinator.RenderIterationResult w) =>
+        IterateRenderPartitionByLocationComponents(worldViewBox.Center, screenBox, (in IterationResult w) =>
         {
-            if (IsWorldViewBoxInView(w.LocationComponent.Box))
-                if (w.RenderableComponent.AtlasEntryName is { } atlasEntryName)
-                    ScreenFillQuad(w.LocationComponent.Box, Colors4.White, atlas[atlasEntryName]);
-                else if (w.Entity.HasZoneComponent())
-                {
-                    ref var zoneComponent = ref w.Entity.GetZoneComponent();
-                    RenderZone(w.LocationComponent.Box, zoneComponent.Type, false, false);
-                }
+            //if (IsWorldViewBoxInView(w.LocationComponent.Box))
+            if (w.RenderableComponent.AtlasEntryName is { } atlasEntryName)
+                ScreenFillQuad(w.LocationComponent.Box, Colors4.White, atlas[atlasEntryName]);
+            else if (w.Entity.HasZoneComponent())
+            {
+                ref var zoneComponent = ref w.Entity.GetZoneComponent();
+                RenderZone(w.LocationComponent.Box, zoneComponent.Type, false, false);
+            }
         });
 
         var countTri0 = guiVAO.Vertices.Count;

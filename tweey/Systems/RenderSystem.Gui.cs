@@ -207,11 +207,13 @@ partial class RenderSystem
                 {
                     new LabelView
                     {
-                        Text = () => $"""
-                            FPS: {Math.Round(FrameData.Rate, 0, MidpointRounding.ToPositiveInfinity):0}, Update: {FrameData.UpdateTimePercentage * 100:0.00}%, Render: {FrameData.RenderTimePercentage * 100:0.00}%
-                            Draw calls: {FrameData.DrawCallCount}, Triangles: {FrameData.TriangleCount}, Lines: {FrameData.LineCount}
+                        Text = () => $$"""
+                            FPS: {{Math.Round(FrameData.Rate, 0, MidpointRounding.ToPositiveInfinity):0}}, Update: {{FrameData.UpdateTimePercentage * 100:0.00}}%, Render: {{FrameData.RenderTimePercentage * 100:0.00}}%
+                            Draw calls: {{FrameData.DrawCallCount}}, Triangles: {{FrameData.TriangleCount}}, Lines: {{FrameData.LineCount}}
+                            {{string.Join(Environment.NewLine, EcsCoordinator.SystemTimingInformation.Select((kvp, idx)=> $"{kvp.Key}: {FrameData.GetCustomTimePercentage(idx):0.00}%"))}}
+                            SwapBuffer: {{FrameData.GetCustomTimePercentage(EcsCoordinator.SystemsCount):0.00}}%
                             """,
-                        FontSize = 22,
+                        FontSize = 18,
                         Padding = new(2),
                         ForegroundColor = () => Colors4.White,
                         BackgroundColor = new(0,0,0,.4f)
@@ -220,7 +222,7 @@ partial class RenderSystem
                     {
                         Text = () => "PAUSED",
                         IsVisible = () => world.TimeSpeedUp == 0,
-                        FontSize = 22,
+                        FontSize = 18,
                         Padding = new(2, 0),
                         ForegroundColor = () => Colors4.Red,
                     },

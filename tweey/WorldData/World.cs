@@ -10,7 +10,7 @@ internal partial class World
     public Configuration Configuration { get; }
     public Biomes Biomes { get; }
 
-    public string[,] TerrainTileNames { get; private set; }
+    public string[,]? TerrainTileNames { get; private set; }
 
     internal Entity? SelectedEntity { get; set; }
     public ZoneType? CurrentZoneType { get; set; }
@@ -44,16 +44,13 @@ internal partial class World
         (Resources, Configuration) = (new(loader), new(loader));
         (BuildingTemplates, TreeTemplates) = (new(loader, Resources), new(loader, Resources));
         Biomes = new(loader, TreeTemplates);
-
-        GenerateMap();
     }
 
     [MemberNotNull(nameof(TerrainTileNames))]
-    private void GenerateMap()
+    public void GenerateMap(int width, int height)
     {
         // generate the terrain
-        const int size = 400;
-        var map = MapGeneration.Generate(size, size,
+        var map = MapGeneration.Generate(width, height,
             new MapGenerationWave[]
             {
                 new(Random.Shared.Next(), 0.004f, 1),
@@ -76,9 +73,9 @@ internal partial class World
             .GroupBy(w => w.Groups[1].Value)
             .ToDictionary(w => w.Key, w => w.Select(ww => ww.Groups[0].Value).ToList());
 
-        TerrainTileNames = new string[size, size];
-        for (var y = 0; y < size; y++)
-            for (var x = 0; x < size; x++)
+        TerrainTileNames = new string[width, height];
+        for (var y = 0; y < height; y++)
+            for (var x = 0; x < width; x++)
             {
                 var biome = Biomes[map[x, y].BiomeIndex];
                 TerrainTileNames[x, y] = biomeTiles[biome.TileName].RandomSubset(1).First();
@@ -289,6 +286,7 @@ internal partial class World
                 CurrentZoneType = null;
             }
             else if (CurrentBuildingTemplate is not null)
+            {
                 if (IsBoxFreeOfBuildings(Box2.FromCornerSize(worldLocation.ToVector2i(), CurrentBuildingTemplate.Width, CurrentBuildingTemplate.Height)))
                 {
                     var building = AddBuildingEntity(CurrentBuildingTemplate, worldLocation, false);
@@ -296,26 +294,27 @@ internal partial class World
                     if (keyModifiers?.HasFlag(KeyModifiers.Shift) != true)
                         CurrentBuildingTemplate = null;
                 }
-                else
+            }
+            else
+            {
+                var foundAny = false;
+                EcsCoordinator.IterateRenderArchetype((in EcsCoordinator.RenderIterationResult w) =>
                 {
-                    var foundAny = false;
-                    EcsCoordinator.IterateRenderArchetype((in EcsCoordinator.RenderIterationResult w) =>
+                    if (w.LocationComponent.Box.Contains(worldLocation))
                     {
-                        if (w.LocationComponent.Box.Contains(worldLocation))
-                        {
-                            SelectedEntity = w.Entity;
-                            foundAny = true;
-                            return false;
-                        }
+                        SelectedEntity = w.Entity;
+                        foundAny = true;
+                        return false;
+                    }
 
-                        return true;
-                    });
+                    return true;
+                });
 
-                    if (!foundAny)
-                        SelectedEntity = null;
-                }
-            else if (inputAction == InputAction.Press && mouseButton == MouseButton.Button2)
-                CurrentBuildingTemplate = null;
+                if (!foundAny)
+                    SelectedEntity = null;
+            }
+        else if (inputAction == InputAction.Press && mouseButton == MouseButton.Button2)
+            CurrentBuildingTemplate = null;
 
         (MouseScreenPosition, MouseWorldPosition) = (screenPosition, worldLocation);
     }

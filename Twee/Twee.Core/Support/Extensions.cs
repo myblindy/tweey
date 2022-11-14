@@ -78,12 +78,12 @@ public static class Extensions
         return memoryStream;
     }
 
-    public static void Resize<T>(this List<T> lst, int size)
+    public static void Resize<T>(this List<T> lst, int size, T def = default!)
     {
-        if (lst.Count < size)
+        if (lst.Count <= size)
         {
             lst.Capacity = Math.Max(size + 50, (int)(size * 1.3));
-            lst.AddRange(Enumerable.Repeat(default(T)!, size - lst.Count));
+            lst.AddRange(Enumerable.Repeat(def, size - lst.Count + 1));
         }
         else if (lst.Count > size)
             lst.RemoveRange(size, lst.Count - size);

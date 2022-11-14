@@ -54,6 +54,10 @@ class Program : GameWindow
         GL.Disable(EnableCap.CullFace);
         GL.Enable(EnableCap.Blend);
 
+        FrameData.Init(EcsCoordinator.SystemsCount + 1);
+        EcsCoordinator.ConstructPartitions(new(400, 400), world.Zoom);
+        world.GenerateMap(400, 400);
+
         var villager = world.SelectedEntity = world.AddVillagerEntity("Sana", new(5, 1));
         world.AddVillagerEntity("Momo", new(15, 20));
 
@@ -78,8 +82,9 @@ class Program : GameWindow
 
         World.AddBuildingEntity(world.BuildingTemplates["well"], new(8, 12), false);
 
-        EcsCoordinator.ConstructRenderSystem(() => new(world));
+        EcsCoordinator.ConstructZoneGrowSystem(() => new());
         EcsCoordinator.ConstructAISystem(() => new(world));
+        EcsCoordinator.ConstructRenderSystem(() => new(world));
         EcsCoordinator.SendResizeMessageToRenderSystem(Size.X, Size.Y);
     }
 
@@ -124,8 +129,13 @@ class Program : GameWindow
     protected override void OnRenderFrame(FrameEventArgs args)
     {
         EcsCoordinator.RunSystems();
-        SwapBuffers();
 
+        var sw = Stopwatch.StartNew();
+        SwapBuffers();
+        FrameData.NewCustomTime(EcsCoordinator.SystemsCount, sw.Elapsed);
+
+        for (int i = 0; i < EcsCoordinator.SystemTimingInformation.Count; i++)
+            FrameData.NewCustomTime(i, EcsCoordinator.SystemTimingInformation.ElementAt(i).Value);
         FrameData.NewFrame(TimeSpan.FromSeconds(args.Time), TimeSpan.FromSeconds(UpdateTime), TimeSpan.FromSeconds(RenderTime));
     }
 
