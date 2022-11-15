@@ -420,7 +420,8 @@ internal partial class World
 
     public TimeSpan TotalRealTime { get; private set; }
     const double worldTimeMultiplier = 96 * 6;
-    public TimeSpan WorldTime { get; private set; }
+    public TimeSpan RawWorldTime { get; private set; }
+    public DateTime WorldTime { get; private set; }
     public string? WorldTimeString { get; private set; }
     public TimeSpan DeltaWorldTime { get; private set; }
 
@@ -430,15 +431,16 @@ internal partial class World
     public void Update(double deltaSec)
     {
         TotalRealTime += TimeSpan.FromSeconds(deltaSec);
-        WorldTime += DeltaWorldTime = TimeSpan.FromSeconds(deltaSec * worldTimeMultiplier * TimeSpeedUp);
+        RawWorldTime += DeltaWorldTime = TimeSpan.FromSeconds(deltaSec * worldTimeMultiplier * TimeSpeedUp);
         Offset += deltaOffsetNextFrame * (float)deltaSec * deltaOffsetPerSecond;
 
-        var wt = WorldTime.TotalMinutes;
+        var wt = RawWorldTime.TotalMinutes;
         var min = (int)(wt % 60); wt /= 60;
         var hour = (int)(wt % 24); wt /= 24;
         var day = (int)(wt % 30 + 1); wt /= 30;
         var month = (int)(wt % 12 + 1); wt /= 12;
         var year = (int)(wt + 1);
+        WorldTime = new(year, month, day, hour, min, 0);
         WorldTimeString = $"{year:00}-{month:00}-{day:00} {hour:00}:{min:00}";
     }
 

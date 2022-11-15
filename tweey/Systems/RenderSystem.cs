@@ -101,7 +101,7 @@ partial class RenderSystem
         lightMapOcclusionFrameBuffer = new(new[] { lightMapOcclusionTexture });
     }
 
-    unsafe void RenderLightMapToFrameBuffer(Box2 worldViewBox, Box2 screenBox)
+    unsafe void RenderLightMapToFrameBuffer(Box2 worldViewBox, Box2 screenBox, bool useTorches)
     {
         // setup the occlusion map for rendering and build the occlusions
         void markOcclusionBox(Box2 box, bool circle = false, float scale = 1f)
@@ -124,7 +124,7 @@ partial class RenderSystem
 
         IterateRenderPartitionByLocationComponents(worldViewBox.Center, screenBox, (in IterationResult w) =>
         {
-            if (w.RenderableComponent.OcclusionScale > 0 /*&& IsWorldViewBoxInView(w.LocationComponent.Box)*/)
+            if (w.RenderableComponent.OcclusionScale > 0)
                 markOcclusionBox(w.LocationComponent.Box, w.RenderableComponent.OcclusionCircle, w.RenderableComponent.OcclusionScale);
         });
 
@@ -178,6 +178,9 @@ partial class RenderSystem
         IterateRenderPartitionByLocationComponents(worldViewBox.Center, screenBox, (in IterationResult w) =>
         {
             if (w.RenderableComponent.LightEmission.W == 0)
+                return;
+
+            if (!useTorches && w.Entity.HasVillagerComponent())
                 return;
 
             addLight((w.LocationComponent.Box.Center + new Vector2(.5f) - world.Offset) * world.Zoom, w.RenderableComponent.LightRange * world.Zoom,
@@ -239,8 +242,13 @@ partial class RenderSystem
         var worldViewBox = Box2.FromCornerSize(world.Offset, windowUbo.Data.WindowSize / world.Zoom);
         var screenBox = Box2.FromCornerSize(Vector2.Zero, windowUbo.Data.WindowSize);
 
+        // time of day ambient light calculation
+        var h = world.WorldTime.TimeOfDay.TotalHours;
+        var ambientColorPercentage = (float)(h < 12 ? h / 12 : 1 - (h - 12) / 12);
+        var useTorches = h < 10 || h > 20;
+
         // render lightmap to texture
-        RenderLightMapToFrameBuffer(worldViewBox, screenBox);
+        RenderLightMapToFrameBuffer(worldViewBox, screenBox, useTorches);
 
         // render to screen
         GraphicsEngine.UnbindFrameBuffer();
@@ -338,7 +346,8 @@ partial class RenderSystem
 
         // draw the world (with light mapping)
         guiLightMapShaderProgram.Use();
-        guiLightMapShaderProgram.Uniform("ambientColor", /*new Vector4(.3f, .3f, .3f, 1f)*/Colors4.White);
+        guiLightMapShaderProgram.Uniform("ambientColor",
+            (world.Configuration.Data.MidDayColor * ambientColorPercentage + world.Configuration.Data.MidNightColor * (1 - ambientColorPercentage)).ToVector4(1));
         atlas.Bind(0);
         lightMapTexture.Bind(1);
 

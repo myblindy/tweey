@@ -63,7 +63,7 @@ class WaitLowLevelPlan : AILowLevelPlan
         this.targetWorldTime = worldTime;
     }
 
-    public override bool Run() => World.WorldTime < targetWorldTime;
+    public override bool Run() => World.RawWorldTime < targetWorldTime;
 }
 
 class MoveInventoryLowLevelPlan : AILowLevelPlanWithTargetEntity

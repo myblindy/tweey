@@ -16,6 +16,8 @@ class ConfigurationData
     public double BaseHungerEmergencyPercentage { get; set; }
     public Vector3 ZoneGrowColor { get; set; }
     public Vector3 ZoneErrorColor { get; set; }
+    public Vector3 MidDayColor { get; set; }
+    public Vector3 MidNightColor { get; set; }
 }
 
 class Configuration

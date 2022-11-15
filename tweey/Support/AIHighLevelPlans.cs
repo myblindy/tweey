@@ -38,7 +38,7 @@ class GatherResourcesAIHighLevelPlan : AIHighLevelPlan
             foreach (var targetEntity in targets.OrderByDistanceFrom(MainEntity.GetLocationComponent().Box.Center))
             {
                 yield return new WalkToEntityLowLevelPlan(World, MainEntity, targetEntity);
-                yield return new WaitLowLevelPlan(World, MainEntity, World.WorldTime + World.GetWorldTimeFromTicks(
+                yield return new WaitLowLevelPlan(World, MainEntity, World.RawWorldTime + World.GetWorldTimeFromTicks(
                     MainEntity.GetVillagerComponent().PickupSpeedMultiplier * World.Configuration.Data.BasePickupSpeed
                         * targetEntity.GetInventoryComponent().Inventory.GetWeight(marker)));
                 yield return new MoveInventoryLowLevelPlan(World, targetEntity, marker, MainEntity, marker);       // from the resource (marked) to the villager (marked)
@@ -66,7 +66,7 @@ class DropResourcesToInventoryAIHighLevelPlan : AIHighLevelPlan
     public override IEnumerable<AILowLevelPlan> GetLowLevelPlans()
     {
         yield return new WalkToEntityLowLevelPlan(World, MainEntity, targetEntity);
-        yield return new WaitLowLevelPlan(World, MainEntity, World.WorldTime + World.GetWorldTimeFromTicks(
+        yield return new WaitLowLevelPlan(World, MainEntity, World.RawWorldTime + World.GetWorldTimeFromTicks(
             MainEntity.GetVillagerComponent().PickupSpeedMultiplier * MainEntity.GetInventoryComponent().Inventory.GetWeight(marker)));
         yield return new MoveInventoryLowLevelPlan(World, MainEntity, marker, targetEntity, ResourceMarker.Default, true);    // from the villager (marked) to the building (unmarked)
     }
@@ -90,7 +90,7 @@ class WorkAIHighLevelPlan : AIHighLevelPlan
 
         workableEntity.GetWorkableComponent().GetAssignedWorkerSlot(MainEntity).EntityWorking = true;
         while (workableEntity.GetBuildingComponent().BuildWorkTicks-- > 0)
-            yield return new WaitLowLevelPlan(World, MainEntity, World.WorldTime + World.GetWorldTimeFromTicks(MainEntity.GetVillagerComponent().WorkSpeedMultiplier));
+            yield return new WaitLowLevelPlan(World, MainEntity, World.RawWorldTime + World.GetWorldTimeFromTicks(MainEntity.GetVillagerComponent().WorkSpeedMultiplier));
         workableEntity.GetWorkableComponent().GetAssignedWorkerSlot(MainEntity).Clear();
 
         doneAction?.Invoke(MainEntity, workableEntity);
