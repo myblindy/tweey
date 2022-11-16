@@ -9,8 +9,11 @@ partial class RenderSystem
 
     enum GuiTransformType { None, Rotate90, Rotate180, Rotate270, MirrorH, MirrorV }
 
-    bool IsWorldViewBoxInView(Box2 box) =>
+    bool IsWorldViewBoxInView(in Box2 box) =>
         Box2.FromCornerSize(world.Offset, windowUbo.Data.WindowSize / world.Zoom).Intersects(box);
+
+    void ScreenFillQuad(in Box2 box, in AtlasEntry entry, bool asWorldCoords = true, GuiTransformType transform = GuiTransformType.None) =>
+        ScreenFillQuad(box, Colors4.White, entry, asWorldCoords, transform);
 
     void ScreenFillQuad(in Box2 box, in Vector4 color, in AtlasEntry entry, bool asWorldCoords = true, GuiTransformType transform = GuiTransformType.None)
     {
@@ -107,7 +110,7 @@ partial class RenderSystem
         }
     }
 
-    void ScreenString(string? s, FontDescription fontDescription, Box2 box, Vector4 fgColor, Vector4 bgColor, HorizontalAlignment horizontalAlignment = HorizontalAlignment.Left) =>
+    void ScreenString(string? s, FontDescription fontDescription, in Box2 box, in Vector4 fgColor, in Vector4 bgColor, HorizontalAlignment horizontalAlignment = HorizontalAlignment.Left) =>
         ScreenString(s, fontDescription, horizontalAlignment switch
         {
             HorizontalAlignment.Left => box.TopLeft,
@@ -128,7 +131,10 @@ partial class RenderSystem
                 (box, atlasEntry) => ScreenFillQuad(box, fgColor, atlasEntry, false), horizontalAlignment);
     }
 
-    void ScreenLine(Box2 box1, Box2 box2, Vector4 color)
+    void ScreenLine(in Box2 box1, in Box2 box2) =>
+        ScreenLine(box1, box2, Colors4.White);
+
+    void ScreenLine(in Box2 box1, in Box2 box2, in Vector4 color)
     {
         if (color.W == 0) return;
 
@@ -136,7 +142,10 @@ partial class RenderSystem
         guiVAO.Vertices.Add(new((box2.Center + new Vector2(.5f, .5f) - world.Offset) * world.Zoom, color, blankAtlasEntry.TextureCoordinate1));
     }
 
-    void ScreenLineQuad(Box2 box, Vector4 color, bool asWorldCoords = true)
+    void ScreenLineQuad(in Box2 box, bool asWorldCoords = true) =>
+        ScreenLineQuad(box, asWorldCoords);
+
+    void ScreenLineQuad(in Box2 box, in Vector4 color, bool asWorldCoords = true)
     {
         if (color.W == 0) return;
 

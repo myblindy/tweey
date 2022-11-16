@@ -98,8 +98,8 @@ internal partial class World
         entity.AddRenderableComponent("Data/Misc/villager.png",
             LightEmission: Colors4.White, LightRange: 12, LightAngleRadius: .1f);
         entity.AddHeadingComponent();
-        entity.AddVillagerComponent(Configuration.Data.BaseCarryWeight, Configuration.Data.BasePickupSpeed, Configuration.Data.BaseMovementSpeed,
-            Configuration.Data.BaseWorkSpeed);
+        entity.AddVillagerComponent(Configuration.Data.BaseCarryWeight, Configuration.Data.BasePickupSpeed,
+            Configuration.Data.BaseMovementSpeed, Configuration.Data.BaseWorkSpeed, Configuration.Data.BaseHarvestSpeed);
         entity.AddWorkerComponent();
         entity.AddInventoryComponent();
         entity.AddIdentityComponent(name);
@@ -115,8 +115,10 @@ internal partial class World
             OcclusionCircle: true, OcclusionScale: .3f);
         entity.AddWorkableComponent()
             .ResizeSlots(1);
-        entity.AddTreeComponent();
+        entity.AddTreeComponent(treeTemplate.WorkTicks);
         entity.AddIdentityComponent(treeTemplate.Name);
+        entity.AddInventoryComponent().Inventory
+            .Add(ResourceMarker.All, treeTemplate.Inventory, ResourceMarker.Default);
 
         return entity;
     }
@@ -209,7 +211,7 @@ internal partial class World
     public static Entity AddBuildingEntity(BuildingTemplate buildingTemplate, Vector2 location, bool isBuilt)
     {
         var entity = EcsCoordinator.CreateEntity();
-        entity.AddLocationComponent(Box2.FromCornerSize(location, new(1, 1)));
+        ref var locationComponent = ref entity.AddLocationComponent(Box2.FromCornerSize(location, buildingTemplate.Width, buildingTemplate.Height));
         entity.AddRenderableComponent($"Data/Buildings/{buildingTemplate.FileName}.png", OcclusionScale: 1,
             LightEmission: buildingTemplate.EmitLight?.Color.ToVector4(1) ?? default, LightRange: buildingTemplate.EmitLight?.Range ?? 0f);
         entity.AddBuildingComponent(buildingTemplate, isBuilt ? 0 : buildingTemplate.BuildWorkTicks);
@@ -217,6 +219,8 @@ internal partial class World
         entity.AddWorkableComponent()
             .ResizeSlots(isBuilt ? buildingTemplate.MaxWorkersAmount : 1);
         entity.AddIdentityComponent(buildingTemplate.Name);
+
+        MarkAllPlantsForHarvest(locationComponent.Box);
 
         return entity;
     }
@@ -244,7 +248,16 @@ internal partial class World
             }
     }
 
-    internal bool RemoveEntity(Entity entity)
+    public static void MarkAllPlantsForHarvest(Box2 box)
+    {
+        EcsCoordinator.IteratePlantArchetype((in EcsCoordinator.PlantIterationResult w) =>
+        {
+            if (box.Intersects(w.LocationComponent.Box))
+                w.Entity.AddMarkForHarvestComponent();
+        });
+    }
+
+    internal bool DeleteEntity(Entity entity)
     {
         if (SelectedEntity == entity) SelectedEntity = null;
         return entity.Delete();
@@ -254,6 +267,22 @@ internal partial class World
     {
         var okay = true;
         EcsCoordinator.IterateBuildingArchetype((in EcsCoordinator.BuildingIterationResult w) =>
+        {
+            if (w.LocationComponent.Box.Intersects(box))
+            {
+                okay = false;
+                return false;
+            }
+            return true;
+        });
+
+        return okay;
+    }
+
+    public static bool IsBoxFreeOfPlants(Box2 box)
+    {
+        var okay = true;
+        EcsCoordinator.IteratePlantArchetype((in EcsCoordinator.PlantIterationResult w) =>
         {
             if (w.LocationComponent.Box.Intersects(box))
             {

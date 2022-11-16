@@ -522,6 +522,14 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                     public static bool DeleteEntity(Entity entity)
                     {
                         extraAvailableEntityIDs.Add(entity);
+
+                        {{(rawArchetypes is null ? null : string.Join(Environment.NewLine, rawArchetypes.Archetypes.Select(at => $$"""
+                            {{at.Name}}Entities.Remove(entity);
+                            """)))}}
+                        {{string.Join(Environment.NewLine, partitions.Select(p => $$"""
+                            {{p.TypeRootName}}Partition.RemoveEntity(entity);
+                            """))}}
+                    
                         return entities.Remove(entity);
                     }
 

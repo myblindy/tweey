@@ -69,7 +69,8 @@ partial class AISystem
         EcsCoordinator.IterateBuildingArchetype((in EcsCoordinator.BuildingIterationResult bw) =>
         {
             if (!bw.BuildingComponent.IsBuilt && bw.WorkableComponent.WorkerSlots.Any(s => s.Entity == Entity.Invalid)
-                && bw.InventoryComponent.Inventory.Contains(ResourceMarker.Default, bw.BuildingComponent.Template.BuildCost, ResourceMarker.All))
+                && bw.InventoryComponent.Inventory.Contains(ResourceMarker.Default, bw.BuildingComponent.Template.BuildCost, ResourceMarker.All)
+                && World.IsBoxFreeOfPlants(bw.LocationComponent.Box))
             {
                 bw.WorkableComponent.GetEmptyWorkerSlot().Entity = workerEntity;
                 selectedPlans = new AIHighLevelPlan[]
@@ -77,6 +78,33 @@ partial class AISystem
                     new WorkAIHighLevelPlan(world, workerEntity, bw.Entity)
                 };
                 return false;
+            }
+
+            return true;
+        });
+
+        return (plans = selectedPlans) is not null;
+    }
+
+    bool TryToHarvest(in IterationResult w, out AIHighLevelPlan[]? plans)
+    {
+        var workerEntity = w.Entity;
+        AIHighLevelPlan[]? selectedPlans = default;
+
+        EcsCoordinator.IteratePlantArchetype((in EcsCoordinator.PlantIterationResult pw) =>
+        {
+            if (pw.Entity.HasMarkForHarvestComponent())
+            {
+                ref var emptyWorkerSlot = ref pw.WorkableComponent.GetEmptyWorkerSlot();
+                if (!Unsafe.IsNullRef(ref emptyWorkerSlot))
+                {
+                    emptyWorkerSlot.Entity = workerEntity;
+                    selectedPlans = new AIHighLevelPlan[]
+                    {
+                        new WorkAIHighLevelPlan(world, workerEntity, pw.Entity)
+                    };
+                    return false;
+                }
             }
 
             return true;
@@ -188,7 +216,7 @@ partial class AISystem
         {
             if (w.WorkerComponent.Plans is null)
             {
-                _ = TryToBuild(w, out var plans) || TryToHaulToBuilingSite(w, out plans);
+                _ = TryToBuild(w, out var plans) || TryToHaulToBuilingSite(w, out plans) || TryToHarvest(w, out plans);
                 w.WorkerComponent.Plans = plans;
             }
 

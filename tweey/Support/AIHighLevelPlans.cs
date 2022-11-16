@@ -89,9 +89,23 @@ class WorkAIHighLevelPlan : AIHighLevelPlan
         yield return new WalkToEntityLowLevelPlan(World, MainEntity, workableEntity);
 
         workableEntity.GetWorkableComponent().GetAssignedWorkerSlot(MainEntity).EntityWorking = true;
-        while (workableEntity.GetBuildingComponent().BuildWorkTicks-- > 0)
-            yield return new WaitLowLevelPlan(World, MainEntity, World.RawWorldTime + World.GetWorldTimeFromTicks(MainEntity.GetVillagerComponent().WorkSpeedMultiplier));
-        workableEntity.GetWorkableComponent().GetAssignedWorkerSlot(MainEntity).Clear();
+        if (workableEntity.HasBuildingComponent())
+        {
+            while (workableEntity.GetBuildingComponent().BuildWorkTicks-- > 0)
+                yield return new WaitLowLevelPlan(World, MainEntity, World.RawWorldTime
+                    + World.GetWorldTimeFromTicks(MainEntity.GetVillagerComponent().WorkSpeedMultiplier));
+            workableEntity.GetWorkableComponent().GetAssignedWorkerSlot(MainEntity).Clear();
+        }
+        else if (workableEntity.HasTreeComponent())
+        {
+            while (workableEntity.GetTreeComponent().WorkTicks-- > 0)
+                yield return new WaitLowLevelPlan(World, MainEntity, World.RawWorldTime
+                    + World.GetWorldTimeFromTicks(MainEntity.GetVillagerComponent().HarvestSpeedMultiplier));
+
+            World.AddResourceEntity(workableEntity.GetInventoryComponent().Inventory.Clone(),
+                workableEntity.GetLocationComponent().Box.Center.Floor());
+            World.DeleteEntity(workableEntity);
+        }
 
         doneAction?.Invoke(MainEntity, workableEntity);
     }

@@ -132,7 +132,7 @@ partial class RenderSystem
                     new StackView(StackType.Vertical)
                     {
                         IsVisible = () => world.SelectedEntity!.Value.HasBuildingComponent()
-                            &&!world.SelectedEntity!.Value.GetBuildingComponent().IsBuilt,
+                            && !world.SelectedEntity!.Value.GetBuildingComponent().IsBuilt,
                         Children =
                         {
                             new LabelView
@@ -157,7 +157,23 @@ partial class RenderSystem
                             },
                             getResourceRowView(true, null, () => world.SelectedEntity!.Value.GetBuildingComponent().BuildWorkTicks),
                         }
-                    }
+                    },
+
+                    // tree details
+                    new StackView(StackType.Vertical)
+                    {
+                        IsVisible = () => world.SelectedEntity!.Value.HasTreeComponent(),
+                        Children =
+                        {
+                            new LabelView
+                            {
+                                Padding = new(25, 15, 0, 0),
+                                FontSize = defaultFontSize,
+                                Text = () => "Required:"
+                            },
+                            getResourceRowView(true, null, () => world.SelectedEntity!.Value.GetTreeComponent().WorkTicks),
+                        }
+                    },
                 }
             }, Anchor.BottomLeft));
 

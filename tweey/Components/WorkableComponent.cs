@@ -1,4 +1,6 @@
-﻿namespace Tweey.Components;
+﻿using System.Runtime.CompilerServices;
+
+namespace Tweey.Components;
 
 [EcsComponent]
 struct WorkableComponent
@@ -27,7 +29,7 @@ struct WorkableComponent
             if (WorkerSlots[i].Entity == Entity.Invalid)
                 return ref WorkerSlots[i];
 
-        return ref WorkerSlot.Invalid;
+        return ref Unsafe.NullRef<WorkerSlot>();
     }
 
     public ref WorkerSlot GetAssignedWorkerSlot(Entity worker)
@@ -36,7 +38,7 @@ struct WorkableComponent
             if (WorkerSlots[i].Entity == worker)
                 return ref WorkerSlots[i];
 
-        return ref WorkerSlot.Invalid;
+        return ref Unsafe.NullRef<WorkerSlot>();
     }
 
     public WorkerSlot[] WorkerSlots { get; private set; }
@@ -45,7 +47,6 @@ struct WorkableComponent
 struct WorkerSlot
 {
     public WorkerSlot() { }
-    public static WorkerSlot Invalid = new();
 
     public void Clear() =>
         (Entity, EntityWorking) = (Entity.Invalid, default);

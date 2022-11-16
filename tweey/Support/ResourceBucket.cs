@@ -25,6 +25,12 @@ internal class ResourceBucket
         resources.Add((rq, marker));
     }
 
+    public void Add(ResourceMarker srcMarker, ResourceBucket srcRB, ResourceMarker dstMarker)
+    {
+        foreach (var srcRQ in srcRB.GetResourceQuantities(srcMarker))
+            Add(srcRQ, dstMarker);
+    }
+
     public static void MarkResources(ResourceMarker marker, IEnumerable<ResourceBucket> sourceRBs, ResourceMarker sourceMarker, double maxWeight, in ResourceBucket _desired,
         Action<ResourceQuantity>? selectedFeedbackAction, out double usedWeight)
     {

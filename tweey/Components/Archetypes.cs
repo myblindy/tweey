@@ -9,6 +9,9 @@ static class Archetypes
     public const EcsComponents Building =
         EcsComponents.Building | EcsComponents.Location | EcsComponents.Inventory | EcsComponents.Workable;
 
+    public const EcsComponents Plant =
+        EcsComponents.Tree | EcsComponents.Location | EcsComponents.Inventory | EcsComponents.Workable;
+
     public const EcsComponents Villager =
         EcsComponents.Villager | EcsComponents.Location | EcsComponents.Identity;
 

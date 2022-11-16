@@ -18,6 +18,7 @@ partial class RenderSystem
     readonly ShaderProgram guiLightMapShaderProgram;
     readonly GuiSpace gui = new();
 
+    readonly AtlasEntry markForHarvestAtlasEntry;
     readonly AtlasEntry blankAtlasEntry;
 
     readonly StaticVertexArrayObject<LightMapFBVertex> lightMapFBVao =
@@ -63,6 +64,7 @@ partial class RenderSystem
         guiLightMapShaderProgram.Uniform("lightMapSampler", 1);
 
         blankAtlasEntry = atlas[GrowableTextureAtlas3D.BlankName];
+        markForHarvestAtlasEntry = atlas["Data/Misc/mark-for-harvest-overlay.png"];
 
         using (var lightMapOcclusionCircleTextureStream = DiskLoader.Instance.VFS.OpenRead(@"Data\Misc\large-circle.png")!)
             lightMapOcclusionCircleTexture = new(lightMapOcclusionCircleTextureStream,
@@ -280,12 +282,15 @@ partial class RenderSystem
             }
 
             if (w.RenderableComponent.AtlasEntryName is { } atlasEntryName)
-                ScreenFillQuad(w.LocationComponent.Box, Colors4.White, atlas[atlasEntryName]);
+                ScreenFillQuad(w.LocationComponent.Box, atlas[atlasEntryName]);
             else if (w.Entity.HasZoneComponent())
             {
                 ref var zoneComponent = ref w.Entity.GetZoneComponent();
                 RenderZone(w.LocationComponent.Box, zoneComponent.Type, false, false);
             }
+
+            if (w.Entity.HasMarkForHarvestComponent())
+                ScreenFillQuad(w.LocationComponent.Box, markForHarvestAtlasEntry);
         });
 
         var countTri0 = guiVAO.Vertices.Count;

@@ -38,6 +38,11 @@
       "minimum": 0,
       "description": "How fast a villager will work one tick in units of 1/sec."
     },
+    "baseHarvestSpeed": {
+      "type": "number",
+      "minimum": 0,
+      "description": "How fast a villager will harvest one tick in units of 1/sec."
+    },
     "baseHungerMax": {
       "type": "number",
       "minimum": 1,
