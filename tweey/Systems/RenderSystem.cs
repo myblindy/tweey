@@ -89,8 +89,14 @@ partial class RenderSystem
     [Message]
     public void ResizeMessage(int width, int height)
     {
+        if (width <= 0 || height <= 0) return;
+
         windowUbo.Data.WindowSize = new(width, height);
         windowUbo.UploadData();
+
+        defaultFontSize = HeightPercentage(1.6f);
+        largeFontSize = defaultFontSize * 1.2f;
+        smallFontSize = defaultFontSize * 0.8f;
 
         lightMapFrameBuffer?.Dispose();
         lightMapTexture?.Dispose();
@@ -201,7 +207,7 @@ partial class RenderSystem
         renderLights();
     }
 
-    void RenderZone(in Box2 box, ZoneType zoneType, bool error, bool showGrid)
+    void RenderZone(in Box2 box, ZoneType zoneType, bool error, bool showGrid, bool showSizes)
     {
         const float zoneBackgroundAlpha = .7f;
         ScreenFillQuad(box, (error, zoneType) switch
@@ -212,12 +218,23 @@ partial class RenderSystem
             _ => throw new NotImplementedException()
         }, blankAtlasEntry);
 
+        // grid
         if (showGrid)
         {
             var cellAtlas = atlas["Data/Misc/zonecell.png"];
             for (var y = box.Top; y <= box.Bottom; ++y)
                 for (var x = box.Left; x <= box.Right; ++x)
                     ScreenFillQuad(Box2.FromCornerSize(x, y, 1, 1), Colors4.White, cellAtlas);
+        }
+
+        // sizes
+        if (showSizes && box.Size is { X: > 1, Y: > 1 })
+        {
+            var screenBox = Box2.FromCornerSize((box.TopLeft + world.Offset) * world.Zoom, box.Size * world.Zoom);
+            ScreenString(box.Size.X.ToString(), new() { Size = largeFontSize }, screenBox, Colors4.White, panelBackgroundColor, HorizontalAlignment.Center);
+            ScreenString(box.Size.Y.ToString(), new() { Size = largeFontSize },
+                screenBox.WithOffset(new Vector2(0, box.Size.Y * world.Zoom / 2 - largeFontSize / 2)),
+                Colors4.White, panelBackgroundColor);
         }
     }
 
@@ -288,7 +305,7 @@ partial class RenderSystem
             else if (w.Entity.HasZoneComponent())
             {
                 ref var zoneComponent = ref w.Entity.GetZoneComponent();
-                RenderZone(w.LocationComponent.Box, zoneComponent.Type, false, false);
+                RenderZone(w.LocationComponent.Box, zoneComponent.Type, false, false, false);
             }
 
             if (w.Entity.HasMarkForHarvestComponent())
@@ -341,7 +358,7 @@ partial class RenderSystem
         if (world.CurrentWorldTemplate.ZoneType is not null && world.CurrentZoneStartPoint is not null
             && Box2.FromCornerSize(world.CurrentZoneStartPoint.Value, (world.MouseWorldPosition - world.CurrentZoneStartPoint.Value.ToNumericsVector2() + Vector2.One).ToVector2i()) is { } zoneBox)
         {
-            RenderZone(zoneBox, world.CurrentWorldTemplate.ZoneType.Value, !World.IsBoxFreeOfBuildings(zoneBox), true);
+            RenderZone(zoneBox, world.CurrentWorldTemplate.ZoneType.Value, !World.IsBoxFreeOfBuildings(zoneBox), true, true);
         }
 
         // render gui (tri2)

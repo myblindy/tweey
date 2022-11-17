@@ -314,7 +314,10 @@ internal partial class World
                 if (CurrentWorldTemplate.ZoneType == ZoneType.MarkHarvest)
                     MarkAllPlantsForHarvest(box);
                 else if (IsBoxFreeOfBuildings(box))
+                {
+                    MarkAllPlantsForHarvest(box);
                     AddZoneEntity(CurrentWorldTemplate.ZoneType.Value, box);
+                }
                 CurrentWorldTemplate.Clear();
             }
             else if (CurrentWorldTemplate.BuildingTemplate is not null)

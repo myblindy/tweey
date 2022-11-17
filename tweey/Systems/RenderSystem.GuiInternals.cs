@@ -2,8 +2,8 @@
 
 partial class RenderSystem
 {
-    int WidthPercentage(float p) => (int)(windowUbo.Data.WindowSize.X * p / 100f);
-    int HeightPercentage(float p) => (int)(windowUbo.Data.WindowSize.Y * p / 100f);
+    float WidthPercentage(float p) => windowUbo.Data.WindowSize.X * p / 100f;
+    float HeightPercentage(float p) => windowUbo.Data.WindowSize.Y * p / 100f;
 
     const float ButtonBorderTextureWidth = 10;
 
@@ -243,7 +243,7 @@ partial class RenderSystem
         {
             case LabelView labelView:
                 if (labelView.Text?.Invoke() is var text && !string.IsNullOrWhiteSpace(text))
-                    size += fontRenderer.Measure(text, new FontDescription { Size = labelView.FontSize });
+                    size += fontRenderer.Measure(text, new FontDescription { Size = labelView.FontSize() });
                 break;
 
             case ImageView imageView:
@@ -388,7 +388,7 @@ partial class RenderSystem
                 break;
             case LabelView labelView:
                 if (labelView.Text?.Invoke() is { } text && !string.IsNullOrEmpty(text) && labelView.ForegroundColor.Invoke() is { } labelForegroundColor)
-                    ScreenString(text, new() { Size = labelView.FontSize },
+                    ScreenString(text, new() { Size = labelView.FontSize() },
                         new Box2(box.TopLeft + new Vector2(view.Margin.Left, view.Margin.Top), box.BottomRight - new Vector2(view.Margin.Right, view.Margin.Bottom)),
                         labelForegroundColor, labelView.BackgroundColor, labelView.HorizontalTextAlignment);
                 break;

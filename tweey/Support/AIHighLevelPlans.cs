@@ -76,13 +76,11 @@ class DropResourcesToInventoryAIHighLevelPlan : AIHighLevelPlan
 class WorkAIHighLevelPlan : AIHighLevelPlan
 {
     private readonly Entity workableEntity;
-    private readonly Action<Entity /*worker*/, Entity /*workable*/>? doneAction;
 
-    public WorkAIHighLevelPlan(World world, Entity workerEntity, Entity workableEntity, Action<Entity /*worker*/, Entity /*workable*/>? doneAction = null)
+    public WorkAIHighLevelPlan(World world, Entity workerEntity, Entity workableEntity)
         : base(world, workerEntity)
     {
         this.workableEntity = workableEntity;
-        this.doneAction = doneAction;
     }
 
     public override IEnumerable<AILowLevelPlan> GetLowLevelPlans()
@@ -107,7 +105,5 @@ class WorkAIHighLevelPlan : AIHighLevelPlan
                 workableEntity.GetLocationComponent().Box.Center.Floor());
             World.DeleteEntity(workableEntity);
         }
-
-        doneAction?.Invoke(MainEntity, workableEntity);
     }
 }

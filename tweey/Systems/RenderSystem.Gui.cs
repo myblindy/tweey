@@ -2,12 +2,13 @@
 
 partial class RenderSystem
 {
+    Vector4 panelBackgroundColor = new(.2f, .2f, .2f, .5f);
+    float defaultFontSize, largeFontSize, smallFontSize;
+
     void InitializeGui()
     {
-        Vector4 panelBackgroundColor = new(.1f, .1f, .1f, 1);
         var descriptionColor = new Vector4(.8f, .8f, .8f, 1);
         var highlightColor = Colors4.Aqua;
-        var defaultFontSize = 18;
 
         gui.RootViewDescriptions.Add(new(
             new StackView(StackType.Vertical)
@@ -49,7 +50,7 @@ partial class RenderSystem
                     new LabelView
                     {
                         Text = () => quantity().ToString(),
-                        FontSize = defaultFontSize,
+                        FontSize = () => defaultFontSize,
                         MinWidth = () => 50,
                         Margin = new(10,0,10,0),
                         HorizontalTextAlignment = HorizontalAlignment.Right,
@@ -63,7 +64,7 @@ partial class RenderSystem
                     new LabelView
                     {
                         Text = () => $" {(labor ? "Work" : resource!.Name)}",
-                        FontSize = defaultFontSize,
+                        FontSize = () => defaultFontSize,
                         ForegroundColor = () => descriptionColor
                     }
                 }
@@ -85,7 +86,7 @@ partial class RenderSystem
                             new LabelView
                             {
                                 Text = () => getEntityDescription(world.SelectedEntity!.Value),
-                                FontSize = 30,
+                                FontSize = () => largeFontSize,
                                 ForegroundColor = () => descriptionColor
                             },
                             new ImageView
@@ -97,7 +98,7 @@ partial class RenderSystem
                             new LabelView
                             {
                                 Text = () => getEntityName(world.SelectedEntity!.Value),
-                                FontSize = 30,
+                                FontSize = () => largeFontSize,
                                 ForegroundColor = () => highlightColor
                             },
                         }
@@ -113,7 +114,7 @@ partial class RenderSystem
                             new LabelView
                             {
                                 Padding = new(25, 15, 0, 0),
-                                FontSize = defaultFontSize,
+                                FontSize = () => defaultFontSize,
                                 Text = () => "Required:"
                             },
                             new RepeaterView<ResourceQuantity>
@@ -126,7 +127,7 @@ partial class RenderSystem
                                 EmptyView = new LabelView
                                 {
                                     Text = () => "No resources",
-                                    FontSize = defaultFontSize,
+                                    FontSize = () => defaultFontSize,
                                     ForegroundColor = () => descriptionColor
                                 }
                             },
@@ -143,7 +144,7 @@ partial class RenderSystem
                             new LabelView
                             {
                                 Padding = new(25, 15, 0, 0),
-                                FontSize = defaultFontSize,
+                                FontSize = () => defaultFontSize,
                                 Text = () => "Required:"
                             },
                             getResourceRowView(true, null, () => world.SelectedEntity!.Value.GetTreeComponent().WorkTicks),
@@ -221,7 +222,7 @@ partial class RenderSystem
                             {{string.Join(Environment.NewLine, EcsCoordinator.SystemTimingInformation.Select((kvp, idx)=> $"{kvp.Key}: {FrameData.GetCustomTimePercentage(idx):0.00}%"))}}
                             SwapBuffer: {{FrameData.GetCustomTimePercentage(EcsCoordinator.SystemsCount):0.00}}%
                             """,
-                        FontSize = 18,
+                        FontSize = () => smallFontSize,
                         Padding = new(2),
                         ForegroundColor = () => Colors4.White,
                         BackgroundColor = new(0,0,0,.4f)
@@ -230,7 +231,7 @@ partial class RenderSystem
                     {
                         Text = () => "PAUSED",
                         IsVisible = () => world.TimeSpeedUp == 0,
-                        FontSize = 18,
+                        FontSize = () => smallFontSize,
                         Padding = new(2, 0),
                         ForegroundColor = () => Colors4.Red,
                     },
