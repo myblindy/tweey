@@ -26,6 +26,7 @@ class GatherResourcesAIHighLevelPlan : AIHighLevelPlan
     public override IEnumerable<AILowLevelPlan> GetLowLevelPlans()
     {
         var targets = ObjectPool<List<(Entity entity, Vector2 location)>>.Shared.Get();
+        targets.Clear();
 
         try
         {

@@ -15,43 +15,18 @@ partial class RenderSystem
                 BackgroundColor = panelBackgroundColor,
                 Children =
                 {
-                    new LabelView { Text = () => $"Time: {world.WorldTimeString}" },
-                    new StackView(StackType.Horizontal)
+                    new LabelView { Text = () => $"Time: {world.WorldTime}" },
+                    new RepeaterView<double>
                     {
-                        Children=
+                        Source = () => new double[] { 0, 1, 2, 4, 8, 16 },
+                        ContainerView = new StackView(StackType.Horizontal),
+                        ItemView = s => new ButtonView
                         {
-                            new ButtonView
-                            {
-                                Child = new LabelView { Text = () => "0x" },
-                                IsChecked = () => world.TimeSpeedUp == 0,
-                                Clicked = () => world.TimeSpeedUp = 0,
-                            },
-                            new ButtonView
-                            {
-                                Child = new LabelView { Text = () => "1x" },
-                                IsChecked = () => world.TimeSpeedUp == 1,
-                                Clicked = () => world.TimeSpeedUp = 1,
-                            },
-                            new ButtonView
-                            {
-                                Child = new LabelView { Text = () => "2x" },
-                                IsChecked = () => world.TimeSpeedUp == 2,
-                                Clicked = () => world.TimeSpeedUp = 2,
-                            },
-                            new ButtonView
-                            {
-                                Child = new LabelView { Text = () => "4x" },
-                                IsChecked = () => world.TimeSpeedUp == 4,
-                                Clicked = () => world.TimeSpeedUp = 4,
-                            },
-                            new ButtonView
-                            {
-                                Child = new LabelView { Text = () => "8x" },
-                                IsChecked = () => world.TimeSpeedUp == 8,
-                                Clicked = () => world.TimeSpeedUp = 8,
-                            },
+                            Child = new LabelView { Text = () => $"{s}x" },
+                            IsChecked = () => world.TimeSpeedUp == s,
+                            Clicked = () => world.TimeSpeedUp = s,
                         }
-                    }
+                    },
                 }
             }, Anchor.BottomRight));
 
@@ -190,12 +165,25 @@ partial class RenderSystem
                         Children =
                         {
                             new LabelView { Text = () => "Zones:" },
-                            new ButtonView
+                            new StackView(StackType.Horizontal)
                             {
-                                Child = new LabelView { Text = () => "Grow Zone" },
-                                IsChecked = () => world.CurrentZoneType.HasValue,
-                                Clicked = () => (world.CurrentZoneType, world.CurrentZoneStartPoint, world.CurrentBuildingTemplate) =
-                                    (ZoneType.Grow, null, null),
+                                Children =
+                                {
+                                    new ButtonView
+                                    {
+                                        Child = new LabelView { Text = () => "Grow Zone" },
+                                        IsChecked = () => world.CurrentWorldTemplate.ZoneType == ZoneType.Grow,
+                                        Clicked = () => (world.CurrentWorldTemplate.ZoneType, world.CurrentZoneStartPoint) =
+                                            (ZoneType.Grow, null),
+                                    },
+                                    new ButtonView
+                                    {
+                                        Child = new LabelView { Text = () => "Harvest" },
+                                        IsChecked = () => world.CurrentWorldTemplate.ZoneType == ZoneType.MarkHarvest,
+                                        Clicked = () => (world.CurrentWorldTemplate.ZoneType, world.CurrentZoneStartPoint) =
+                                            (ZoneType.MarkHarvest, null),
+                                    },
+                                }
                             }
                         }
                     },
@@ -211,8 +199,8 @@ partial class RenderSystem
                                 ItemView = bt => new ButtonView
                                 {
                                     Child = new LabelView { Text = () => bt.Name },
-                                    IsChecked = () => world.CurrentBuildingTemplate == bt,
-                                    Clicked = () => (world.CurrentZoneType, world.CurrentBuildingTemplate) = (default, bt),
+                                    IsChecked = () => world.CurrentWorldTemplate.BuildingTemplate == bt,
+                                    Clicked = () => world.CurrentWorldTemplate.BuildingTemplate= bt,
                                 }
                             }
                         }

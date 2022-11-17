@@ -24,6 +24,7 @@ partial class AISystem
                 var neededResources = bw.BuildingComponent.Template.BuildCost.WithRemove(bw.InventoryComponent.Inventory);
                 var buildingInventory = bw.InventoryComponent.Inventory;
                 var foundResources = ObjectPool<List<(Entity entity, Vector2 location)>>.Shared.Get();
+                foundResources.Clear();
 
                 try
                 {

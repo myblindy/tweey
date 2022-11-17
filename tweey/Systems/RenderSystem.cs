@@ -204,9 +204,11 @@ partial class RenderSystem
     void RenderZone(in Box2 box, ZoneType zoneType, bool error, bool showGrid)
     {
         const float zoneBackgroundAlpha = .7f;
-        ScreenFillQuad(box, error ? world.Configuration.Data.ZoneErrorColor.ToVector4(zoneBackgroundAlpha) : zoneType switch
+        ScreenFillQuad(box, (error, zoneType) switch
         {
-            ZoneType.Grow => world.Configuration.Data.ZoneGrowColor.ToVector4(zoneBackgroundAlpha),
+            (false, ZoneType.Grow) => world.Configuration.Data.ZoneGrowColor.ToVector4(zoneBackgroundAlpha),
+            (_, ZoneType.MarkHarvest) => world.Configuration.Data.ZoneHarvestColor.ToVector4(zoneBackgroundAlpha),
+            (true, _) => world.Configuration.Data.ZoneErrorColor.ToVector4(zoneBackgroundAlpha),
             _ => throw new NotImplementedException()
         }, blankAtlasEntry);
 
@@ -329,17 +331,17 @@ partial class RenderSystem
         });
 
         // building template
-        if (world.CurrentBuildingTemplate is not null)
+        if (world.CurrentWorldTemplate.BuildingTemplate is not null)
         {
-            var box = Box2.FromCornerSize(world.MouseWorldPosition.ToVector2i(), world.CurrentBuildingTemplate.Width, world.CurrentBuildingTemplate.Height);
-            ScreenFillQuad(box, World.IsBoxFreeOfBuildings(box) ? Colors4.Lime : Colors4.Red, atlas[world.CurrentBuildingTemplate.ImageFileName]);
+            var box = Box2.FromCornerSize(world.MouseWorldPosition.ToVector2i(), world.CurrentWorldTemplate.BuildingTemplate.Width, world.CurrentWorldTemplate.BuildingTemplate.Height);
+            ScreenFillQuad(box, World.IsBoxFreeOfBuildings(box) ? Colors4.Lime : Colors4.Red, atlas[world.CurrentWorldTemplate.BuildingTemplate.ImageFileName]);
         }
 
         // zone template
-        if (world.CurrentZoneType is not null && world.CurrentZoneStartPoint is not null
+        if (world.CurrentWorldTemplate.ZoneType is not null && world.CurrentZoneStartPoint is not null
             && Box2.FromCornerSize(world.CurrentZoneStartPoint.Value, (world.MouseWorldPosition - world.CurrentZoneStartPoint.Value.ToNumericsVector2() + Vector2.One).ToVector2i()) is { } zoneBox)
         {
-            RenderZone(zoneBox, world.CurrentZoneType.Value, !World.IsBoxFreeOfBuildings(zoneBox), true);
+            RenderZone(zoneBox, world.CurrentWorldTemplate.ZoneType.Value, !World.IsBoxFreeOfBuildings(zoneBox), true);
         }
 
         // render gui (tri2)

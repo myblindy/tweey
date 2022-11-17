@@ -17,6 +17,7 @@
   "baseHungerEmergencyPercentage": 0.8,
 
   "zoneGrowColor": [ 0.2, 0.8, 0.2 ],
+  "zoneHarvestColor": [ 0.8, 0.8, 0.2 ],
   "zoneErrorColor": [ 0.8, 0.2, 0.2 ],
 
   "midDayColor": [ 1.0, 1.0, 1.0 ],

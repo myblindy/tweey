@@ -13,9 +13,8 @@ internal partial class World
     public string[,]? TerrainTileNames { get; private set; }
 
     internal Entity? SelectedEntity { get; set; }
-    public ZoneType? CurrentZoneType { get; set; }
+    public CurrentWorldTemplate CurrentWorldTemplate { get; } = new();
     public Vector2i? CurrentZoneStartPoint { get; set; }
-    public BuildingTemplate? CurrentBuildingTemplate { get; set; }
 
     public double TimeSpeedUp { get; set; } = 1;
 
@@ -127,6 +126,7 @@ internal partial class World
     {
         // obey the maximum ground stack weight
         var availableNeighbours = ObjectPool<List<(Vector2i pt, Entity? entity, ResourceBucket? rb)>>.Shared.Get();
+        availableNeighbours.Clear();
 
         try
         {
@@ -302,26 +302,29 @@ internal partial class World
     public void MouseEvent(Vector2i screenPosition, Vector2 worldLocation, InputAction? inputAction = null, MouseButton? mouseButton = null, KeyModifiers? keyModifiers = null)
     {
         if (inputAction == InputAction.Press && mouseButton == MouseButton.Button1)
-            if (CurrentZoneType is not null && CurrentZoneStartPoint is null)
+            if (CurrentWorldTemplate.ZoneType is not null && CurrentZoneStartPoint is null)
                 // first point
                 CurrentZoneStartPoint = MouseWorldPosition.ToVector2i();
-            else if (CurrentZoneType is not null)
+            else if (CurrentWorldTemplate.ZoneType is not null)
             {
                 // second point, add the zone entity
                 var box = Box2.FromCornerSize(CurrentZoneStartPoint!.Value,
                     (MouseWorldPosition - CurrentZoneStartPoint.Value.ToNumericsVector2() + Vector2.One).ToVector2i());
-                if (IsBoxFreeOfBuildings(box))
-                    AddZoneEntity(CurrentZoneType.Value, box);
-                CurrentZoneType = null;
+
+                if (CurrentWorldTemplate.ZoneType == ZoneType.MarkHarvest)
+                    MarkAllPlantsForHarvest(box);
+                else if (IsBoxFreeOfBuildings(box))
+                    AddZoneEntity(CurrentWorldTemplate.ZoneType.Value, box);
+                CurrentWorldTemplate.Clear();
             }
-            else if (CurrentBuildingTemplate is not null)
+            else if (CurrentWorldTemplate.BuildingTemplate is not null)
             {
-                if (IsBoxFreeOfBuildings(Box2.FromCornerSize(worldLocation.ToVector2i(), CurrentBuildingTemplate.Width, CurrentBuildingTemplate.Height)))
+                if (IsBoxFreeOfBuildings(Box2.FromCornerSize(worldLocation.ToVector2i(), CurrentWorldTemplate.BuildingTemplate.Width, CurrentWorldTemplate.BuildingTemplate.Height)))
                 {
-                    var building = AddBuildingEntity(CurrentBuildingTemplate, worldLocation.Floor(), false);
+                    var building = AddBuildingEntity(CurrentWorldTemplate.BuildingTemplate, worldLocation.Floor(), false);
                     PlacedBuilding?.Invoke(building);
                     if (keyModifiers?.HasFlag(KeyModifiers.Shift) != true)
-                        CurrentBuildingTemplate = null;
+                        CurrentWorldTemplate.Clear();
                 }
             }
             else
@@ -343,7 +346,7 @@ internal partial class World
                     SelectedEntity = null;
             }
         else if (inputAction == InputAction.Press && mouseButton == MouseButton.Button2)
-            CurrentBuildingTemplate = null;
+            CurrentWorldTemplate.Clear();
 
         (MouseScreenPosition, MouseWorldPosition) = (screenPosition, worldLocation);
     }
@@ -390,7 +393,7 @@ internal partial class World
 
     event Action<BuildingTemplate?>? CurrentBuildingTemplateChanged;
     public void FireCurrentBuildingTemplateChanged() =>
-        CurrentBuildingTemplateChanged?.Invoke(CurrentBuildingTemplate);
+        CurrentBuildingTemplateChanged?.Invoke(CurrentWorldTemplate.BuildingTemplate);
 
     public void KeyEvent(InputAction inputAction, Keys key, int scanCode, KeyModifiers keyModifiers)
     {
@@ -450,8 +453,7 @@ internal partial class World
     public TimeSpan TotalRealTime { get; private set; }
     const double worldTimeMultiplier = 96 * 6;
     public TimeSpan RawWorldTime { get; private set; }
-    public DateTime WorldTime { get; private set; }
-    public string? WorldTimeString { get; private set; }
+    public CustomDateTime WorldTime { get; private set; }
     public TimeSpan DeltaWorldTime { get; private set; }
 
     public static TimeSpan GetWorldTimeFromTicks(double ticks) =>
@@ -461,16 +463,9 @@ internal partial class World
     {
         TotalRealTime += TimeSpan.FromSeconds(deltaSec);
         RawWorldTime += DeltaWorldTime = TimeSpan.FromSeconds(deltaSec * worldTimeMultiplier * TimeSpeedUp);
-        Offset += deltaOffsetNextFrame * (float)deltaSec * deltaOffsetPerSecond;
+        WorldTime = new(RawWorldTime);
 
-        var wt = RawWorldTime.TotalMinutes;
-        var min = (int)(wt % 60); wt /= 60;
-        var hour = (int)(wt % 24); wt /= 24;
-        var day = (int)(wt % 30 + 1); wt /= 30;
-        var month = (int)(wt % 12 + 1); wt /= 12;
-        var year = (int)(wt + 1);
-        WorldTime = new(year, month, day, hour, min, 0);
-        WorldTimeString = $"{year:00}-{month:00}-{day:00} {hour:00}:{min:00}";
+        Offset += deltaOffsetNextFrame * (float)deltaSec * deltaOffsetPerSecond;
     }
 
     [GeneratedRegex("Data[/\\\\]Biomes[/\\\\](.*)[/\\\\].*\\.png", RegexOptions.IgnoreCase)]
