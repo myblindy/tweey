@@ -4,6 +4,7 @@
     {
         public ButtonView() : base(new()) { }
 
+        public Func<bool>? IsChecked { get; set; }
         public Action? Clicked { get; set; }
         public View? Child { get; set; }
     }

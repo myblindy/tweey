@@ -5,8 +5,10 @@ global using System.Collections.Immutable;
 global using System.Collections.ObjectModel;
 global using System.Diagnostics.CodeAnalysis;
 global using System.IO;
+global using System.IO.Compression;
 global using System.Linq;
 global using System.Numerics;
+global using System.Runtime.CompilerServices;
 global using System.Runtime.InteropServices;
 global using System.Text.Json;
 global using System.Text.Json.Serialization;
@@ -18,17 +20,20 @@ global using System.Text.Json.Serialization;
 //global using SixLabors.Fonts;
 
 global using Twee.Core;
+global using Twee.Core.Ecs;
+global using Twee.Core.JsonConverters;
 global using Twee.Core.Support;
+global using Twee.Ecs;
 global using Twee.Renderer;
+global using Twee.Renderer.Support;
+global using Twee.Renderer.Shaders;
 global using Twee.Renderer.Textures;
 global using Twee.Renderer.VertexArrayObjects;
 
-global using Tweey.Actors;
-global using Tweey.Actors.Interfaces;
+global using Tweey.Components;
 global using Tweey.Gui;
 global using Tweey.Gui.Base;
 global using Tweey.Loaders;
-global using Tweey.Renderer;
 global using Tweey.Support;
 global using Tweey.WorldData;
 

@@ -64,6 +64,8 @@ public static class Loader
             AllowTrailingCommas = true,
             ReadCommentHandling = JsonCommentHandling.Skip,
             PropertyNameCaseInsensitive = true,
-            Converters = { new JsonStringEnumConverter() },
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault,
+            Converters = { new JsonStringEnumConverter(), new ValueTupleJsonConverterFactory(), new EntityJsonConverter(), new ResourceJsonConverter(),
+                new Vector3JsonConverter(), new Vector2JsonConverter(), new Box2JsonConverter() },
         };
 }

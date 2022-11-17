@@ -1,20 +1,23 @@
-﻿namespace Tweey.WorldData;
+﻿using System.Text.RegularExpressions;
 
-public class World
+namespace Tweey.WorldData;
+
+internal partial class World
 {
     public ResourceTemplates Resources { get; }
     public TreeTemplates TreeTemplates { get; }
     public BuildingTemplates BuildingTemplates { get; }
     public Configuration Configuration { get; }
+    public Biomes Biomes { get; }
 
-    readonly AIManager aiManager;
-    readonly SoundManager soundManager;
+    public string[,]? TerrainTileNames { get; private set; }
 
-    List<PlaceableEntity> PlacedEntities { get; } = new();
-    public PlaceableEntity? SelectedEntity { get; set; }
-    public BuildingTemplate? CurrentBuildingTemplate { get; set; }
+    internal Entity? SelectedEntity { get; set; }
+    public CurrentWorldTemplate CurrentWorldTemplate { get; } = new();
+    public Vector2i? CurrentZoneStartPoint { get; set; }
 
-    public bool Paused { get; private set; }
+    public double TimeSpeedUp { get; set; } = 1;
+
     public bool ShowDetails { get; private set; }
     public bool DebugShowLightAtMouse { get; private set; }
 
@@ -26,7 +29,7 @@ public class World
     /// <summary>
     /// The position of the mouse in world coordinates.
     /// </summary>
-    public Vector2i MouseWorldPosition { get; private set; }
+    public Vector2 MouseWorldPosition { get; private set; }
 
     public Vector2 Offset { get; set; }
     public float Zoom { get; set; } = 35;
@@ -37,184 +40,368 @@ public class World
 
     public World(ILoader loader)
     {
-        (Resources, Configuration, aiManager) = (new(loader), new(loader), new(this));
+        (Resources, Configuration) = (new(loader), new(loader));
         (BuildingTemplates, TreeTemplates) = (new(loader, Resources), new(loader, Resources));
-        soundManager = new(this) { Volume = .1f };
-
-        StartedJob += soundManager.OnStartedJob;
-        EndedBuildingJob += soundManager.OnEndedJob;
-        PlacedBuilding += soundManager.OnPlacedBuilding;
-        CurrentBuildingTemplateChanged += soundManager.OnCurrentBuildingTemplateChanged;
+        Biomes = new(loader, TreeTemplates);
     }
 
-    public void PlaceEntity(PlaceableEntity entity)
+    [MemberNotNull(nameof(TerrainTileNames))]
+    public void GenerateMap(int width, int height)
     {
-        if (entity is ResourceBucket resourceBucket)
+        // generate the terrain
+        var map = MapGeneration.Generate(width, height,
+            new MapGenerationWave[]
+            {
+                new(Random.Shared.Next(), 0.004f, 1),
+                new(Random.Shared.Next(), 0.02f, 0.5f),
+            },
+            new MapGenerationWave[]
+            {
+                new(Random.Shared.Next(), 0.02f, 1),
+            },
+            new MapGenerationWave[]
+            {
+                new(Random.Shared.Next(), 0.02f, 1),
+                new(Random.Shared.Next(), 0.01f, 0.5f),
+            },
+            Biomes.Values.Select(b => new MapGenerationBiome(b.MinHeight, b.MinMoisture, b.MinHeat)).ToArray());
+
+        var biomeTiles = DiskLoader.Instance.VFS.EnumerateFiles("Data/Biomes", SearchOption.AllDirectories)
+            .Select(p => ExtractBiomeNameFromPathRegex().Match(p))
+            .Where(m => m.Success)
+            .GroupBy(w => w.Groups[1].Value)
+            .ToDictionary(w => w.Key, w => w.Select(ww => ww.Groups[0].Value).ToList());
+
+        TerrainTileNames = new string[width, height];
+        for (var y = 0; y < height; y++)
+            for (var x = 0; x < width; x++)
+            {
+                var biome = Biomes[map[x, y].BiomeIndex];
+                TerrainTileNames[x, y] = biomeTiles[biome.TileName].RandomSubset(1).First();
+
+                // plant a tree?
+                foreach (var (template, chance) in biome.Trees)
+                    if (Random.Shared.NextDouble() < chance)
+                    {
+                        AddTreeEntity(template, new(x, y));
+                        break;
+                    }
+            }
+    }
+
+    #region AddEntities
+    internal Entity AddVillagerEntity(string name, Vector2 location)
+    {
+        var entity = EcsCoordinator.CreateEntity();
+        entity.AddLocationComponent(Box2.FromCornerSize(location, new(1, 1)));
+        entity.AddRenderableComponent("Data/Misc/villager.png",
+            LightEmission: Colors4.White, LightRange: 12, LightAngleRadius: .1f);
+        entity.AddHeadingComponent();
+        entity.AddVillagerComponent(Configuration.Data.BaseCarryWeight, Configuration.Data.BasePickupSpeed,
+            Configuration.Data.BaseMovementSpeed, Configuration.Data.BaseWorkSpeed, Configuration.Data.BaseHarvestSpeed);
+        entity.AddWorkerComponent();
+        entity.AddInventoryComponent();
+        entity.AddIdentityComponent(name);
+
+        return entity;
+    }
+
+    internal static Entity AddTreeEntity(TreeTemplate treeTemplate, Vector2 location)
+    {
+        var entity = EcsCoordinator.CreateEntity();
+        entity.AddLocationComponent(Box2.FromCornerSize(location, new(1, 1)));
+        entity.AddRenderableComponent($"Data/Trees/{treeTemplate.FileName}.png",
+            OcclusionCircle: true, OcclusionScale: .3f);
+        entity.AddWorkableComponent()
+            .ResizeSlots(1);
+        entity.AddTreeComponent(treeTemplate.WorkTicks);
+        entity.AddIdentityComponent(treeTemplate.Name);
+        entity.AddInventoryComponent().Inventory
+            .Add(ResourceMarker.All, treeTemplate.Inventory, ResourceMarker.Default);
+
+        return entity;
+    }
+
+    public void AddResourceEntity(ResourceBucket resourceBucket, Vector2 location)
+    {
+        // obey the maximum ground stack weight
+        var availableNeighbours = ObjectPool<List<(Vector2i pt, Entity? entity, ResourceBucket? rb)>>.Shared.Get();
+        availableNeighbours.Clear();
+
+        try
         {
-            // obey the maximum ground stack weight
-            List<(Vector2i pt, ResourceBucket? rb)> availableNeighbours = new();
-            int availableNeighboursSearchRadius = -1;
-            while (resourceBucket.AvailableWeight > 0)
+            var availableNeighboursSearchRadius = -1;
+            while (resourceBucket.GetWeight(ResourceMarker.All) > 0)
             {
                 // take any spill-over and put it in a random direction, up to maximumGroundDropSpillOverRange range
                 while (availableNeighbours.Count == 0)
                 {
                     ++availableNeighboursSearchRadius;
-                    availableNeighbours.AddRange(
-                        GameUtilities.EnumerateNeighbourLocations(resourceBucket.Location, radiusMin: availableNeighboursSearchRadius, radiusMax: availableNeighboursSearchRadius)
-                            .Select(l => (l, rb: GetEntities<ResourceBucket>().FirstOrDefault(e => e.Contains(l))))
-                            .Where(l => l.rb is null || l.rb.AvailableWeight < Configuration.Data.GroundStackMaximumWeight));
+
+                    foreach (var dv in GameUtilities.EnumerateNeighbourLocations(location, radiusMin: availableNeighboursSearchRadius, radiusMax: availableNeighboursSearchRadius))
+                    {
+                        var okay = true;
+                        ResourceBucket? foundResourceBucket = default;
+                        Entity? foundEntity = default;
+
+                        EcsCoordinator.IteratePlacedResourceArchetype((in EcsCoordinator.PlacedResourceIterationResult w) =>
+                        {
+                            if (w.LocationComponent.Box.Contains(location + dv.ToNumericsVector2()))
+                                if (w.InventoryComponent.Inventory.GetWeight(ResourceMarker.All) >= Configuration.Data.GroundStackMaximumWeight)
+                                {
+                                    okay = false;
+                                    return false;
+                                }
+                                else
+                                    (foundEntity, foundResourceBucket) = (w.Entity, w.InventoryComponent.Inventory);
+                            return true;
+                        });
+
+                        if (okay)
+                            availableNeighbours.Add((dv, foundEntity, foundResourceBucket));
+                    }
                 }
 
                 var chosenNeighbourIndex = Random.Shared.Next(availableNeighbours.Count);
                 var chosenNeighbour = availableNeighbours[chosenNeighbourIndex];
                 availableNeighbours.Remove(chosenNeighbour);
 
-                var newRB = chosenNeighbour.rb ?? new() { Location = chosenNeighbour.pt.ToNumericsVector2() };
-                if (chosenNeighbour.rb is null) PlacedEntities.Add(newRB);
-                var newRBWeight = newRB.AvailableWeight;
-                int resourceIndex = 0;
-                for (; resourceIndex < resourceBucket.ResourceQuantities.Count && resourceBucket.ResourceQuantities[resourceIndex].Quantity == 0; resourceIndex++) { }
-
-                while (resourceIndex < resourceBucket.ResourceQuantities.Count)
+                var newRB = chosenNeighbour.rb;
+                var newEntity = chosenNeighbour.entity ?? Entity.Invalid;
+                if (newRB is null)
                 {
-                    var resQ = resourceBucket.ResourceQuantities[resourceIndex];
+                    newEntity = EcsCoordinator.CreateEntity();
+                    newEntity.AddRenderableComponent(null);
+                    newEntity.AddLocationComponent(Box2.FromCornerSize(chosenNeighbour.pt, new(1, 1)));
+                    newEntity.AddResourceComponent();
+                    newRB = newEntity.AddInventoryComponent().Inventory;
+                    newEntity.AddIdentityComponent();
+                }
+                var newRBWeight = newRB.GetWeight(ResourceMarker.Default);
 
+                foreach (var resQ in resourceBucket.GetResourceQuantities(ResourceMarker.All).Where(w => w.Quantity != 0))
                     // only allow one resource kind on the ground
-                    if (!newRB.ResourceQuantities.Any() || newRB.ResourceQuantities.Any(rq => rq.Resource == resQ.Resource))
+                    if (!newRB.GetResourceQuantities(ResourceMarker.All).Any() || newRB.GetResourceQuantities(ResourceMarker.All).Any(rq => rq.Resource == resQ.Resource))
                     {
                         var maxNewWeight = Configuration.Data.GroundStackMaximumWeight - newRBWeight;
                         var quantityToMove = (int)Math.Floor(Math.Min(maxNewWeight, resQ.Weight) / resQ.Resource.Weight);
 
                         var newResQ = new ResourceQuantity(resQ.Resource, quantityToMove);
-                        newRB.Add(newResQ);
+                        newRB.Add(newResQ, ResourceMarker.Default);
                         resourceBucket.Remove(newResQ);
                         if (resQ.Quantity > 0)
                             break;  // couldn't finish the stack
                         newRBWeight += resQ.Resource.Weight * quantityToMove;
                     }
 
-                    for (++resourceIndex; resourceIndex < resourceBucket.ResourceQuantities.Count && resourceBucket.ResourceQuantities[resourceIndex].Quantity == 0; resourceIndex++) { }
+                if (newRB.GetResourceQuantities(ResourceMarker.All).FirstOrDefault() is { } newRQ)
+                {
+                    // once we finished this resource clump, set its name and render image
+                    newEntity.GetIdentityComponent().Name = newRQ.Resource.Name;
+                    newEntity.GetRenderableComponent().AtlasEntryName = $"Data/Resources/{newRQ.Resource.FileName}.png";
                 }
             }
         }
-        else
-            PlacedEntities.Add(entity);
+        finally
+        {
+            ObjectPool<List<(Vector2i pt, Entity? entity, ResourceBucket? rb)>>.Shared.Return(availableNeighbours);
+        }
     }
 
-    public void PlantForest(TreeTemplate treeTemplate, Vector2i center, float radius, float chanceCenter, float chanceEdge)
+    public static Entity AddBuildingEntity(BuildingTemplate buildingTemplate, Vector2 location, bool isBuilt)
     {
-        for (int y = (int)MathF.Ceiling(center.Y + radius); y >= MathF.Floor(center.Y - radius); --y)
-            for (int x = (int)MathF.Ceiling(center.X + radius); x >= MathF.Floor(center.X - radius); --x)
+        var entity = EcsCoordinator.CreateEntity();
+        ref var locationComponent = ref entity.AddLocationComponent(Box2.FromCornerSize(location, buildingTemplate.Width, buildingTemplate.Height));
+        entity.AddRenderableComponent($"Data/Buildings/{buildingTemplate.FileName}.png", OcclusionScale: 1,
+            LightEmission: buildingTemplate.EmitLight?.Color.ToVector4(1) ?? default, LightRange: buildingTemplate.EmitLight?.Range ?? 0f);
+        entity.AddBuildingComponent(buildingTemplate, isBuilt ? 0 : buildingTemplate.BuildWorkTicks);
+        entity.AddInventoryComponent();
+        entity.AddWorkableComponent()
+            .ResizeSlots(isBuilt ? buildingTemplate.MaxWorkersAmount : 1);
+        entity.AddIdentityComponent(buildingTemplate.Name);
+
+        MarkAllPlantsForHarvest(locationComponent.Box);
+
+        return entity;
+    }
+
+    public static Entity AddZoneEntity(ZoneType zoneType, Box2 box)
+    {
+        var entity = EcsCoordinator.CreateEntity();
+        entity.AddLocationComponent(box);
+        entity.AddRenderableComponent(null);
+        entity.AddZoneComponent(zoneType);
+
+        return entity;
+    }
+    #endregion
+
+    public static void PlantForest(TreeTemplate treeTemplate, Vector2i center, float radius, float chanceCenter, float chanceEdge)
+    {
+        for (var y = (int)MathF.Ceiling(center.Y + radius); y >= MathF.Floor(center.Y - radius); --y)
+            for (var x = (int)MathF.Ceiling(center.X + radius); x >= MathF.Floor(center.X - radius); --x)
             {
                 var distanceFromCenter = new Vector2i(Math.Abs(y - center.Y), Math.Abs(y - center.Y)).EuclideanLength;
                 var chance = chanceCenter * (radius - distanceFromCenter) / radius + chanceEdge * distanceFromCenter / radius;
                 if (Random.Shared.NextDouble() < chance)
-                    PlaceEntity(Tree.FromTemplate(treeTemplate, new(x, y)));
+                    AddTreeEntity(treeTemplate, new(x, y));
             }
     }
 
-    public bool RemoveEntity(PlaceableEntity entity)
+    public static void MarkAllPlantsForHarvest(Box2 box)
     {
-        if (SelectedEntity == entity) SelectedEntity = null;
-        return PlacedEntities.Remove(entity);
+        EcsCoordinator.IteratePlantArchetype((in EcsCoordinator.PlantIterationResult w) =>
+        {
+            if (box.Intersects(w.LocationComponent.Box))
+                w.Entity.AddMarkForHarvestComponent();
+        });
     }
 
-    public Vector2i GetWorldLocationFromScreenPoint(Vector2i screenPoint) =>
-        new((int)MathF.Floor(((screenPoint.X) / Zoom + Offset.X)), (int)MathF.Floor(((screenPoint.Y) / Zoom + Offset.Y)));
+    internal bool DeleteEntity(Entity entity)
+    {
+        if (SelectedEntity == entity) SelectedEntity = null;
+        return entity.Delete();
+    }
 
-    event Action<Building>? PlacedBuilding;
-    public void MouseEvent(Vector2i screenPosition, Vector2i worldLocation, InputAction? inputAction = null, MouseButton? mouseButton = null, KeyModifiers? keyModifiers = null)
+    public static bool IsBoxFreeOfBuildings(Box2 box)
+    {
+        var okay = true;
+        EcsCoordinator.IterateBuildingArchetype((in EcsCoordinator.BuildingIterationResult w) =>
+        {
+            if (w.LocationComponent.Box.Intersects(box))
+            {
+                okay = false;
+                return false;
+            }
+            return true;
+        });
+
+        return okay;
+    }
+
+    public static bool IsBoxFreeOfPlants(Box2 box)
+    {
+        var okay = true;
+        EcsCoordinator.IteratePlantArchetype((in EcsCoordinator.PlantIterationResult w) =>
+        {
+            if (w.LocationComponent.Box.Intersects(box))
+            {
+                okay = false;
+                return false;
+            }
+            return true;
+        });
+
+        return okay;
+    }
+
+    public Vector2 GetWorldLocationFromScreenPoint(Vector2i screenPoint) =>
+        new(screenPoint.X / Zoom + Offset.X, screenPoint.Y / Zoom + Offset.Y);
+
+    event Action<Entity>? PlacedBuilding;
+    public void MouseEvent(Vector2i screenPosition, Vector2 worldLocation, InputAction? inputAction = null, MouseButton? mouseButton = null, KeyModifiers? keyModifiers = null)
     {
         if (inputAction == InputAction.Press && mouseButton == MouseButton.Button1)
-        {
-            if (CurrentBuildingTemplate is not null
-                && !GetEntities<Building>().Any(b => b.Box.Intersects(Box2.FromCornerSize(worldLocation, new(CurrentBuildingTemplate.Width, CurrentBuildingTemplate.Height)))))
+            if (CurrentWorldTemplate.ZoneType is not null && CurrentZoneStartPoint is null)
+                // first point
+                CurrentZoneStartPoint = MouseWorldPosition.ToVector2i();
+            else if (CurrentWorldTemplate.ZoneType is not null)
             {
-                var building = Building.FromTemplate(CurrentBuildingTemplate, worldLocation.ToNumericsVector2(), false);
-                PlaceEntity(building);
-                PlacedBuilding?.Invoke(building);
-                if (keyModifiers?.HasFlag(KeyModifiers.Shift) != true)
-                    CurrentBuildingTemplate = null;
+                // second point, add the zone entity
+                var box = Box2.FromCornerSize(CurrentZoneStartPoint!.Value,
+                    (MouseWorldPosition - CurrentZoneStartPoint.Value.ToNumericsVector2() + Vector2.One).ToVector2i());
+
+                if (CurrentWorldTemplate.ZoneType == ZoneType.MarkHarvest)
+                    MarkAllPlantsForHarvest(box);
+                else if (IsBoxFreeOfBuildings(box))
+                {
+                    MarkAllPlantsForHarvest(box);
+                    AddZoneEntity(CurrentWorldTemplate.ZoneType.Value, box);
+                }
+                CurrentWorldTemplate.Clear();
+            }
+            else if (CurrentWorldTemplate.BuildingTemplate is not null)
+            {
+                if (IsBoxFreeOfBuildings(Box2.FromCornerSize(worldLocation.ToVector2i(), CurrentWorldTemplate.BuildingTemplate.Width, CurrentWorldTemplate.BuildingTemplate.Height)))
+                {
+                    var building = AddBuildingEntity(CurrentWorldTemplate.BuildingTemplate, worldLocation.Floor(), false);
+                    PlacedBuilding?.Invoke(building);
+                    if (keyModifiers?.HasFlag(KeyModifiers.Shift) != true)
+                        CurrentWorldTemplate.Clear();
+                }
             }
             else
             {
-                if (SelectedEntity is not null && SelectedEntity.Location.ToVector2i() == worldLocation)
-                    SelectedEntity = GetEntities().SkipWhile(e => e != SelectedEntity).Skip(1).FirstOrDefault(e => e.Box.Contains(worldLocation));
-                else
+                var foundAny = false;
+                EcsCoordinator.IterateRenderArchetype((in EcsCoordinator.RenderIterationResult w) =>
+                {
+                    if (w.LocationComponent.Box.Contains(worldLocation))
+                    {
+                        SelectedEntity = w.Entity;
+                        foundAny = true;
+                        return false;
+                    }
+
+                    return true;
+                });
+
+                if (!foundAny)
                     SelectedEntity = null;
-                SelectedEntity ??= GetEntities().FirstOrDefault(e => e.Box.Contains(worldLocation));
             }
-        }
         else if (inputAction == InputAction.Press && mouseButton == MouseButton.Button2)
-            CurrentBuildingTemplate = null;
+            CurrentWorldTemplate.Clear();
 
         (MouseScreenPosition, MouseWorldPosition) = (screenPosition, worldLocation);
     }
 
-    event Action<PlaceableEntity, Villager>? StartedJob;
-    public void PlanWork<T>(T entity, Villager villager) where T : PlaceableEntity
+    event Action<Entity /* workable */, Entity /* worker */>? StartedJob;
+    public static void PlanWork(Entity workable, Entity worker)
     {
-        if (entity is Building building)
-            if (building.GetEmptyAssignedWorkerSlot() is { } emptyAssignedWorker)
-                emptyAssignedWorker.Villager = villager;
-            else
-                ThrowNoEmptyWorkerSlotException(entity, villager);
-        else if (entity is Tree tree)
-            if (tree.AssignedVillager is null)
-                tree.AssignedVillager = villager;
-            else
-                ThrowNoEmptyWorkerSlotException(entity, villager);
+        ref var workableComponent = ref workable.GetWorkableComponent();
+        ref var emptyWorkerSlot = ref workableComponent.GetEmptyWorkerSlot();
+
+        if (emptyWorkerSlot.Entity != Entity.Invalid)
+            emptyWorkerSlot.Entity = worker;
         else
-            throw new NotImplementedException();
+            throw new InvalidOperationException($"Could not find an empty worker slot for {worker} to work on {workable}.");
     }
 
-    [DoesNotReturn]
-    static void ThrowNoEmptyWorkerSlotException<T>(T entity, Villager villager) where T : PlaceableEntity =>
-        throw new InvalidOperationException($"Could not find an empty worker slot for {villager} to work on {entity}.");
-
-    public void StartWork<T>(T entity, Villager villager) where T : PlaceableEntity
+    public void StartWork(Entity workable, Entity worker)
     {
-        StartedJob?.Invoke(entity, villager);
-        if (entity is Building building && building.GetAssignedWorkerSlot(villager) is { } assignedWorker)
-            assignedWorker.VillagerWorking = true;
-        else if (entity is Tree tree)
-            tree.AssignedVillagerWorking = true;
+        StartedJob?.Invoke(workable, worker);
+
+        ref var workableComponent = ref workable.GetWorkableComponent();
+        ref var emptyWorkerSlot = ref workableComponent.GetAssignedWorkerSlot(worker);
+
+        if (emptyWorkerSlot.Entity != Entity.Invalid)
+            emptyWorkerSlot.EntityWorking = true;
         else
-            throw new NotImplementedException();
+            throw new InvalidOperationException($"Could not find worker slot on {workable} supposedly worked by {worker}.");
     }
 
-    event Action<PlaceableEntity, Villager, bool /* last */>? EndedBuildingJob;
-    public void EndWork<T>(T entity, Villager villager) where T : PlaceableEntity
+    event Action<Entity /* workable */, Entity /* worker */, bool /* last */>? EndedBuildingJob;
+    public void EndWork(Entity workable, Entity worker)
     {
-        if (entity is Building building)
+        ref var workableComponent = ref workable.GetWorkableComponent();
+        ref var emptyWorkerSlot = ref workableComponent.GetAssignedWorkerSlot(worker);
+
+        if (emptyWorkerSlot.Entity != Entity.Invalid)
         {
-            if (building.IsBuilt)
-                if (building.GetAssignedWorkerSlot(villager) is { } assignedWorker)
-                    assignedWorker.Villager = null;
-                else
-                    ThrowNoEmptyWorkerSlotException(entity, villager);
-            else
-                building.FinishBuilding();
-            EndedBuildingJob?.Invoke(building, villager, !building.AssignedWorkers.Any(w => w.VillagerWorking));
-        }
-        else if (entity is Tree tree)
-        {
-            tree.AssignedVillager = null;
-            EndedBuildingJob?.Invoke(tree, villager, true);
+            EndedBuildingJob?.Invoke(workable, worker, !workableComponent.WorkerSlots.Any(w => w.EntityWorking));
+            emptyWorkerSlot.Clear();
         }
         else
-            throw new NotImplementedException();
+            throw new InvalidOperationException($"Could not find worker slot on {workable} supposedly worked by {worker}.");
     }
 
     event Action<BuildingTemplate?>? CurrentBuildingTemplateChanged;
     public void FireCurrentBuildingTemplateChanged() =>
-        CurrentBuildingTemplateChanged?.Invoke(CurrentBuildingTemplate);
+        CurrentBuildingTemplateChanged?.Invoke(CurrentWorldTemplate.BuildingTemplate);
 
     public void KeyEvent(InputAction inputAction, Keys key, int scanCode, KeyModifiers keyModifiers)
     {
         if (inputAction == InputAction.Press && key == Keys.Space)
-            Paused = !Paused;
+            TimeSpeedUp = 0;
         else if (inputAction == InputAction.Press && key is Keys.LeftAlt or Keys.RightAlt)
             ShowDetails = true;
         else if (inputAction == InputAction.Release && key is Keys.LeftAlt or Keys.RightAlt)
@@ -237,33 +424,53 @@ public class World
             deltaOffsetNextFrame.X = 1;
         else if (inputAction == InputAction.Release && key is Keys.D)
             deltaOffsetNextFrame.X = 0;
+        else if (inputAction == InputAction.Press && key is Keys.F5)
+            Save("quick");
     }
 
-    public TimeSpan TotalTime { get; private set; }
+    static readonly string SavesFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "My Games", "Tweey");
+    const string SavesExtension = "sav";
+
+    class SaveData
+    {
+        public required EcsDataDump EcsDataDump { get; set; }
+        public Vector2 WorldOffset { get; set; }
+        public float WorldZoom { get; set; }
+    }
+
+    private void Save(string name)
+    {
+        var saveData = new SaveData
+        {
+            EcsDataDump = EcsCoordinator.DumpAllData(),
+            WorldOffset = Offset,
+            WorldZoom = Zoom
+        };
+
+        Directory.CreateDirectory(SavesFolder);
+        using var file = File.Create(Path.Combine(SavesFolder, $"{name}.{SavesExtension}"));
+        using var compressStream = new GZipStream(file, CompressionLevel.SmallestSize, true);
+        JsonSerializer.Serialize(compressStream, saveData, Loader.BuildJsonOptions());
+    }
+
+    public TimeSpan TotalRealTime { get; private set; }
+    const double worldTimeMultiplier = 96 * 6;
+    public TimeSpan RawWorldTime { get; private set; }
+    public CustomDateTime WorldTime { get; private set; }
+    public TimeSpan DeltaWorldTime { get; private set; }
+
+    public static TimeSpan GetWorldTimeFromTicks(double ticks) =>
+        TimeSpan.FromSeconds(ticks * worldTimeMultiplier);
+
     public void Update(double deltaSec)
     {
-        TotalTime += TimeSpan.FromSeconds(deltaSec);
+        TotalRealTime += TimeSpan.FromSeconds(deltaSec);
+        RawWorldTime += DeltaWorldTime = TimeSpan.FromSeconds(deltaSec * worldTimeMultiplier * TimeSpeedUp);
+        WorldTime = new(RawWorldTime);
 
-        if (!Paused)
-        {
-            Offset += deltaOffsetNextFrame * (float)deltaSec * deltaOffsetPerSecond;
-            aiManager.Update(deltaSec);
-        }
-        soundManager.Update(deltaSec);
-        GetEntities<Villager>().ForEach(villager => villager.Update(deltaSec));
+        Offset += deltaOffsetNextFrame * (float)deltaSec * deltaOffsetPerSecond;
     }
 
-    public IEnumerable<T> GetEntities<T>() where T : PlaceableEntity => PlacedEntities.OfType<T>();
-    public IEnumerable<PlaceableEntity> GetEntities() => PlacedEntities;
-
-    public double GetTotalResourceAmount(Resource resource)
-    {
-        double total = 0;
-        foreach (var entity in GetEntities())
-            if (entity is ResourceBucket rb)
-                total += (rb.ResourceQuantities.FirstOrDefault(w => w.Resource == resource)?.Quantity ?? 0);
-            else if (entity is Building { IsBuilt: true, Type: BuildingType.Storage, Inventory: { } buildingInventory })
-                total += (buildingInventory.ResourceQuantities.FirstOrDefault(w => w.Resource == resource)?.Quantity ?? 0);
-        return total;
-    }
+    [GeneratedRegex("Data[/\\\\]Biomes[/\\\\](.*)[/\\\\].*\\.png", RegexOptions.IgnoreCase)]
+    private static partial Regex ExtractBiomeNameFromPathRegex();
 }

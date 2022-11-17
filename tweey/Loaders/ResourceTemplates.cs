@@ -16,6 +16,8 @@ public class Resource : ITemplateFileName
     public double PickupSpeedMultiplier { get; set; }
     public double Nourishment { get; set; }
     public string FileName { get; set; } = null!;
+
+    public string ImageFileName => $"Data/Resources/{FileName}.png";
 }
 
 public record ResourceQuantity(Resource Resource)

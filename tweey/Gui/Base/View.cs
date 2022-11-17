@@ -15,7 +15,7 @@ public abstract class View
     protected View(ViewData viewData) => ViewData = viewData;
 
     public View? Parent { get; internal set; }
-    public Func<bool>? Visible { get; set; }
+    public Func<bool>? IsVisible { get; set; }
     public bool InheritParentSize { get; set; }
     public Thickness Padding { get; set; }
     public Thickness Margin { get; set; }

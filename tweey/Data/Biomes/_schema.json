@@ -1,0 +1,61 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema",
+    "title": "JSON Schema for configuration",
+    "type": "object",
+    "properties": {
+        "biomes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "tileName": {
+                        "type": "string"
+                    },
+                    "minHeight": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                    },
+                    "minHeat": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                    },
+                    "minMoisture": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                    },
+                    "trees": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "chance": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 1
+                                }
+                            },
+                            "required": [ "name", "chance" ]
+                        }
+                    }
+                },
+                "required": [
+                    "name",
+                    "minHeat",
+                    "minHeight",
+                    "minMoisture"
+                ]
+            }
+        }
+    }
+}

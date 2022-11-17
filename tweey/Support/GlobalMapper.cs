@@ -8,10 +8,9 @@ internal static class GlobalMapper
 
     static GlobalMapper()
     {
-        Mapper.CreateMap<BuildingTemplate, Building>()
-            .ForMember(x => x.BuildCost, src => src.BuildCost.Clone());
-        Mapper.CreateMap<TreeTemplate, Tree>()
-            .ForMember(x => x.Inventory, src => src.Inventory.Clone());
+        Mapper.CreateMap<BiomeIn, Biome>()
+            .ForMember(x => x.Trees, (src, trees) => src.Trees?.Select(t => (((TreeTemplates)trees!)[t.Name], t.Chance)).ToArray() ?? Array.Empty<(TreeTemplate, double)>())
+            .ForMember(x => x.TileName, src => src.TileName ?? src.Name);
         Mapper.CreateMap<BuildingTemplateIn, BuildingTemplate>()
             .ForMember(x => x.BuildWorkTicks, src => src.BuildCost!.WorkTicks)
             .ForMember(x => x.BuildCost, (src, resources) => new ResourceBucket(src.BuildCost!.Resources!.Select(rq => new ResourceQuantity(((ResourceTemplates)resources!)[rq.Resource!], rq.Quantity))))

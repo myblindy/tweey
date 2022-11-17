@@ -9,16 +9,7 @@
           "type": "number",
           "minimum": 1
         },
-        "color": {
-          "type": "array",
-          "minItems": 3,
-          "maxItems": 3,
-          "items": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1
-          }
-        }
+        "color": { "$ref": "../BaseSchemas/color.json#/definitions/color" }
       }
     }
   }

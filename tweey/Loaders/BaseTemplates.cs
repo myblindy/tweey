@@ -5,7 +5,7 @@ public interface ITemplateFileName
     string FileName { get; set; }
 }
 
-public abstract class BaseTemplates<TIn, TVal> : IEnumerable<string> where TVal : ITemplateFileName
+public abstract class BaseTemplates<TIn, TVal> : IEnumerable<TVal> where TVal : ITemplateFileName
 {
     readonly ImmutableDictionary<string, TVal> resources;
 
@@ -25,9 +25,10 @@ public abstract class BaseTemplates<TIn, TVal> : IEnumerable<string> where TVal 
             .ToImmutableDictionary(keySelector, StringComparer.CurrentCultureIgnoreCase);
     }
 
-    public IEnumerator<string> GetEnumerator() => resources.Keys.GetEnumerator();
-
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-
     public TVal this[string key] => resources[key];
+
+    public IEnumerable<string> Keys => resources.Keys;
+
+    public IEnumerator<TVal> GetEnumerator() => resources.Values.GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }

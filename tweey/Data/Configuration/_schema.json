@@ -21,6 +21,9 @@
       "minimum": 1,
       "description": "How far resources heavier than groundStackMaximumWeight will spill-over to the ground."
     },
+    "zoneGrowColor": { "$ref": "../BaseSchemas/color.json#/definitions/color" },
+    "zoneHarvestColor": { "$ref": "../BaseSchemas/color.json#/definitions/color" },
+    "zoneErrorColor": { "$ref": "../BaseSchemas/color.json#/definitions/color" },
     "baseMovementSpeed": {
       "type": "number",
       "minimum": 0,
@@ -35,6 +38,11 @@
       "type": "number",
       "minimum": 0,
       "description": "How fast a villager will work one tick in units of 1/sec."
+    },
+    "baseHarvestSpeed": {
+      "type": "number",
+      "minimum": 0,
+      "description": "How fast a villager will harvest one tick in units of 1/sec."
     },
     "baseHungerMax": {
       "type": "number",
@@ -62,8 +70,23 @@
       "minimum": 0,
       "maximum": 1,
       "description": "Hunger threshold at which the villager drops all it's doing and seeks out food immediately."
-    }
+    },
+    "midDayColor": { "$ref": "../BaseSchemas/color.json#/definitions/color" },
+    "midNightColor": { "$ref": "../BaseSchemas/color.json#/definitions/color" }
   },
 
-  "required": [ "groundStackMaximumWeight", "baseCarryWeight", "ticksPerDay", "maximumGroundDropSpillOverRange", "baseMovementSpeed", "baseHungerMax", "baseHungerPerRealTimeSecond", "baseHungerPercentage", "baseHungerEmergencyPercentage" ]
+  "required": [
+    "groundStackMaximumWeight",
+    "baseCarryWeight",
+    "ticksPerDay",
+    "maximumGroundDropSpillOverRange",
+    "baseMovementSpeed",
+    "baseHungerMax",
+    "baseHungerPerRealTimeSecond",
+    "baseHungerPercentage",
+    "baseHungerEmergencyPercentage",
+    "zoneGrowColor",
+    "zoneErrorColor",
+    "zoneHarvestColor"
+  ]
 }

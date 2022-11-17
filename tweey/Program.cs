@@ -1,4 +1,5 @@
-﻿using Twee.Core.Support;
+﻿using System.Diagnostics;
+using System.Drawing;
 
 namespace Tweey;
 
@@ -9,7 +10,6 @@ class Program : GameWindow
         {
             RenderFrequency = 60,
             UpdateFrequency = 60,
-            IsMultiThreaded = false,
         }, new()
         {
             Profile = ContextProfile.Core,
@@ -17,6 +17,7 @@ class Program : GameWindow
             APIVersion = new(4, 6),
             StartFocused = true,
             StartVisible = true,
+            WindowBorder = WindowBorder.Hidden,
             Size = new(800, 600),
             WindowState = WindowState.Maximized,
             Title = "TwEEY",
@@ -31,7 +32,6 @@ class Program : GameWindow
     }
 
     readonly World world = new(DiskLoader.Instance);
-    WorldRenderer? worldRenderer;
 
     protected override unsafe void OnLoad()
     {
@@ -54,59 +54,57 @@ class Program : GameWindow
         GL.Disable(EnableCap.CullFace);
         GL.Enable(EnableCap.Blend);
 
-        var villager = world.SelectedEntity = new Villager("Sana", new(5, 1), world.Configuration.Data);
-        world.PlaceEntity(villager);
-        world.PlaceEntity(new Villager("Momo", new(15, 20), world.Configuration.Data));
+        FrameData.Init(EcsCoordinator.SystemsCount + 1);
+        EcsCoordinator.ConstructPartitions(new(400, 400), world.Zoom);
+        world.GenerateMap(400, 400);
 
-        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["bread"], 100)) { Location = new(3, 3) });
+        var villager = world.SelectedEntity = world.AddVillagerEntity("Sana", new(5, 1));
+        world.AddVillagerEntity("Momo", new(15, 20));
 
-        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["firewood"], 5)) { Location = new(3, 4) });
-        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["iron"], 2)) { Location = new(7, 4) });
+        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["bread"], 100)), new(3, 3));
 
-        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 3)) { Location = new(4, 5) });
-        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["iron"], 4)) { Location = new(5, 5) });
-        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 4)) { Location = new(6, 5) });
-        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["firewood"], 55)) { Location = new(7, 7) });
+        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["firewood"], 5)), new(3, 4));
+        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["iron"], 2)), new(7, 4));
 
-        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 24)) { Location = new(17, 20) });
-        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["stone"], 120)) { Location = new(17, 21) });
-        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 83)) { Location = new(19, 19) });
-        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 67)) { Location = new(20, 19) });
-        world.PlaceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 67), new ResourceQuantity(world.Resources["iron"], 125)) { Location = new(20, 20) });
+        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 3)), new(4, 5));
+        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["iron"], 4)), new(5, 5));
+        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 4)), new(6, 5));
+        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["firewood"], 55)), new(7, 7));
 
-        world.PlantForest(world.TreeTemplates["pine"], new(3, 20), 6, .9f, .2f);
-        world.PlantForest(world.TreeTemplates["pine"], new(40, 12), 12, .8f, .1f);
+        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 24)), new(17, 20));
+        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["stone"], 120)), new(17, 21));
+        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 83)), new(19, 19));
+        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 67)), new(20, 19));
+        world.AddResourceEntity(new ResourceBucket(
+            new ResourceQuantity(world.Resources["wood"], 67),
+            new ResourceQuantity(world.Resources["iron"], 125)),
+            new(20, 20));
 
-        var well = Building.FromTemplate(world.BuildingTemplates["well"], new(8, 12), false);
-        well.FinishBuilding();
-        well.ActiveProductionLines.Add(new()
-        {
-            ProductionLine = well.ProductionLines[0],
-            Type = ActiveProductionLineType.UntilStock,
-            OutputTarget = 20
-        });
-        world.PlaceEntity(well);
+        World.AddBuildingEntity(world.BuildingTemplates["well"], new(8, 12), false);
 
-        worldRenderer = new(world);
-        worldRenderer.Resize(Size.X, Size.Y);
+        EcsCoordinator.ConstructZoneGrowSystem(() => new());
+        EcsCoordinator.ConstructAISystem(() => new(world));
+        EcsCoordinator.ConstructRenderSystem(() => new(world));
+        EcsCoordinator.SendResizeMessageToRenderSystem(Size.X, Size.Y);
     }
 
     protected override void OnResize(ResizeEventArgs e)
     {
-        worldRenderer?.Resize(e.Width, e.Height);
+        if (EcsCoordinator.IsRenderSystemConstructed)
+            EcsCoordinator.SendResizeMessageToRenderSystem(e.Width, e.Height);
     }
 
     protected override void OnMouseDown(MouseButtonEventArgs e)
     {
         var position = MousePosition.ToVector2i();
-        if (!worldRenderer!.MouseEvent(position, e.Action, e.Button, e.Modifiers))
+        if (!EcsCoordinator.SendMouseEventMessageToRenderSystem(position, e.Action, e.Button, e.Modifiers))
             world.MouseEvent(position, world.GetWorldLocationFromScreenPoint(position), e.Action, e.Button, e.Modifiers);
     }
 
     protected override void OnMouseUp(MouseButtonEventArgs e)
     {
         var position = MousePosition.ToVector2i();
-        if (!worldRenderer!.MouseEvent(position, e.Action, e.Button, e.Modifiers))
+        if (!EcsCoordinator.SendMouseEventMessageToRenderSystem(position, e.Action, e.Button, e.Modifiers))
             world.MouseEvent(position, world.GetWorldLocationFromScreenPoint(position), e.Action, e.Button, e.Modifiers);
     }
 
@@ -130,8 +128,15 @@ class Program : GameWindow
 
     protected override void OnRenderFrame(FrameEventArgs args)
     {
-        worldRenderer!.Render(args.Time, UpdateTime, RenderTime);
+        EcsCoordinator.RunSystems();
+
+        var sw = Stopwatch.StartNew();
         SwapBuffers();
+        FrameData.NewCustomTime(EcsCoordinator.SystemsCount, sw.Elapsed);
+
+        for (int i = 0; i < EcsCoordinator.SystemTimingInformation.Count; i++)
+            FrameData.NewCustomTime(i, EcsCoordinator.SystemTimingInformation.ElementAt(i).Value);
+        FrameData.NewFrame(TimeSpan.FromSeconds(args.Time), TimeSpan.FromSeconds(UpdateTime), TimeSpan.FromSeconds(RenderTime));
     }
 
     static unsafe void Main()
