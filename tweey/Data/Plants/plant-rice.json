@@ -1,0 +1,12 @@
+{
+  "$schema": "./_schema.json",
+  "name": "Rice",
+  "containingResources": [
+    {
+      "quantity": 25,
+      "resource": "rice"
+    }
+  ],
+  "harvestWorkTicks": 10,
+  "daysFromSpawnToFullGrowth": 3
+}

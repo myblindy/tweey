@@ -95,9 +95,9 @@ class WorkAIHighLevelPlan : AIHighLevelPlan
                     + World.GetWorldTimeFromTicks(MainEntity.GetVillagerComponent().WorkSpeedMultiplier));
             workableEntity.GetWorkableComponent().GetAssignedWorkerSlot(MainEntity).Clear();
         }
-        else if (workableEntity.HasTreeComponent())
+        else if (workableEntity.HasPlantComponent())
         {
-            while (workableEntity.GetTreeComponent().WorkTicks-- > 0)
+            while (workableEntity.GetPlantComponent().WorkTicks-- > 0)
                 yield return new WaitLowLevelPlan(World, MainEntity, World.RawWorldTime
                     + World.GetWorldTimeFromTicks(MainEntity.GetVillagerComponent().HarvestSpeedMultiplier));
 

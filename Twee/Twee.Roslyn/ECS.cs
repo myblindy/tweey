@@ -395,9 +395,9 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         }
 
                         {{string.Join(Environment.NewLine, partitions.Where(p => p.UsedArchetypeName == s.UsedArchetypeName).Select(p => $$"""
-                            void Iterate{{p.TypeRootName}}Components(Vector2 worldLocation, Box2 screenSize, IterateComponentsProcessDelegate process)
+                            void Iterate{{p.TypeRootName}}Components(Vector2 worldLocation, in Box2 screenSize, IterateComponentsProcessDelegate process)
                             {
-                                foreach(var entity in EcsCoordinator.{{p.TypeRootName}}Partition.GetEntities(worldLocation, screenSize))
+                                foreach(var entity in EcsCoordinator.{{p.TypeRootName}}Partition!.GetEntities(worldLocation, screenSize))
                                     process(new(entity
                                         {{string.Concat(archetypes.First(at => at.Name == s.UsedArchetypeName).Components.Select(c => $", ref EcsCoordinator.Get{c!.TypeRootName}Component(entity)"))}}
                                     ));
@@ -439,7 +439,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         internal static void Update{{a.Name}}Partitions(Entity entity)
                         {
                             {{string.Join(Environment.NewLine, partitions.Where(p => p.UsedArchetypeName == a.Name).Select(p => $$"""
-                                {{p.TypeRootName}}Partition.UpdateEntity(entity);
+                                {{p.TypeRootName}}Partition!.UpdateEntity(entity);
                                 """))}}
                         }
                         """))}}
@@ -527,7 +527,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             {{at.Name}}Entities.Remove(entity);
                             """)))}}
                         {{string.Join(Environment.NewLine, partitions.Select(p => $$"""
-                            {{p.TypeRootName}}Partition.RemoveEntity(entity);
+                            {{p.TypeRootName}}Partition!.RemoveEntity(entity);
                             """))}}
                     
                         return entities.Remove(entity);
@@ -559,7 +559,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                                     {
                                         {{at.Name}}Entities.Add(entity);
                                         {{string.Join(Environment.NewLine, partitions.Where(p => p.UsedArchetypeName == at.Name).Select(p => $$"""
-                                            {{p.TypeRootName}}Partition.UpdateEntity(entity);
+                                            {{p.TypeRootName}}Partition!.UpdateEntity(entity);
                                             """))}}
                                     }
                                     """)))}}
@@ -576,7 +576,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                                 {{string.Join(Environment.NewLine, c.Parameters.Select(p => $"component.{p.Name} = {p.Name};"))}}
 
                                 {{(rawArchetypes is null ? null : string.Join(Environment.NewLine, partitions.Where(p => archetypes.First(a => a.Name == p.UsedArchetypeName).Components.Contains(c)).Select(p => $$"""
-                                    {{p.TypeRootName}}Partition.UpdateEntity(entity);
+                                    {{p.TypeRootName}}Partition!.UpdateEntity(entity);
                                     """)))}}
 
                                 return ref component;
@@ -604,7 +604,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                                 !at.Components.Contains(c.TypeRootName) ? null : $$"""
                                     {{at.Name}}Entities.Remove(entity);
                                     {{string.Join(Environment.NewLine, partitions.Where(p => p.UsedArchetypeName == at.Name).Select(p => $$"""
-                                        {{p.TypeRootName}}Partition.RemoveEntity(entity);
+                                        {{p.TypeRootName}}Partition!.RemoveEntity(entity);
                                         """))}}
                                     """)))}}
                         }

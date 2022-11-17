@@ -1,6 +1,4 @@
-﻿using System.Data;
-
-namespace Tweey.Systems;
+﻿namespace Tweey.Systems;
 
 [EcsSystem(Archetypes.Render)]
 partial class RenderSystem
@@ -109,10 +107,10 @@ partial class RenderSystem
         lightMapOcclusionFrameBuffer = new(new[] { lightMapOcclusionTexture });
     }
 
-    unsafe void RenderLightMapToFrameBuffer(Box2 worldViewBox, Box2 screenBox, bool useTorches)
+    unsafe void RenderLightMapToFrameBuffer(in Box2 worldViewBox, in Box2 screenBox, bool useTorches)
     {
         // setup the occlusion map for rendering and build the occlusions
-        void markOcclusionBox(Box2 box, bool circle = false, float scale = 1f)
+        void markOcclusionBox(in Box2 box, bool circle = false, float scale = 1f)
         {
             var zoom = world.Zoom;
             var uvHalf = new Vector2(.5f);         // the center of the circle texture is white, use that for the box case

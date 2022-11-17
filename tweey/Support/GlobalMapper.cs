@@ -9,8 +9,8 @@ internal static class GlobalMapper
     static GlobalMapper()
     {
         Mapper.CreateMap<BiomeIn, Biome>()
-            .ForMember(x => x.Trees, (src, trees) => src.Trees?.Select(t => (((TreeTemplates)trees!)[t.Name], t.Chance)).ToArray() ?? Array.Empty<(TreeTemplate, double)>())
-            .ForMember(x => x.TileName, src => src.TileName ?? src.Name);
+            .ForMember(x => x.TileName, src => src.TileName ?? src.Name)
+            .ForMember(x => x.Plants, (src, plants) => src.Plants?.Select(pin => (((PlantTemplates)plants!)[pin.Name], pin.Chance)).ToArray() ?? Array.Empty<(PlantTemplate, double)>());
         Mapper.CreateMap<BuildingTemplateIn, BuildingTemplate>()
             .ForMember(x => x.BuildWorkTicks, src => src.BuildCost!.WorkTicks)
             .ForMember(x => x.BuildCost, (src, resources) => new ResourceBucket(src.BuildCost!.Resources!.Select(rq => new ResourceQuantity(((ResourceTemplates)resources!)[rq.Resource!], rq.Quantity))))
@@ -23,7 +23,7 @@ internal static class GlobalMapper
                 })
                 .ToArray()));
         Mapper.CreateMap<ResourceIn, Resource>();
-        Mapper.CreateMap<TreeTemplateIn, TreeTemplate>()
+        Mapper.CreateMap<PlantTemplateIn, PlantTemplate>()
             .ForMember(x => x.Inventory, (src, resources) => new ResourceBucket(src.ContainingResources!.Select(rq => new ResourceQuantity(((ResourceTemplates)resources!)[rq.Resource!], rq.Quantity))));
     }
 }

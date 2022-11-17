@@ -1,0 +1,42 @@
+﻿namespace Tweey.Loaders;
+
+internal class PlantTemplate : ITemplateFileName
+{
+    public required string Name { get; set; }
+    public required int HarvestWorkTicks { get; set; }
+    public required ResourceBucket Inventory { get; set; }
+    public string FileName { get; set; } = null!;
+
+    public Collection<(double growth, string image)> Images { get; } = new();
+    public string GetImageFileName(double growth)
+    {
+        var (_, lastImage) = Images[0];
+        for (int i = 1; i < Images.Count; ++i)
+            if (Images[i].growth > growth)
+                return lastImage;
+            else
+                (_, lastImage) = Images[i];
+        return lastImage;
+    }
+}
+
+internal class PlantResouceTemplateIn
+{
+    public string Resource { get; set; } = null!;
+    public int Quantity { get; set; }
+}
+
+internal class PlantTemplateIn
+{
+    public string Name { get; set; } = null!;
+    public int HarvestWorkTicks { get; set; }
+    public List<PlantResouceTemplateIn>? ContainingResources { get; set; }
+}
+
+internal class PlantTemplates : BaseTemplates<PlantTemplateIn, PlantTemplate>
+{
+    public PlantTemplates(ILoader loader, ResourceTemplates resourceTemplates)
+        : base(loader, "Plants", x => x.FileName!, resourceTemplates)
+    {
+    }
+}

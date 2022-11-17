@@ -19,9 +19,9 @@
       "minHeight": 0.25,
       "minMoisture": 0.2,
       "minHeat": 0.1,
-      "trees": [
+      "plants": [
         {
-          "name": "pine",
+          "name": "tree-leafy",
           "chance": 0.05
         }
       ]
@@ -32,9 +32,9 @@
       "minHeight": 0.25,
       "minMoisture": 0.4,
       "minHeat": 0.3,
-      "trees": [
+      "plants": [
         {
-          "name": "pine",
+          "name": "tree-leafy",
           "chance": 0.6
         }
       ]
@@ -45,9 +45,13 @@
       "minHeight": 0.25,
       "minMoisture": 0.5,
       "minHeat": 0.4,
-      "trees": [
+      "plants": [
         {
-          "name": "pine",
+          "name": "tree-pine",
+          "chance": 0.4
+        },
+        {
+          "name": "tree-leafy",
           "chance": 1
         }
       ]
