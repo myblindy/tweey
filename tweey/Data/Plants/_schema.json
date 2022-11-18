@@ -20,6 +20,9 @@
     "daysFromSpawnToFullGrowth": {
       "type": "number",
       "minimum": 0
+    },
+    "occludeLight": {
+      "type": "boolean"
     }
   },
   "required": [ "name", "containingResources", "harvestWorkTicks", "daysFromSpawnToFullGrowth" ]

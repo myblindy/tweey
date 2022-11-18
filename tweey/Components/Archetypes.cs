@@ -12,6 +12,9 @@ static class Archetypes
     public const EcsComponents Plant =
         EcsComponents.Plant | EcsComponents.Location | EcsComponents.Inventory | EcsComponents.Workable;
 
+    public const EcsComponents FarmedPlant =
+        EcsComponents.Plant | EcsComponents.Location | EcsComponents.Inventory | EcsComponents.Workable | EcsComponents.PlantIsFarmed;
+
     public const EcsComponents Villager =
         EcsComponents.Villager | EcsComponents.Location | EcsComponents.Identity;
 

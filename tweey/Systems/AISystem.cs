@@ -87,6 +87,30 @@ partial class AISystem
         return (plans = selectedPlans) is not null;
     }
 
+    bool TryToPlant(in IterationResult w, out AIHighLevelPlan[]? plans)
+    {
+        var workerEntity = w.Entity;
+        AIHighLevelPlan[]? selectedPlans = default;
+
+        EcsCoordinator.IterateZoneArchetype((in EcsCoordinator.ZoneIterationResult zw) =>
+        {
+            // find any empty plant slots in the zone's box
+            if (zw.ZoneComponent.PlantTemplate is not null)
+                foreach (var position in zw.LocationComponent.Box)
+                    if (World.IsBoxFreeOfPlants(Box2.FromCornerSize(position, new(1))))
+                    {
+                        selectedPlans = new AIHighLevelPlan[]
+                        {
+                            new PlantAIHighLevelPlan(world, workerEntity, zw.Entity, position, zw.ZoneComponent.PlantTemplate)
+                        };
+                        return false;
+                    }
+            return true;
+        });
+
+        return (plans = selectedPlans) is not null;
+    }
+
     bool TryToHarvest(in IterationResult w, out AIHighLevelPlan[]? plans)
     {
         var workerEntity = w.Entity;
@@ -210,14 +234,21 @@ partial class AISystem
         }
     }
     readonly List<PlanRunner?> planRunners = new();
+    readonly Dictionary<Entity, CustomDateTime> idleEntities = new();
 
     public partial void Run()
     {
         IterateComponents((in IterationResult w) =>
         {
+            if (idleEntities.TryGetValue(w.Entity, out var targetWorldTime))
+                if (world.WorldTime < targetWorldTime)
+                    return;
+                else
+                    idleEntities.Remove(w.Entity);
+
             if (w.WorkerComponent.Plans is null)
             {
-                _ = TryToBuild(w, out var plans) || TryToHaulToBuilingSite(w, out plans) || TryToHarvest(w, out plans);
+                _ = TryToPlant(w, out var plans) || TryToBuild(w, out plans) || TryToHaulToBuilingSite(w, out plans) || TryToHarvest(w, out plans);
                 w.WorkerComponent.Plans = plans;
             }
 
@@ -238,6 +269,8 @@ partial class AISystem
 
                 w.Entity.UpdateRenderPartitions();
             }
+            else
+                idleEntities.Add(w.Entity, world.WorldTime + TimeSpan.FromSeconds(20));
         });
     }
 }

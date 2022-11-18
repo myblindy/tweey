@@ -61,28 +61,7 @@ class Program : GameWindow
         var villager = world.SelectedEntity = world.AddVillagerEntity("Sana", new(5, 1));
         world.AddVillagerEntity("Momo", new(15, 20));
 
-        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["bread"], 100)), new(3, 3));
-
-        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["firewood"], 5)), new(3, 4));
-        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["iron"], 2)), new(7, 4));
-
-        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 3)), new(4, 5));
-        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["iron"], 4)), new(5, 5));
-        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 4)), new(6, 5));
-        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["firewood"], 55)), new(7, 7));
-
-        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 24)), new(17, 20));
-        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["stone"], 120)), new(17, 21));
-        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 83)), new(19, 19));
-        world.AddResourceEntity(new ResourceBucket(new ResourceQuantity(world.Resources["wood"], 67)), new(20, 19));
-        world.AddResourceEntity(new ResourceBucket(
-            new ResourceQuantity(world.Resources["wood"], 67),
-            new ResourceQuantity(world.Resources["iron"], 125)),
-            new(20, 20));
-
-        World.AddBuildingEntity(world.BuildingTemplates["well"], new(8, 12), false);
-
-        EcsCoordinator.ConstructZoneGrowSystem(() => new());
+        EcsCoordinator.ConstructFarmSystem(() => new(world));
         EcsCoordinator.ConstructAISystem(() => new(world));
         EcsCoordinator.ConstructRenderSystem(() => new(world));
         EcsCoordinator.SendResizeMessageToRenderSystem(Size.X, Size.Y);

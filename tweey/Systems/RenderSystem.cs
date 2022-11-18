@@ -298,7 +298,12 @@ partial class RenderSystem
                 }
             }
 
-            if (w.RenderableComponent.AtlasEntryName is { } atlasEntryName)
+            if (w.Entity.HasPlantComponent())
+            {
+                ref var plantComponent = ref w.Entity.GetPlantComponent();
+                ScreenFillQuad(w.LocationComponent.Box, atlas[plantComponent.Template.GetImageFileName(plantComponent.GetGrowth(world))]);
+            }
+            else if (w.RenderableComponent.AtlasEntryName is { } atlasEntryName)
                 ScreenFillQuad(w.LocationComponent.Box, atlas[atlasEntryName]);
             else if (w.Entity.HasZoneComponent())
             {

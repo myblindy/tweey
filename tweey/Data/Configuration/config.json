@@ -10,6 +10,7 @@
   "basePickupSpeed": 0.2,
   "baseWorkSpeed": 0.2,
   "baseHarvestSpeed": 0.2,
+  "basePlantSpeed": 3,
   "baseHungerMax": 100,
   "baseHungerPerRealTimeSecond": 1,
   "baseEatSpeed": 1,

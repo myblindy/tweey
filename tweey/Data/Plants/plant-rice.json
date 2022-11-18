@@ -8,5 +8,6 @@
     }
   ],
   "harvestWorkTicks": 10,
-  "daysFromSpawnToFullGrowth": 3
+  "daysFromSpawnToFullGrowth": 3,
+  "occludeLight":  false
 }

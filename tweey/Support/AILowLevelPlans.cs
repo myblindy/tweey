@@ -38,7 +38,6 @@ class WalkToEntityLowLevelPlan : AILowLevelPlanWithTargetEntity
 
     public override bool Run()
     {
-
         ref var entityLocationComponent = ref MainEntity.GetLocationComponent();
         ref var targetLocationComponent = ref TargetEntity.GetLocationComponent();
 
@@ -48,6 +47,31 @@ class WalkToEntityLowLevelPlan : AILowLevelPlanWithTargetEntity
 
         entityLocationComponent.Box = entityLocationComponent.Box.WithOffset(
             Vector2.Normalize((targetLocationComponent.Box.Center - entityLocationComponent.Box.Center))
+                * (float)(MainEntity.GetVillagerComponent().MovementRateMultiplier * World.DeltaWorldTime.TotalSeconds));
+        return true;
+    }
+}
+
+class WalkToWorldPositionLowLevelPlan : AILowLevelPlan
+{
+    private readonly Vector2 targetLocation;
+
+    public WalkToWorldPositionLowLevelPlan(World world, Entity entity, Vector2 targetLocation)
+        : base(world, entity)
+    {
+        this.targetLocation = targetLocation;
+    }
+
+    public override bool Run()
+    {
+        ref var entityLocationComponent = ref MainEntity.GetLocationComponent();
+
+        // already next to the resource?
+        if (entityLocationComponent.Box.WithExpand(Vector2.One).Contains(targetLocation))
+            return false;
+
+        entityLocationComponent.Box = entityLocationComponent.Box.WithOffset(
+            Vector2.Normalize((targetLocation - entityLocationComponent.Box.Center))
                 * (float)(MainEntity.GetVillagerComponent().MovementRateMultiplier * World.DeltaWorldTime.TotalSeconds));
         return true;
     }

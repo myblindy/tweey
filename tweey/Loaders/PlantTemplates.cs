@@ -1,10 +1,15 @@
-﻿namespace Tweey.Loaders;
+﻿using System.Globalization;
+using System.Text.RegularExpressions;
+
+namespace Tweey.Loaders;
 
 internal class PlantTemplate : ITemplateFileName
 {
     public required string Name { get; set; }
     public required int HarvestWorkTicks { get; set; }
     public required ResourceBucket Inventory { get; set; }
+    public required double DaysFromSpawnToFullGrowth { get; set; }
+    public required bool OccludeLight { get; set; }
     public string FileName { get; set; } = null!;
 
     public Collection<(double growth, string image)> Images { get; } = new();
@@ -30,13 +35,26 @@ internal class PlantTemplateIn
 {
     public string Name { get; set; } = null!;
     public int HarvestWorkTicks { get; set; }
+    public double DaysFromSpawnToFullGrowth { get; set; }
+    public bool OccludeLight { get; set; }
     public List<PlantResouceTemplateIn>? ContainingResources { get; set; }
 }
 
-internal class PlantTemplates : BaseTemplates<PlantTemplateIn, PlantTemplate>
+internal partial class PlantTemplates : BaseTemplates<PlantTemplateIn, PlantTemplate>
 {
     public PlantTemplates(ILoader loader, ResourceTemplates resourceTemplates)
         : base(loader, "Plants", x => x.FileName!, resourceTemplates)
     {
+        var files = new List<(string name, string path, int value)>();
+        foreach (var file in DiskLoader.Instance.VFS.EnumerateFiles("Data/Plants", SearchOption.TopDirectoryOnly))
+            if (PathComponentExtractRegex().Match(file) is { Success: true } m)
+                files.Add((m.Groups[2].Value, m.Groups[1].Value, m.Groups[3].Success ? int.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture) : 0));
+
+        foreach (var file in files.OrderBy(w => w.value))
+            if (Keys.Contains(file.name))
+                this[file.name].Images.Add((file.value / 100.0, file.path));
     }
+
+    [GeneratedRegex("^(Data[/\\\\]Plants[/\\\\](.*?)(?:-(\\d+))?\\.png)$", RegexOptions.IgnoreCase)]
+    private static partial Regex PathComponentExtractRegex();
 }
