@@ -1,11 +1,12 @@
 {
   "$schema": "./_schema.json",
-  "name": "Pine",
+  "name": "Leafy",
   "containingResources": [
     {
-      "quantity": 15,
+      "quantity": 25,
       "resource": "wood"
     }
   ],
-  "workTicks": 35
+  "harvestWorkTicks": 35,
+  "daysFromSpawnToFullGrowth": 25
 }

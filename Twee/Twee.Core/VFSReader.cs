@@ -102,7 +102,7 @@ public class VFSReader : IDisposable
                     yield return tempPartPath + "/" + childEntry.Name;
                 else
                     openSet.Enqueue(childEntry);
-        } while (allDirectories is SearchOption.TopDirectoryOnly || openSet.Count > 0);
+        } while (allDirectories is SearchOption.AllDirectories && openSet.Count > 0);
     }
 
     public string? ReadAllText(string path)

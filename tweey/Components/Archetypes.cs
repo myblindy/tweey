@@ -10,7 +10,10 @@ static class Archetypes
         EcsComponents.Building | EcsComponents.Location | EcsComponents.Inventory | EcsComponents.Workable;
 
     public const EcsComponents Plant =
-        EcsComponents.Tree | EcsComponents.Location | EcsComponents.Inventory | EcsComponents.Workable;
+        EcsComponents.Plant | EcsComponents.Location | EcsComponents.Inventory | EcsComponents.Workable;
+
+    public const EcsComponents FarmedPlant =
+        EcsComponents.Plant | EcsComponents.Location | EcsComponents.Inventory | EcsComponents.Workable | EcsComponents.PlantIsFarmed;
 
     public const EcsComponents Villager =
         EcsComponents.Villager | EcsComponents.Location | EcsComponents.Identity;
@@ -31,11 +34,16 @@ partial class RenderPartitionByLocation
     public int Width => 60;
     public int Height => 60;
 
-    public partial int GetLocation(in LocationComponent locationComponent, in RenderableComponent renderableComponent)
-    {
-        var worldSize = WorldSize - Vector2i.One;
-        var x = (int)((locationComponent.Box.Center.X / worldSize.X) * (Width - 1));
-        var y = (int)((locationComponent.Box.Center.Y / worldSize.Y) * (Height - 1));
-        return y * Width + x;
-    }
+    public partial Vector2 GetWorldLocation(in LocationComponent LocationComponent, in RenderableComponent RenderableComponent) =>
+        LocationComponent.Box.Center;
+}
+
+[EcsPartition(Archetypes.Plant)]
+partial class PlantPartitionByLocation
+{
+    public int Width => 40;
+    public int Height => 40;
+
+    public partial Vector2 GetWorldLocation(in WorkableComponent WorkableComponent, in InventoryComponent InventoryComponent, in LocationComponent LocationComponent, in PlantComponent PlantComponent) =>
+        LocationComponent.Box.Center;
 }

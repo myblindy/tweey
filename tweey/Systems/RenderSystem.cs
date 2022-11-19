@@ -1,6 +1,4 @@
-﻿using System.Data;
-
-namespace Tweey.Systems;
+﻿namespace Tweey.Systems;
 
 [EcsSystem(Archetypes.Render)]
 partial class RenderSystem
@@ -109,10 +107,10 @@ partial class RenderSystem
         lightMapOcclusionFrameBuffer = new(new[] { lightMapOcclusionTexture });
     }
 
-    unsafe void RenderLightMapToFrameBuffer(Box2 worldViewBox, Box2 screenBox, bool useTorches)
+    unsafe void RenderLightMapToFrameBuffer(in Box2 worldViewBox, bool useTorches)
     {
         // setup the occlusion map for rendering and build the occlusions
-        void markOcclusionBox(Box2 box, bool circle = false, float scale = 1f)
+        void markOcclusionBox(in Box2 box, bool circle = false, float scale = 1f)
         {
             var zoom = world.Zoom;
             var uvHalf = new Vector2(.5f);         // the center of the circle texture is white, use that for the box case
@@ -130,7 +128,7 @@ partial class RenderSystem
             lightMapOcclusionVAO.Vertices.Add(new((center + new Vector2(-rx, ry)) * zoom, circle ? new(0, 0) : uvHalf));
         }
 
-        IterateRenderPartitionByLocationComponents(worldViewBox.Center, screenBox, (in IterationResult w) =>
+        IterateRenderPartitionByLocationComponents(worldViewBox, (in IterationResult w) =>
         {
             if (w.RenderableComponent.OcclusionScale > 0)
                 markOcclusionBox(w.LocationComponent.Box, w.RenderableComponent.OcclusionCircle, w.RenderableComponent.OcclusionScale);
@@ -183,7 +181,7 @@ partial class RenderSystem
             new((float)((-heading - coneAngle + 2.25) % 1.0), (float)((-heading + coneAngle + 2.25) % 1.0));
 
         // call the engine once for each light
-        IterateRenderPartitionByLocationComponents(worldViewBox.Center, screenBox, (in IterationResult w) =>
+        IterateRenderPartitionByLocationComponents(worldViewBox, (in IterationResult w) =>
         {
             if (w.RenderableComponent.LightEmission.W == 0)
                 return;
@@ -261,7 +259,6 @@ partial class RenderSystem
     public partial void Run()
     {
         var worldViewBox = Box2.FromCornerSize(world.Offset, windowUbo.Data.WindowSize / world.Zoom);
-        var screenBox = Box2.FromCornerSize(Vector2.Zero, windowUbo.Data.WindowSize);
 
         // time of day ambient light calculation
         var h = world.WorldTime.TimeOfDay.TotalHours;
@@ -269,7 +266,7 @@ partial class RenderSystem
         var useTorches = h < 10 || h > 20;
 
         // render lightmap to texture
-        RenderLightMapToFrameBuffer(worldViewBox, screenBox, useTorches);
+        RenderLightMapToFrameBuffer(worldViewBox, useTorches);
 
         // render to screen
         GraphicsEngine.UnbindFrameBuffer();
@@ -288,7 +285,7 @@ partial class RenderSystem
                     }
 
         // store the actual entities' vertices(tri0)
-        IterateRenderPartitionByLocationComponents(worldViewBox.Center, screenBox, (in IterationResult w) =>
+        IterateRenderPartitionByLocationComponents(worldViewBox, (in IterationResult w) =>
         {
             if (w.Entity.HasBuildingComponent())
             {
@@ -300,7 +297,12 @@ partial class RenderSystem
                 }
             }
 
-            if (w.RenderableComponent.AtlasEntryName is { } atlasEntryName)
+            if (w.Entity.HasPlantComponent())
+            {
+                ref var plantComponent = ref w.Entity.GetPlantComponent();
+                ScreenFillQuad(w.LocationComponent.Box, atlas[plantComponent.Template.GetImageFileName(plantComponent.GetGrowth(world))]);
+            }
+            else if (w.RenderableComponent.AtlasEntryName is { } atlasEntryName)
                 ScreenFillQuad(w.LocationComponent.Box, atlas[atlasEntryName]);
             else if (w.Entity.HasZoneComponent())
             {

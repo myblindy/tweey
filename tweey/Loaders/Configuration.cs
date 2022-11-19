@@ -9,6 +9,7 @@ class ConfigurationData
     public double BasePickupSpeed { get; set; }
     public double BaseWorkSpeed { get; set; }
     public double BaseHarvestSpeed { get; set; }
+    public double BasePlantSpeed { get; set; }
     public double BaseHungerMax { get; set; }
     public double BaseHungerPerRealTimeSecond { get; set; }
     public double TicksPerDay { get; set; }

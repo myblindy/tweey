@@ -5,7 +5,7 @@ namespace Tweey.WorldData;
 internal partial class World
 {
     public ResourceTemplates Resources { get; }
-    public TreeTemplates TreeTemplates { get; }
+    public PlantTemplates PlantTemplates { get; }
     public BuildingTemplates BuildingTemplates { get; }
     public Configuration Configuration { get; }
     public Biomes Biomes { get; }
@@ -41,8 +41,8 @@ internal partial class World
     public World(ILoader loader)
     {
         (Resources, Configuration) = (new(loader), new(loader));
-        (BuildingTemplates, TreeTemplates) = (new(loader, Resources), new(loader, Resources));
-        Biomes = new(loader, TreeTemplates);
+        (BuildingTemplates, PlantTemplates) = (new(loader, Resources), new(loader, Resources));
+        Biomes = new(loader, PlantTemplates);
     }
 
     [MemberNotNull(nameof(TerrainTileNames))]
@@ -80,10 +80,10 @@ internal partial class World
                 TerrainTileNames[x, y] = biomeTiles[biome.TileName].RandomSubset(1).First();
 
                 // plant a tree?
-                foreach (var (template, chance) in biome.Trees)
+                foreach (var (template, chance) in biome.Plants)
                     if (Random.Shared.NextDouble() < chance)
                     {
-                        AddTreeEntity(template, new(x, y));
+                        AddPlantEntity(template, new(x, y), true, false);
                         break;
                     }
             }
@@ -97,8 +97,8 @@ internal partial class World
         entity.AddRenderableComponent("Data/Misc/villager.png",
             LightEmission: Colors4.White, LightRange: 12, LightAngleRadius: .1f);
         entity.AddHeadingComponent();
-        entity.AddVillagerComponent(Configuration.Data.BaseCarryWeight, Configuration.Data.BasePickupSpeed,
-            Configuration.Data.BaseMovementSpeed, Configuration.Data.BaseWorkSpeed, Configuration.Data.BaseHarvestSpeed);
+        entity.AddVillagerComponent(Configuration.Data.BaseCarryWeight, Configuration.Data.BasePickupSpeed, Configuration.Data.BaseMovementSpeed,
+            Configuration.Data.BaseWorkSpeed, Configuration.Data.BaseHarvestSpeed, Configuration.Data.BasePlantSpeed);
         entity.AddWorkerComponent();
         entity.AddInventoryComponent();
         entity.AddIdentityComponent(name);
@@ -106,18 +106,20 @@ internal partial class World
         return entity;
     }
 
-    internal static Entity AddTreeEntity(TreeTemplate treeTemplate, Vector2 location)
+    public Entity AddPlantEntity(PlantTemplate plantTemplate, Vector2 location, bool isMature, bool isFarmed)
     {
         var entity = EcsCoordinator.CreateEntity();
         entity.AddLocationComponent(Box2.FromCornerSize(location, new(1, 1)));
-        entity.AddRenderableComponent($"Data/Trees/{treeTemplate.FileName}.png",
-            OcclusionCircle: true, OcclusionScale: .3f);
+        entity.AddRenderableComponent($"Data/Plants/{plantTemplate.FileName}.png",
+            OcclusionCircle: true, OcclusionScale: plantTemplate.OccludeLight ? .3f : 0f);
         entity.AddWorkableComponent()
             .ResizeSlots(1);
-        entity.AddTreeComponent(treeTemplate.WorkTicks);
-        entity.AddIdentityComponent(treeTemplate.Name);
+        entity.AddPlantComponent(plantTemplate, plantTemplate.HarvestWorkTicks, isMature ? CustomDateTime.Invalid : WorldTime);
+        entity.AddIdentityComponent(plantTemplate.Name);
         entity.AddInventoryComponent().Inventory
-            .Add(ResourceMarker.All, treeTemplate.Inventory, ResourceMarker.Default);
+            .Add(ResourceMarker.All, plantTemplate.Inventory, ResourceMarker.Default);
+        if (isFarmed)
+            entity.AddPlantIsFarmedComponent();
 
         return entity;
     }
@@ -225,28 +227,16 @@ internal partial class World
         return entity;
     }
 
-    public static Entity AddZoneEntity(ZoneType zoneType, Box2 box)
+    public static Entity AddGrowZoneEntity(ZoneType zoneType, in Box2 box, PlantTemplate plantTemplate)
     {
         var entity = EcsCoordinator.CreateEntity();
         entity.AddLocationComponent(box);
         entity.AddRenderableComponent(null);
-        entity.AddZoneComponent(zoneType);
+        entity.AddZoneComponent(zoneType, plantTemplate);
 
         return entity;
     }
     #endregion
-
-    public static void PlantForest(TreeTemplate treeTemplate, Vector2i center, float radius, float chanceCenter, float chanceEdge)
-    {
-        for (var y = (int)MathF.Ceiling(center.Y + radius); y >= MathF.Floor(center.Y - radius); --y)
-            for (var x = (int)MathF.Ceiling(center.X + radius); x >= MathF.Floor(center.X - radius); --x)
-            {
-                var distanceFromCenter = new Vector2i(Math.Abs(y - center.Y), Math.Abs(y - center.Y)).EuclideanLength;
-                var chance = chanceCenter * (radius - distanceFromCenter) / radius + chanceEdge * distanceFromCenter / radius;
-                if (Random.Shared.NextDouble() < chance)
-                    AddTreeEntity(treeTemplate, new(x, y));
-            }
-    }
 
     public static void MarkAllPlantsForHarvest(Box2 box)
     {
@@ -316,7 +306,7 @@ internal partial class World
                 else if (IsBoxFreeOfBuildings(box))
                 {
                     MarkAllPlantsForHarvest(box);
-                    AddZoneEntity(CurrentWorldTemplate.ZoneType.Value, box);
+                    AddGrowZoneEntity(CurrentWorldTemplate.ZoneType.Value, box, PlantTemplates["plant-rice"]);
                 }
                 CurrentWorldTemplate.Clear();
             }

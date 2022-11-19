@@ -22,6 +22,9 @@ public class StreamingVertexArrayObject<TVertex> : BaseVertexArrayObject where T
 
     public unsafe void UploadNewData()
     {
+        if (Vertices.Count == 0)
+            return;
+
         const int minBufferMultiplier = 10, maxBufferMultiplier = 15;
         if (Vertices.Count * minBufferMultiplier > newVertexCapacity)
             newVertexCapacity = Vertices.Count * maxBufferMultiplier;

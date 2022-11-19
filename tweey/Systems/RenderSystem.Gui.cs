@@ -35,7 +35,7 @@ partial class RenderSystem
             entity.HasVillagerComponent() ? "Villager"
             : entity.HasResourceComponent() ? "Resource"
             : entity.HasBuildingComponent() ? !entity.GetBuildingComponent().IsBuilt ? "Building Site" : "Building"
-            : entity.HasTreeComponent() ? "Tree"
+            : entity.HasPlantComponent() ? "Tree"
             : entity.HasZoneComponent() ? "Zone"
             : throw new NotImplementedException();
 
@@ -138,7 +138,7 @@ partial class RenderSystem
                     // tree details
                     new StackView(StackType.Vertical)
                     {
-                        IsVisible = () => world.SelectedEntity!.Value.HasTreeComponent(),
+                        IsVisible = () => world.SelectedEntity!.Value.HasPlantComponent(),
                         Children =
                         {
                             new LabelView
@@ -147,7 +147,7 @@ partial class RenderSystem
                                 FontSize = () => defaultFontSize,
                                 Text = () => "Required:"
                             },
-                            getResourceRowView(true, null, () => world.SelectedEntity!.Value.GetTreeComponent().WorkTicks),
+                            getResourceRowView(true, null, () => world.SelectedEntity!.Value.GetPlantComponent().WorkTicks),
                         }
                     },
                 }
@@ -219,8 +219,8 @@ partial class RenderSystem
                         Text = () => $$"""
                             FPS: {{Math.Round(FrameData.Rate, 0, MidpointRounding.ToPositiveInfinity):0}}, Update: {{FrameData.UpdateTimePercentage * 100:0.00}}%, Render: {{FrameData.RenderTimePercentage * 100:0.00}}%
                             Draw calls: {{FrameData.DrawCallCount}}, Triangles: {{FrameData.TriangleCount}}, Lines: {{FrameData.LineCount}}
-                            {{string.Join(Environment.NewLine, EcsCoordinator.SystemTimingInformation.Select((kvp, idx)=> $"{kvp.Key}: {FrameData.GetCustomTimePercentage(idx):0.00}%"))}}
-                            SwapBuffer: {{FrameData.GetCustomTimePercentage(EcsCoordinator.SystemsCount):0.00}}%
+                            {{string.Join(Environment.NewLine, EcsCoordinator.SystemTimingInformation.Select((kvp, idx)=> $"{kvp.Key}: {FrameData.GetCustomTimePercentage(idx) * 100:0.00}%"))}}
+                            SwapBuffer: {{FrameData.GetCustomTimePercentage(EcsCoordinator.SystemsCount) * 100:0.00}}%
                             """,
                         FontSize = () => smallFontSize,
                         Padding = new(2),

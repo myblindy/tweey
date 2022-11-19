@@ -1,10 +1,11 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Collections;
+using System.Runtime.CompilerServices;
 using Twee.Core.Support;
 
 namespace Twee.Core;
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-public readonly struct Box2 : IEquatable<Box2>
+public readonly struct Box2 : IEquatable<Box2>, IEnumerable<Vector2i>
 {
     public readonly Vector2 TopLeft, BottomRight;
 
@@ -80,4 +81,16 @@ public readonly struct Box2 : IEquatable<Box2>
 
     public static Box2 operator *(Box2 left, float right) =>
         new(left.TopLeft * right, left.BottomRight * right);
+
+    public IEnumerator<Vector2i> GetEnumerator()
+    {
+        var size = Size;
+        var offset = TopLeft.ToVector2i();
+
+        for (int y = 0; y < size.Y; ++y)
+            for (int x = 0; x < size.X; ++x)
+                yield return offset + new Vector2i(x, y);
+    }
+
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
