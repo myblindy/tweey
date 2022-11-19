@@ -55,11 +55,13 @@ class WalkToEntityLowLevelPlan : AILowLevelPlanWithTargetEntity
 class WalkToWorldPositionLowLevelPlan : AILowLevelPlan
 {
     private readonly Vector2 targetLocation;
+    private readonly float speedMultiplier;
 
-    public WalkToWorldPositionLowLevelPlan(World world, Entity entity, Vector2 targetLocation)
+    public WalkToWorldPositionLowLevelPlan(World world, Entity entity, Vector2 targetLocation, float speedMultiplier = 1f)
         : base(world, entity)
     {
         this.targetLocation = targetLocation;
+        this.speedMultiplier = speedMultiplier;
     }
 
     public override bool Run()
@@ -72,7 +74,7 @@ class WalkToWorldPositionLowLevelPlan : AILowLevelPlan
 
         entityLocationComponent.Box = entityLocationComponent.Box.WithOffset(
             Vector2.Normalize((targetLocation - entityLocationComponent.Box.Center))
-                * (float)(MainEntity.GetVillagerComponent().MovementRateMultiplier * World.DeltaWorldTime.TotalSeconds));
+                * (float)(MainEntity.GetVillagerComponent().MovementRateMultiplier * World.DeltaWorldTime.TotalSeconds * speedMultiplier));
         return true;
     }
 }

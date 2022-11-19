@@ -58,8 +58,9 @@ class Program : GameWindow
         EcsCoordinator.ConstructPartitions(new(400, 400), world.Zoom);
         world.GenerateMap(400, 400);
 
-        var villager = world.SelectedEntity = world.AddVillagerEntity("Sana", new(5, 1));
-        world.AddVillagerEntity("Momo", new(15, 20));
+        var villager = world.SelectedEntity = world.AddVillagerEntity("Sana", new(200, 200));
+        world.AddVillagerEntity("Momo", new(215, 220));
+        world.Offset = new(190, 190);
 
         EcsCoordinator.ConstructFarmSystem(() => new(world));
         EcsCoordinator.ConstructAISystem(() => new(world));

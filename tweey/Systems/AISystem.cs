@@ -97,14 +97,19 @@ partial class AISystem
             // find any empty plant slots in the zone's box
             if (zw.ZoneComponent.PlantTemplate is not null)
                 foreach (var position in zw.LocationComponent.Box)
-                    if (World.IsBoxFreeOfPlants(Box2.FromCornerSize(position, new(1))))
+                {
+                    var tileBox = Box2.FromCornerSize(position, new(1));
+                    if (!zw.ZoneComponent.WorkedTiles.Contains(position)
+                        && !EcsCoordinator.PlantPartitionByLocationPartition!.GetEntities(tileBox).Any(pe => pe.GetLocationComponent().Box.Intersects(tileBox)))
                     {
+                        zw.ZoneComponent.WorkedTiles.Add(position);
                         selectedPlans = new AIHighLevelPlan[]
                         {
                             new PlantAIHighLevelPlan(world, workerEntity, zw.Entity, position, zw.ZoneComponent.PlantTemplate)
                         };
                         return false;
                     }
+                }
             return true;
         });
 
@@ -234,22 +239,19 @@ partial class AISystem
         }
     }
     readonly List<PlanRunner?> planRunners = new();
-    readonly Dictionary<Entity, CustomDateTime> idleEntities = new();
+    readonly Dictionary<Entity, Vector2> wanderCenterLocations = new();
 
     public partial void Run()
     {
         IterateComponents((in IterationResult w) =>
         {
-            if (idleEntities.TryGetValue(w.Entity, out var targetWorldTime))
-                if (world.WorldTime < targetWorldTime)
-                    return;
-                else
-                    idleEntities.Remove(w.Entity);
-
             if (w.WorkerComponent.Plans is null)
             {
                 _ = TryToPlant(w, out var plans) || TryToBuild(w, out plans) || TryToHaulToBuilingSite(w, out plans) || TryToHarvest(w, out plans);
                 w.WorkerComponent.Plans = plans;
+
+                if (w.WorkerComponent.Plans is not null && w.WorkerComponent.Plans is not [WanderAIHighLevelPlan])
+                    wanderCenterLocations.Remove(w.Entity);
             }
 
             if (w.WorkerComponent.Plans is not null)
@@ -270,7 +272,16 @@ partial class AISystem
                 w.Entity.UpdateRenderPartitions();
             }
             else
-                idleEntities.Add(w.Entity, world.WorldTime + TimeSpan.FromSeconds(20));
+            {
+                if (!wanderCenterLocations.TryGetValue(w.Entity, out var location))
+                    wanderCenterLocations[w.Entity] = location = w.LocationComponent.Box.Center;
+
+                // if idle, wander around
+                w.WorkerComponent.Plans = new AIHighLevelPlan[]
+                {
+                    new WanderAIHighLevelPlan(world, w.Entity, location, 5f, .3f),
+                };
+            }
         });
     }
 }
