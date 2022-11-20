@@ -13,4 +13,6 @@ public readonly struct Entity : IEquatable<Entity>
     public override int GetHashCode() => ID;
 
     public static implicit operator int(Entity entity) => entity.ID;
+
+    public override string ToString() => ID == -1 ? "Invalid" : ID.ToString();
 }

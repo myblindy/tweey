@@ -19,6 +19,7 @@
 
   "zoneGrowColor": [ 0.2, 0.8, 0.2 ],
   "zoneHarvestColor": [ 0.8, 0.8, 0.2 ],
+  "zoneStorageColor": [ 0.1, 0.1, 0.4 ],
   "zoneErrorColor": [ 0.8, 0.2, 0.2 ],
 
   "midDayColor": [ 1.0, 1.0, 1.0 ],
