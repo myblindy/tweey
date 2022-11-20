@@ -124,16 +124,17 @@ internal partial class World
         return entity;
     }
 
-    public void AddResourceEntity(ResourceBucket resourceBucket, Vector2 location)
+    public IEnumerable<Entity> AddResourceEntities(ResourceMarker srcMarker, ResourceBucket srcRB, ResourceMarker dstMarker, Vector2 location)
     {
         // obey the maximum ground stack weight
+        var result = new List<Entity>();
         var availableNeighbours = ObjectPool<List<(Vector2i pt, Entity? entity, ResourceBucket? rb)>>.Shared.Get();
         availableNeighbours.Clear();
 
         try
         {
             var availableNeighboursSearchRadius = -1;
-            while (resourceBucket.GetWeight(ResourceMarker.All) > 0)
+            while (!srcRB.IsEmpty(srcMarker))
             {
                 // take any spill-over and put it in a random direction, up to maximumGroundDropSpillOverRange range
                 while (availableNeighbours.Count == 0)
@@ -148,8 +149,8 @@ internal partial class World
 
                         EcsCoordinator.IteratePlacedResourceArchetype((in EcsCoordinator.PlacedResourceIterationResult w) =>
                         {
-                            if (w.LocationComponent.Box.Contains(location + dv.ToNumericsVector2()))
-                                if (w.InventoryComponent.Inventory.GetWeight(ResourceMarker.All) >= Configuration.Data.GroundStackMaximumWeight)
+                            if (w.LocationComponent.Box.Contains(dv.ToNumericsVector2Center()))
+                                if (w.InventoryComponent.Inventory.GetWeight(dstMarker) >= Configuration.Data.GroundStackMaximumWeight)
                                 {
                                     okay = false;
                                     return false;
@@ -179,24 +180,25 @@ internal partial class World
                     newRB = newEntity.AddInventoryComponent().Inventory;
                     newEntity.AddIdentityComponent();
                 }
-                var newRBWeight = newRB.GetWeight(ResourceMarker.Default);
+                result.Add(newEntity);
+                var newRBWeight = newRB.GetWeight(dstMarker);
 
-                foreach (var resQ in resourceBucket.GetResourceQuantities(ResourceMarker.All).Where(w => w.Quantity != 0))
+                foreach (var resQ in srcRB.GetResourceQuantities(srcMarker).Where(w => !w.IsEmpty))
                     // only allow one resource kind on the ground
-                    if (!newRB.GetResourceQuantities(ResourceMarker.All).Any() || newRB.GetResourceQuantities(ResourceMarker.All).Any(rq => rq.Resource == resQ.Resource))
+                    if (!newRB.GetResourceQuantities(dstMarker).Any() || newRB.GetResourceQuantities(dstMarker).Any(rq => rq.Resource == resQ.Resource))
                     {
                         var maxNewWeight = Configuration.Data.GroundStackMaximumWeight - newRBWeight;
                         var quantityToMove = (int)Math.Floor(Math.Min(maxNewWeight, resQ.Weight) / resQ.Resource.Weight);
 
                         var newResQ = new ResourceQuantity(resQ.Resource, quantityToMove);
-                        newRB.Add(newResQ, ResourceMarker.Default);
-                        resourceBucket.Remove(newResQ);
-                        if (resQ.Quantity > 0)
+                        newRB.Add(newResQ, dstMarker);
+                        srcRB.Remove(newResQ);
+                        if (!resQ.IsEmpty)
                             break;  // couldn't finish the stack
                         newRBWeight += resQ.Resource.Weight * quantityToMove;
                     }
 
-                if (newRB.GetResourceQuantities(ResourceMarker.All).FirstOrDefault() is { } newRQ)
+                if (newRB.GetResourceQuantities(dstMarker).FirstOrDefault() is { } newRQ)
                 {
                     // once we finished this resource clump, set its name and render image
                     newEntity.GetIdentityComponent().Name = newRQ.Resource.Name;
@@ -208,6 +210,8 @@ internal partial class World
         {
             ObjectPool<List<(Vector2i pt, Entity? entity, ResourceBucket? rb)>>.Shared.Return(availableNeighbours);
         }
+
+        return result;
     }
 
     public static Entity AddBuildingEntity(BuildingTemplate buildingTemplate, Vector2 location, bool isBuilt)
@@ -233,6 +237,16 @@ internal partial class World
         entity.AddLocationComponent(box);
         entity.AddRenderableComponent(null);
         entity.AddZoneComponent(zoneType, plantTemplate);
+
+        return entity;
+    }
+
+    public static Entity AddStorageZoneEntity(ZoneType zoneType, in Box2 box)
+    {
+        var entity = EcsCoordinator.CreateEntity();
+        entity.AddLocationComponent(box);
+        entity.AddRenderableComponent(null);
+        entity.AddZoneComponent(zoneType, null);
 
         return entity;
     }
@@ -301,12 +315,17 @@ internal partial class World
                 var box = Box2.FromCornerSize(CurrentZoneStartPoint!.Value,
                     (MouseWorldPosition - CurrentZoneStartPoint.Value.ToNumericsVector2() + Vector2.One).ToVector2i());
 
-                if (CurrentWorldTemplate.ZoneType == ZoneType.MarkHarvest)
+                if (CurrentWorldTemplate.ZoneType is ZoneType.MarkHarvest)
                     MarkAllPlantsForHarvest(box);
                 else if (IsBoxFreeOfBuildings(box))
                 {
                     MarkAllPlantsForHarvest(box);
-                    AddGrowZoneEntity(CurrentWorldTemplate.ZoneType.Value, box, PlantTemplates["plant-rice"]);
+                    if (CurrentWorldTemplate.ZoneType is ZoneType.Grow)
+                        AddGrowZoneEntity(CurrentWorldTemplate.ZoneType.Value, box, PlantTemplates["plant-rice"]);
+                    else if (CurrentWorldTemplate.ZoneType is ZoneType.Storage)
+                        AddStorageZoneEntity(CurrentWorldTemplate.ZoneType.Value, box);
+                    else
+                        throw new NotImplementedException();
                 }
                 CurrentWorldTemplate.Clear();
             }
@@ -322,21 +341,40 @@ internal partial class World
             }
             else
             {
-                var foundAny = false;
+                var foundNextEntity = false;
+                Entity firstEntity = Entity.Invalid;
+
+                // look for the valid entity after the selected one
+                var foundSelectedEntity = false;
                 EcsCoordinator.IterateRenderArchetype((in EcsCoordinator.RenderIterationResult w) =>
                 {
                     if (w.LocationComponent.Box.Contains(worldLocation))
                     {
-                        SelectedEntity = w.Entity;
-                        foundAny = true;
-                        return false;
+                        if (firstEntity == Entity.Invalid)
+                            if (SelectedEntity is null)
+                            {
+                                foundNextEntity = true;
+                                SelectedEntity = w.Entity;
+                                return false;
+                            }
+                            else
+                                firstEntity = w.Entity;
+
+                        if (SelectedEntity == w.Entity)
+                            foundSelectedEntity = true;
+                        else if (foundSelectedEntity)
+                        {
+                            SelectedEntity = w.Entity;
+                            foundNextEntity = true;
+                            return false;
+                        }
                     }
 
                     return true;
                 });
 
-                if (!foundAny)
-                    SelectedEntity = null;
+                if (!foundNextEntity)
+                    SelectedEntity = firstEntity == Entity.Invalid ? null : firstEntity;
             }
         else if (inputAction == InputAction.Press && mouseButton == MouseButton.Button2)
             CurrentWorldTemplate.Clear();

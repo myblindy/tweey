@@ -14,6 +14,8 @@ readonly struct ResourceMarker : IEquatable<ResourceMarker>
     public override bool Equals([NotNullWhen(true)] object? obj) => obj is ResourceMarker otherRM && base.Equals(otherRM);
     public override int GetHashCode() => ID.GetHashCode();
 
+    public override string ToString() => this == All ? "All" : this == Default ? "Default" : ID.ToString();
+
     public static readonly ResourceMarker All = new(0);
     public static readonly ResourceMarker Default = new(1);
 }

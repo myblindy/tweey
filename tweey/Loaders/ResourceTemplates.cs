@@ -22,12 +22,16 @@ public class Resource : ITemplateFileName
 
 public record ResourceQuantity(Resource Resource)
 {
-    public ResourceQuantity(Resource resource, double quantity) : this(resource) =>
+    public ResourceQuantity(Resource resource, int quantity) : this(resource) =>
         Quantity = quantity;
 
-    public double Quantity { get; set; }
+    public int Quantity { get; set; }
     public double Weight => Resource.Weight * Quantity;
     public double PickupSpeedMultiplier => Resource.PickupSpeedMultiplier * Quantity;
+
+    public bool IsEmpty => Quantity == 0;
+
+    public override string ToString() => $"{Quantity} {Resource.Name}";
 }
 
 public class ResourceTemplates : BaseTemplates<ResourceIn, Resource>

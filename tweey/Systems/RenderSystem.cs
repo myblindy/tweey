@@ -1,4 +1,6 @@
-﻿namespace Tweey.Systems;
+﻿using Tweey.Support.AI.LowLevelPlans;
+
+namespace Tweey.Systems;
 
 [EcsSystem(Archetypes.Render)]
 partial class RenderSystem
@@ -207,10 +209,11 @@ partial class RenderSystem
 
     void RenderZone(in Box2 box, ZoneType zoneType, bool error, bool showGrid, bool showSizes)
     {
-        const float zoneBackgroundAlpha = .7f;
+        const float zoneBackgroundAlpha = .6f;
         ScreenFillQuad(box, (error, zoneType) switch
         {
             (false, ZoneType.Grow) => world.Configuration.Data.ZoneGrowColor.ToVector4(zoneBackgroundAlpha),
+            (false, ZoneType.Storage) => world.Configuration.Data.ZoneStorageColor.ToVector4(zoneBackgroundAlpha),
             (_, ZoneType.MarkHarvest) => world.Configuration.Data.ZoneHarvestColor.ToVector4(zoneBackgroundAlpha),
             (true, _) => world.Configuration.Data.ZoneErrorColor.ToVector4(zoneBackgroundAlpha),
             _ => throw new NotImplementedException()
@@ -303,7 +306,11 @@ partial class RenderSystem
                 ScreenFillQuad(w.LocationComponent.Box, atlas[plantComponent.Template.GetImageFileName(plantComponent.GetGrowth(world))]);
             }
             else if (w.RenderableComponent.AtlasEntryName is { } atlasEntryName)
+            {
+                if (w.Entity.HasInventoryComponent() && w.Entity.HasResourceComponent() && w.Entity.GetInventoryComponent().Inventory.IsEmpty(ResourceMarker.Default))
+                    return;
                 ScreenFillQuad(w.LocationComponent.Box, atlas[atlasEntryName]);
+            }
             else if (w.Entity.HasZoneComponent())
             {
                 ref var zoneComponent = ref w.Entity.GetZoneComponent();

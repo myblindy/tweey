@@ -8,6 +8,8 @@ internal class ResourceBucket
         foreach (var rq in rqs)
             Add(new(rq.Resource, rq.Quantity), ResourceMarker.Default);
     }
+    public ResourceBucket(ResourceQuantity rq, ResourceMarker marker) =>
+        Add(new(rq.Resource, rq.Quantity), marker);
 
     readonly List<(ResourceQuantity rq, ResourceMarker marker)> resources = new();
 
@@ -31,41 +33,126 @@ internal class ResourceBucket
             Add(srcRQ, dstMarker);
     }
 
-    public static void MarkResources(ResourceMarker marker, IEnumerable<ResourceBucket> sourceRBs, ResourceMarker sourceMarker, double maxWeight, in ResourceBucket _desired,
+    public static void MarkResources(ResourceMarker marker, IEnumerable<ResourceBucket> sourceRBs, ResourceMarker sourceMarker, double maxWeight, ResourceBucket? _desired,
         Action<ResourceQuantity>? selectedFeedbackAction, out double usedWeight)
     {
-        var desired = _desired.Clone();
+        var desired = _desired?.Clone();
         usedWeight = 0;
 
         foreach (var srcRB in sourceRBs)
         {
             changedRetry:
             foreach (var srcRQ in srcRB.GetResourceQuantities(sourceMarker))
-                foreach (var desiredRQ in desired.GetResourceQuantities(ResourceMarker.All))
-                    if (desiredRQ.Resource == srcRQ.Resource)
+                if (desired is null)
+                {
+                    var qtyUsed = Math.Min(srcRQ.Quantity, ((maxWeight - usedWeight) / srcRQ.Resource.Weight).Floor<int>());
+
+                    if (qtyUsed > 0)
                     {
-                        var qtyUsed = Math.Min(Math.Min(srcRQ.Quantity, desiredRQ.Quantity), (maxWeight - usedWeight) / srcRQ.Resource.Weight);
+                        srcRQ.Quantity -= qtyUsed;
 
-                        if (qtyUsed > 0)
-                        {
-                            desiredRQ.Quantity -= qtyUsed;
-                            srcRQ.Quantity -= qtyUsed;
+                        srcRB.Add(new(srcRQ.Resource, qtyUsed), marker);
+                        usedWeight += qtyUsed * srcRQ.Resource.Weight;
+                        selectedFeedbackAction?.Invoke(new(srcRQ.Resource, qtyUsed));
 
-                            srcRB.Add(new(srcRQ.Resource, qtyUsed), marker);
-                            usedWeight += qtyUsed * srcRQ.Resource.Weight;
-                            selectedFeedbackAction?.Invoke(new(srcRQ.Resource, qtyUsed));
-
-                            if (desired.IsEmpty(ResourceMarker.All))
-                                return;
-                            else
-                                goto changedRetry;
-                        }
+                        goto changedRetry;
                     }
+                }
+                else
+                    foreach (var desiredRQ in desired.GetResourceQuantities(ResourceMarker.All))
+                        if (desiredRQ.Resource == srcRQ.Resource)
+                        {
+                            var qtyUsed = Math.Min(Math.Min(srcRQ.Quantity, desiredRQ.Quantity),
+                                ((maxWeight - usedWeight) / srcRQ.Resource.Weight).Floor<int>());
+
+                            if (qtyUsed > 0)
+                            {
+                                desiredRQ.Quantity -= qtyUsed;
+                                srcRQ.Quantity -= qtyUsed;
+
+                                srcRB.Add(new(srcRQ.Resource, qtyUsed), marker);
+                                usedWeight += qtyUsed * srcRQ.Resource.Weight;
+                                selectedFeedbackAction?.Invoke(new(srcRQ.Resource, qtyUsed));
+
+                                if (desired.IsEmpty(ResourceMarker.All))
+                                    return;
+                                else
+                                    goto changedRetry;
+                            }
+                        }
+        }
+    }
+
+    public static void MarkResources(World world, ResourceMarker marker, IEnumerable<ResourceBucket> sourceRBs, ResourceMarker sourceMarker, double maxWeight,
+        IEnumerable<Box2> zoneBoxes, IEnumerable<(Entity entity, ResourceBucket rb, Vector2i location)> _storedResources,
+        Func<ResourceQuantity, Entity?, ResourceBucket?, Vector2i?, (ResourceBucket newRB, Entity newEntity)>? selectedFeedbackAction, out double usedWeight)
+    {
+        usedWeight = 0;
+        var storedResources = _storedResources.ToList();
+
+        // first try to stack it on existing stacks
+        fullRetry:
+        if (storedResources.Any())
+            foreach (var srcRB in sourceRBs)
+            {
+                changedRetry0:
+                foreach (var srcRQ in srcRB.GetResourceQuantities(sourceMarker))
+                    if (!srcRQ.IsEmpty)
+                    {
+                        foreach (ref var storedResource in CollectionsMarshal.AsSpan(storedResources))
+                            foreach (var dstRQ in storedResource.rb.GetResourceQuantities(ResourceMarker.All))
+                                if (dstRQ.Resource == srcRQ.Resource && dstRQ.Weight < world.Configuration.Data.GroundStackMaximumWeight)
+                                {
+                                    // found some space to stack it in
+                                    var qtyUsed = Math.Min((world.Configuration.Data.GroundStackMaximumWeight / srcRQ.Resource.Weight - storedResource.rb.GetWeight(ResourceMarker.All)).Floor<int>(),
+                                        Math.Min(srcRQ.Quantity, ((maxWeight - usedWeight) / srcRQ.Resource.Weight).Floor<int>()));
+
+                                    if (qtyUsed > 0)
+                                    {
+                                        srcRQ.Quantity -= qtyUsed;
+
+                                        srcRB.Add(new(srcRQ.Resource, qtyUsed), marker);
+                                        usedWeight += qtyUsed * srcRQ.Resource.Weight;
+                                        selectedFeedbackAction?.Invoke(new(srcRQ.Resource, qtyUsed), storedResource.entity, storedResource.rb, null);
+
+                                        goto changedRetry0;
+                                    }
+                                }
+                    }
+            }
+
+        // next try to make new stacks
+        foreach (var srcRB in sourceRBs)
+        {
+            foreach (var srcRQ in srcRB.GetResourceQuantities(sourceMarker))
+                if (!srcRQ.IsEmpty)
+                {
+                    foreach (var zoneBox in zoneBoxes)
+                        foreach (var zoneBoxLocation in zoneBox)
+                            if (!storedResources.Any(rw => rw.location == zoneBoxLocation))
+                            {
+                                // found some space to create a new stack
+                                var qtyUsed = Math.Min((world.Configuration.Data.GroundStackMaximumWeight / srcRQ.Resource.Weight).Floor<int>(),
+                                    Math.Min(srcRQ.Quantity, ((maxWeight - usedWeight) / srcRQ.Resource.Weight).Floor<int>()));
+
+                                if (qtyUsed > 0)
+                                {
+                                    srcRQ.Quantity -= qtyUsed;
+
+                                    srcRB.Add(new(srcRQ.Resource, qtyUsed), marker);
+                                    usedWeight += qtyUsed * srcRQ.Resource.Weight;
+                                    if (selectedFeedbackAction?.Invoke(new(srcRQ.Resource, qtyUsed), null, null, zoneBoxLocation) is { } result)
+                                        storedResources.Add((result.newEntity, result.newRB, zoneBoxLocation));
+
+                                    goto fullRetry;
+                                }
+                            }
+                }
         }
     }
 
     public bool IsEmpty(ResourceMarker marker) =>
-        GetResourceQuantities(marker).All(w => w.Quantity == 0);
+        GetResourceQuantities(marker).All(w => w.IsEmpty);
 
     public void Remove(ResourceQuantity rq)
     {
@@ -95,6 +182,9 @@ internal class ResourceBucket
 
     public IEnumerable<ResourceQuantity> GetResourceQuantities(ResourceMarker marker) =>
         marker == ResourceMarker.All ? resources.Select(w => w.rq) : resources.Where(w => w.marker == marker).Select(w => w.rq);
+
+    public IEnumerable<(ResourceQuantity rq, ResourceMarker marker)> GetResourceQuantitiesWithMarkers(ResourceMarker marker) =>
+        marker == ResourceMarker.All ? resources : resources.Where(w => w.marker == marker);
 
     public bool Contains(ResourceMarker marker, ResourceBucket other, ResourceMarker otherMarker)
     {
@@ -147,7 +237,7 @@ internal class ResourceBucket
     public bool Overlaps(ResourceBucket other)
     {
         foreach (var (rq, _) in other.resources)
-            if (rq.Quantity > 0 && resources.Any(r => r.rq.Resource == rq.Resource && r.rq.Quantity > 0))
+            if (!rq.IsEmpty && resources.Any(r => r.rq.Resource == rq.Resource && !r.rq.IsEmpty))
                 return true;
         return false;
     }
@@ -169,4 +259,7 @@ internal class ResourceBucket
 
     internal void Remove(ResourceMarker marker) =>
         resources.RemoveAll(w => w.marker == marker);
+
+    public override string ToString() =>
+        string.Join(", ", resources.Select(w => $"{w.rq}{(w.marker == ResourceMarker.Default ? "" : $" [{w.marker}]")}"));
 }
