@@ -11,7 +11,6 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{6447BD36-E71C-423F-97B5-05D067EBA579}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
-		globals.json = globals.json
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Twee.Roslyn", "Twee\Twee.Roslyn\Twee.Roslyn.csproj", "{D860C4C3-7B49-4636-B222-F25CC1DAC737}"
@@ -22,7 +21,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Twee.Renderer", "Twee\Twee.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Twee.Core", "Twee\Twee.Core\Twee.Core.csproj", "{DFB388CA-5624-4774-BC5F-60F70337890E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Twee.BuildAssetsBundle", "Twee\Twee.BuildAssetsBundle\Twee.BuildAssetsBundle.csproj", "{8286CF4D-13F9-477A-9607-BB2B1C8B3189}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Twee.BuildAssetsBundle", "Twee\Twee.BuildAssetsBundle\Twee.BuildAssetsBundle.csproj", "{8286CF4D-13F9-477A-9607-BB2B1C8B3189}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
