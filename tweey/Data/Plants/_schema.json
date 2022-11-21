@@ -1,22 +1,29 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema",
-  "title": "JSON Schema for trees",
+  "title": "JSON Schema for plants",
 
   "type": "object",
 
   "properties": {
     "name": {
       "type": "string",
-      "description": "The name of the tree."
+      "description": "The name of the plant."
     },
     "containingResources": {
       "type": "array",
       "items": { "$ref": "../BaseSchemas/resource_quantity.json#/definitions/resourceQuantity" }
     },
-    "workTicks": {
+    "harvestWorkTicks": {
       "type": "number",
       "minimum": 0
+    },
+    "daysFromSpawnToFullGrowth": {
+      "type": "number",
+      "minimum": 0
+    },
+    "occludeLight": {
+      "type": "boolean"
     }
   },
-  "required": [ "name", "containingResources", "workTicks" ]
+  "required": [ "name", "containingResources", "harvestWorkTicks", "daysFromSpawnToFullGrowth" ]
 }

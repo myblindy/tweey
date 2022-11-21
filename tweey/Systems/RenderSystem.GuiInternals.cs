@@ -91,11 +91,11 @@ partial class RenderSystem
         if (!frameType.HasFlag(FrameType.NoEdges))
         {
             var edgeTexture = atlas[$"Data/Frames/{baseTextureName}/tex{hoverPart}{checkedPart}-edge.png"];
-            ScreenFillQuad(Box2.FromCornerSize(box.TopLeft + new Vector2(elementWidth - 1, 0), new(box.Size.X - 2 * elementWidth + 2, elementWidth)),
+            ScreenFillQuad(Box2.FromCornerSize(box.TopLeft + new Vector2(elementWidth - 1, 0), new(box.Size.X - 2 * elementWidth + 3, elementWidth)),
                 Colors4.White, edgeTexture, false);
             ScreenFillQuad(Box2.FromCornerSize(box.TopRight - new Vector2(elementWidth + 1, -elementWidth), new(elementWidth, box.Size.Y - 2 * elementWidth + 2)),
                 Colors4.White, edgeTexture, false, GuiTransformType.Rotate90);
-            ScreenFillQuad(Box2.FromCornerSize(box.BottomLeft + new Vector2(elementWidth - 4, -elementWidth - 2), new(box.Size.X - 2 * elementWidth + 2, elementWidth)),
+            ScreenFillQuad(Box2.FromCornerSize(box.BottomLeft + new Vector2(elementWidth - 5, -elementWidth - 2), new(box.Size.X - 2 * elementWidth + 3, elementWidth)),
                 Colors4.White, edgeTexture, false, GuiTransformType.Rotate180);
             ScreenFillQuad(Box2.FromCornerSize(box.TopLeft + new Vector2(-1, elementWidth - 3), new(elementWidth, box.Size.Y - 2 * elementWidth)),
                 Colors4.White, edgeTexture, false, GuiTransformType.Rotate270);

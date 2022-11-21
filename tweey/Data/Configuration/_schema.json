@@ -23,6 +23,7 @@
     },
     "zoneGrowColor": { "$ref": "../BaseSchemas/color.json#/definitions/color" },
     "zoneHarvestColor": { "$ref": "../BaseSchemas/color.json#/definitions/color" },
+    "zoneStorageColor": { "$ref": "../BaseSchemas/color.json#/definitions/color" },
     "zoneErrorColor": { "$ref": "../BaseSchemas/color.json#/definitions/color" },
     "baseMovementSpeed": {
       "type": "number",
@@ -43,6 +44,11 @@
       "type": "number",
       "minimum": 0,
       "description": "How fast a villager will harvest one tick in units of 1/sec."
+    },
+    "basePlantSpeed": {
+      "type": "number",
+      "minimum": 0,
+      "description": "How fast a villager will plant in ticks."
     },
     "baseHungerMax": {
       "type": "number",

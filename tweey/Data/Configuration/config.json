@@ -10,6 +10,7 @@
   "basePickupSpeed": 0.2,
   "baseWorkSpeed": 0.2,
   "baseHarvestSpeed": 0.2,
+  "basePlantSpeed": 3,
   "baseHungerMax": 100,
   "baseHungerPerRealTimeSecond": 1,
   "baseEatSpeed": 1,
@@ -18,6 +19,7 @@
 
   "zoneGrowColor": [ 0.2, 0.8, 0.2 ],
   "zoneHarvestColor": [ 0.8, 0.8, 0.2 ],
+  "zoneStorageColor": [ 0.1, 0.1, 0.4 ],
   "zoneErrorColor": [ 0.8, 0.2, 0.2 ],
 
   "midDayColor": [ 1.0, 1.0, 1.0 ],

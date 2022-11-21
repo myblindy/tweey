@@ -307,9 +307,23 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             entityPartitions = new HashSet<Entity>[Width * Height];
                         }
 
-                        public partial int GetLocation({{string.Join(", ", archetypes.First(a => a.Name == p.UsedArchetypeName).Components.Select(c => $$"""
+                        public partial Vector2 GetWorldLocation({{string.Join(", ", archetypes.First(a => a.Name == p.UsedArchetypeName).Components.Select(c => $$"""
                             in {{c!.FullName}} {{c!.TypeRootName}}Component
                             """))}});
+
+                        int GetArrayLocation({{string.Join(", ", archetypes.First(a => a.Name == p.UsedArchetypeName).Components.Select(c => $$"""
+                            in {{c!.FullName}} {{c!.TypeRootName}}Component
+                            """))}})
+                        {
+                            var worldSize = WorldSize - Vector2i.One;
+                            var worldLocation = GetWorldLocation(
+                                {{string.Join(", ", archetypes.First(a => a.Name == p.UsedArchetypeName).Components.Select(c => $$"""
+                                    {{c!.TypeRootName}}Component
+                                    """))}});
+                            var x = (int)((LocationComponent.Box.Center.X / worldSize.X) * (Width - 1));
+                            var y = (int)((LocationComponent.Box.Center.Y / worldSize.Y) * (Height - 1));
+                            return y * Width + x;
+                        }
 
                         public void UpdateEntity(Entity entity)
                         {
@@ -321,7 +335,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                                 """))}})
                             {
                                 var oldPosition = entityPositions[entity];
-                                var newPosition = GetLocation({{string.Join(", ", archetypes.First(a => a.Name == p.UsedArchetypeName).Components.Select(c => $$"""
+                                var newPosition = GetArrayLocation({{string.Join(", ", archetypes.First(a => a.Name == p.UsedArchetypeName).Components.Select(c => $$"""
                                     in entity.Get{{c!.TypeRootName}}Component()
                                     """))}});
 
@@ -344,14 +358,14 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             }
                         }
 
-                        public IEnumerable<Entity> GetEntities(Vector2 worldLocation, Box2 screenSize)
+                        public IEnumerable<Entity> GetEntities(Box2 worldQueryBox)
                         {
                             var worldSize = WorldSize.ToNumericsVector2() - Vector2.One;
-                            var partitionLocation = worldLocation / worldSize * new Vector2(Width, Height);
-                            var halfPartitionCount = screenSize.Size / (worldSize * Zoom / new Vector2(Width, Height)) / 2;
+                            var partitionLocation = worldQueryBox.Center / worldSize * new Vector2(Width, Height);
+                            var halfPartitionCount = worldQueryBox.Size / (worldSize / new Vector2(Width, Height)) / 2;
 
-                            int ys = (int)MathF.Floor(MathF.Max(0, partitionLocation.Y - halfPartitionCount.Y)), ye = (int)MathF.Ceiling(MathF.Min(Height - 1, partitionLocation.Y + halfPartitionCount.Y));
-                            int xs = (int)MathF.Floor(MathF.Max(0, partitionLocation.X - halfPartitionCount.X)), xe = (int)MathF.Ceiling(MathF.Min(Width - 1, partitionLocation.X + halfPartitionCount.X));
+                            int ys = (int)MathF.Floor(MathF.Max(0, partitionLocation.Y - halfPartitionCount.Y - 1)), ye = (int)MathF.Ceiling(MathF.Min(Height - 1, partitionLocation.Y + halfPartitionCount.Y - 1));
+                            int xs = (int)MathF.Floor(MathF.Max(0, partitionLocation.X - halfPartitionCount.X - 1)), xe = (int)MathF.Ceiling(MathF.Min(Width - 1, partitionLocation.X + halfPartitionCount.X - 1));
 
                             for (var y = ys; y <= ye; ++y)
                                 for (var x = xs; x <= xe; ++x)
@@ -395,9 +409,9 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         }
 
                         {{string.Join(Environment.NewLine, partitions.Where(p => p.UsedArchetypeName == s.UsedArchetypeName).Select(p => $$"""
-                            void Iterate{{p.TypeRootName}}Components(Vector2 worldLocation, Box2 screenSize, IterateComponentsProcessDelegate process)
+                            void Iterate{{p.TypeRootName}}Components(in Box2 worldQueryBox, IterateComponentsProcessDelegate process)
                             {
-                                foreach(var entity in EcsCoordinator.{{p.TypeRootName}}Partition.GetEntities(worldLocation, screenSize))
+                                foreach(var entity in EcsCoordinator.{{p.TypeRootName}}Partition!.GetEntities(worldQueryBox))
                                     process(new(entity
                                         {{string.Concat(archetypes.First(at => at.Name == s.UsedArchetypeName).Components.Select(c => $", ref EcsCoordinator.Get{c!.TypeRootName}Component(entity)"))}}
                                     ));
@@ -429,17 +443,21 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                     // partitions
                     {{string.Join(Environment.NewLine, partitions.Select(p => $$"""
                         internal static {{p.FullName}}? {{p.TypeRootName}}Partition;
-
-                        public static void ConstructPartitions(Vector2i worldSize, float zoom) =>
-                            {{p.TypeRootName}}Partition = new() { WorldSize = worldSize, Zoom = zoom };
                         """))}}
+
+                    public static void ConstructPartitions(Vector2i worldSize, float zoom) 
+                    {
+                        {{string.Join(Environment.NewLine, partitions.Select(p => $$"""
+                            {{p.TypeRootName}}Partition = new() { WorldSize = worldSize, Zoom = zoom };
+                            """))}}
+                    }
                     
                     // partition updates
                     {{string.Join(Environment.NewLine, archetypes.Where(a => partitions.Any(p => p.UsedArchetypeName == a.Name)).Select(a => $$"""
                         internal static void Update{{a.Name}}Partitions(Entity entity)
                         {
                             {{string.Join(Environment.NewLine, partitions.Where(p => p.UsedArchetypeName == a.Name).Select(p => $$"""
-                                {{p.TypeRootName}}Partition.UpdateEntity(entity);
+                                {{p.TypeRootName}}Partition!.UpdateEntity(entity);
                                 """))}}
                         }
                         """))}}
@@ -527,7 +545,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             {{at.Name}}Entities.Remove(entity);
                             """)))}}
                         {{string.Join(Environment.NewLine, partitions.Select(p => $$"""
-                            {{p.TypeRootName}}Partition.RemoveEntity(entity);
+                            {{p.TypeRootName}}Partition!.RemoveEntity(entity);
                             """))}}
                     
                         return entities.Remove(entity);
@@ -559,7 +577,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                                     {
                                         {{at.Name}}Entities.Add(entity);
                                         {{string.Join(Environment.NewLine, partitions.Where(p => p.UsedArchetypeName == at.Name).Select(p => $$"""
-                                            {{p.TypeRootName}}Partition.UpdateEntity(entity);
+                                            {{p.TypeRootName}}Partition!.UpdateEntity(entity);
                                             """))}}
                                     }
                                     """)))}}
@@ -576,7 +594,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                                 {{string.Join(Environment.NewLine, c.Parameters.Select(p => $"component.{p.Name} = {p.Name};"))}}
 
                                 {{(rawArchetypes is null ? null : string.Join(Environment.NewLine, partitions.Where(p => archetypes.First(a => a.Name == p.UsedArchetypeName).Components.Contains(c)).Select(p => $$"""
-                                    {{p.TypeRootName}}Partition.UpdateEntity(entity);
+                                    {{p.TypeRootName}}Partition!.UpdateEntity(entity);
                                     """)))}}
 
                                 return ref component;
@@ -604,7 +622,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                                 !at.Components.Contains(c.TypeRootName) ? null : $$"""
                                     {{at.Name}}Entities.Remove(entity);
                                     {{string.Join(Environment.NewLine, partitions.Where(p => p.UsedArchetypeName == at.Name).Select(p => $$"""
-                                        {{p.TypeRootName}}Partition.RemoveEntity(entity);
+                                        {{p.TypeRootName}}Partition!.RemoveEntity(entity);
                                         """))}}
                                     """)))}}
                         }

@@ -3,6 +3,7 @@
 public static class Extensions
 {
     public static Vector2 ToNumericsVector2(this Vector2i v) => new(v.X, v.Y);
+    public static Vector2 ToNumericsVector2Center(this Vector2i v) => new(v.X + .5f, v.Y + .5f);
     public static Vector2 ToNumericsVector2(this OpenTK.Mathematics.Vector2 v) => new(v.X, v.Y);
     public static Vector2i ToVector2i(this Vector2 v) => new((int)v.X, (int)v.Y);
     public static Vector2i ToVector2i(this OpenTK.Mathematics.Vector2 v) => new((int)v.X, (int)v.Y);
@@ -94,4 +95,16 @@ public static class Extensions
 
     public static Vector2 Floor(this Vector2 vector) =>
         new(MathF.Floor(vector.X), MathF.Floor(vector.Y));
+
+    public static TRes Floor<TRes>(this double val)
+        where TRes : INumber<TRes>
+    {
+        return TRes.CreateTruncating(Math.Floor(val));
+    }
+
+    public static TRes Ceiling<TRes>(this double val)
+        where TRes : INumber<TRes>
+    {
+        return TRes.CreateTruncating(Math.Ceiling(val));
+    }
 }

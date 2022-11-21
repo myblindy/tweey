@@ -1,6 +1,6 @@
 ﻿namespace Tweey.Loaders;
 
-class BiomeTreeSpawnIn
+class BiomePlantSpawnIn
 {
     public string Name { get; set; } = null!;
     public double Chance { get; set; }
@@ -13,24 +13,24 @@ class BiomeIn
     public double MinHeight { get; set; }
     public double MinMoisture { get; set; }
     public double MinHeat { get; set; }
-    public List<BiomeTreeSpawnIn>? Trees { get; set; }
+    public List<BiomePlantSpawnIn>? Plants { get; set; }
 }
 
 class Biome
 {
-    public required string Name { get; init; }
-    public required string TileName { get; init; }
+    public required string Name { get; set; }
+    public required string TileName { get; set; }
     public required double MinHeight { get; set; }
     public required double MinMoisture { get; set; }
     public required double MinHeat { get; set; }
-    public required (TreeTemplate template, double chance)[] Trees { get; init; }
+    public required (PlantTemplate template, double chance)[] Plants { get; init; }
 }
 
 class Biomes : IReadOnlyDictionary<string, Biome>
 {
     readonly Dictionary<string, Biome> biomes;
 
-    public Biomes(ILoader loader, TreeTemplates treeTemplates)
+    public Biomes(ILoader loader, PlantTemplates treeTemplates)
     {
         using var stream = new StreamReader(loader.GetJsonData(@"Data/Biomes/biomes.json")().stream!);
         biomes = JsonSerializer.Deserialize<BiomeContainerIn>(stream.ReadToEnd(), Loader.BuildJsonOptions())!.Biomes
