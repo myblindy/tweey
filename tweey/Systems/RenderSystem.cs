@@ -13,7 +13,7 @@ partial class RenderSystem
     readonly UniformBufferObject<WindowUbo> windowUbo = new();
     const int windowUboBindingPoint = 1;
 
-    readonly StreamingVertexArrayObject<GuiVertex> guiVAO = new();
+    readonly StreamingVertexArrayObject<GuiVertex> guiVAO = new((int)RenderLayer.MaximumCount);
     readonly ShaderProgram guiShaderProgram;
     readonly ShaderProgram guiLightMapShaderProgram;
     readonly GuiSpace gui = new();
@@ -121,13 +121,13 @@ partial class RenderSystem
             var rx = box.Size.X / 2 * scale;
             var ry = box.Size.Y / 2 * scale;
 
-            lightMapOcclusionVAO.Vertices.Add(new((center + new Vector2(-rx, ry)) * zoom, circle ? new(0, 0) : uvHalf));
-            lightMapOcclusionVAO.Vertices.Add(new((center + new Vector2(rx, -ry)) * zoom, circle ? new(1, 1) : uvHalf));
-            lightMapOcclusionVAO.Vertices.Add(new((center + new Vector2(rx, ry)) * zoom, circle ? new(1, 0) : uvHalf));
+            lightMapOcclusionVAO.LayerVertices[0].Add(new((center + new Vector2(-rx, ry)) * zoom, circle ? new(0, 0) : uvHalf));
+            lightMapOcclusionVAO.LayerVertices[0].Add(new((center + new Vector2(rx, -ry)) * zoom, circle ? new(1, 1) : uvHalf));
+            lightMapOcclusionVAO.LayerVertices[0].Add(new((center + new Vector2(rx, ry)) * zoom, circle ? new(1, 0) : uvHalf));
 
-            lightMapOcclusionVAO.Vertices.Add(new((center + new Vector2(-rx, -ry)) * zoom, circle ? new(0, 1) : uvHalf));
-            lightMapOcclusionVAO.Vertices.Add(new((center + new Vector2(rx, -ry)) * zoom, circle ? new(1, 1) : uvHalf));
-            lightMapOcclusionVAO.Vertices.Add(new((center + new Vector2(-rx, ry)) * zoom, circle ? new(0, 0) : uvHalf));
+            lightMapOcclusionVAO.LayerVertices[0].Add(new((center + new Vector2(-rx, -ry)) * zoom, circle ? new(0, 1) : uvHalf));
+            lightMapOcclusionVAO.LayerVertices[0].Add(new((center + new Vector2(rx, -ry)) * zoom, circle ? new(1, 1) : uvHalf));
+            lightMapOcclusionVAO.LayerVertices[0].Add(new((center + new Vector2(-rx, ry)) * zoom, circle ? new(0, 0) : uvHalf));
         }
 
         IterateRenderPartitionByLocationComponents(worldViewBox, (in IterationResult w) =>
@@ -136,7 +136,7 @@ partial class RenderSystem
                 markOcclusionBox(w.LocationComponent.Box, w.RenderableComponent.OcclusionCircle, w.RenderableComponent.OcclusionScale);
         });
 
-        lightMapOcclusionVAO.UploadNewData();
+        lightMapOcclusionVAO.UploadNewData(Range.All);
 
         lightMapOcclusionFrameBuffer.Bind(FramebufferTarget.Framebuffer);
         GraphicsEngine.Clear();
@@ -210,7 +210,7 @@ partial class RenderSystem
     void RenderZone(in Box2 box, ZoneType zoneType, bool error, bool showGrid, bool showSizes)
     {
         const float zoneBackgroundAlpha = .6f;
-        ScreenFillQuad(box, (error, zoneType) switch
+        ScreenFillQuad(RenderLayer.Zone, box, (error, zoneType) switch
         {
             (false, ZoneType.Grow) => world.Configuration.Data.ZoneGrowColor.ToVector4(zoneBackgroundAlpha),
             (false, ZoneType.Storage) => world.Configuration.Data.ZoneStorageColor.ToVector4(zoneBackgroundAlpha),
@@ -225,15 +225,15 @@ partial class RenderSystem
             var cellAtlas = atlas["Data/Misc/zonecell.png"];
             for (var y = box.Top; y <= box.Bottom; ++y)
                 for (var x = box.Left; x <= box.Right; ++x)
-                    ScreenFillQuad(Box2.FromCornerSize(x, y, 1, 1), Colors4.White, cellAtlas);
+                    ScreenFillQuad(RenderLayer.Zone, Box2.FromCornerSize(x, y, 1, 1), Colors4.White, cellAtlas);
         }
 
         // sizes
         if (showSizes && box.Size is { X: > 1, Y: > 1 })
         {
             var screenBox = Box2.FromCornerSize((box.TopLeft + world.Offset) * world.Zoom, box.Size * world.Zoom);
-            ScreenString(box.Size.X.ToString(), new() { Size = largeFontSize }, screenBox, Colors4.White, panelBackgroundColor, HorizontalAlignment.Center);
-            ScreenString(box.Size.Y.ToString(), new() { Size = largeFontSize },
+            ScreenString(RenderLayer.Gui, box.Size.X.ToString(), new() { Size = largeFontSize }, screenBox, Colors4.White, panelBackgroundColor, HorizontalAlignment.Center);
+            ScreenString(RenderLayer.Gui, box.Size.Y.ToString(), new() { Size = largeFontSize },
                 screenBox.WithOffset(new Vector2(0, box.Size.Y * world.Zoom / 2 - largeFontSize / 2)),
                 Colors4.White, panelBackgroundColor);
         }
@@ -242,7 +242,7 @@ partial class RenderSystem
     void RenderBuildingSite(in Box2 box, in BuildingComponent buildingComponent)
     {
         var worldBox = Box2.FromCornerSize((box.TopLeft + world.Offset) * world.Zoom, new(world.Zoom));
-        ScreenFillFrame(worldBox, "BuildingSite", world.Zoom / 3, FrameType.NoEdges | FrameType.NoBackground);
+        ScreenFillFrame(RenderLayer.BelowPawns, worldBox, "BuildingSite", world.Zoom / 3, FrameType.NoEdges | FrameType.NoBackground);
 
         var percentageFilled = 1 - buildingComponent.BuildWorkTicks / buildingComponent.Template.BuildWorkTicks;
         const int subDivisions = 2;
@@ -250,7 +250,7 @@ partial class RenderSystem
 
         for (int cellsToFill = (int)Math.Ceiling(totalCells.X * totalCells.Y * percentageFilled), row = 0, col = 0; cellsToFill > 0; --cellsToFill)
         {
-            ScreenStrokeQuad(
+            ScreenStrokeQuad(RenderLayer.Gui,
                 Box2.FromCornerSize(worldBox.BottomRight - new Vector2(col + 1, row + 1) * world.Zoom / subDivisions, new(world.Zoom / subDivisions)).WithExpand(new Vector2(-2)),
                 2, Colors4.DarkGray, blankAtlasEntry);
 
@@ -283,7 +283,7 @@ partial class RenderSystem
                     if ((int)(x + normalizedGrassOffset.X) is { } xIdx && (int)(y + normalizedGrassOffset.Y) is { } yIdx
                         && xIdx >= 0 && yIdx >= 0 && xIdx < world.TerrainTileNames.GetLength(0) && yIdx < world.TerrainTileNames.GetLength(1))
                     {
-                        ScreenFillQuad(Box2.FromCornerSize(new Vector2(x, y) + normalizedGrassOffset, 1, 1), Colors4.White,
+                        ScreenFillQuad(RenderLayer.Ground, Box2.FromCornerSize(new Vector2(x, y) + normalizedGrassOffset, 1, 1), Colors4.White,
                             atlas[world.TerrainTileNames[(int)(x + normalizedGrassOffset.X), (int)(y + normalizedGrassOffset.Y)]]);
                     }
 
@@ -303,13 +303,13 @@ partial class RenderSystem
             if (w.Entity.HasPlantComponent())
             {
                 ref var plantComponent = ref w.Entity.GetPlantComponent();
-                ScreenFillQuad(w.LocationComponent.Box, atlas[plantComponent.Template.GetImageFileName(plantComponent.GetGrowth(world))]);
+                ScreenFillQuad(RenderLayer.BelowPawns, w.LocationComponent.Box, atlas[plantComponent.Template.GetImageFileName(plantComponent.GetGrowth(world))]);
             }
             else if (w.RenderableComponent.AtlasEntryName is { } atlasEntryName)
             {
                 if (w.Entity.HasInventoryComponent() && w.Entity.HasResourceComponent() && w.Entity.GetInventoryComponent().Inventory.IsEmpty(ResourceMarker.Default))
                     return;
-                ScreenFillQuad(w.LocationComponent.Box, atlas[atlasEntryName]);
+                ScreenFillQuad(RenderLayer.BelowPawns, w.LocationComponent.Box, atlas[atlasEntryName]);
             }
             else if (w.Entity.HasZoneComponent())
             {
@@ -318,49 +318,45 @@ partial class RenderSystem
             }
 
             if (w.Entity.HasMarkForHarvestComponent())
-                ScreenFillQuad(w.LocationComponent.Box, markForHarvestAtlasEntry);
+                ScreenFillQuad(RenderLayer.Gui, w.LocationComponent.Box, markForHarvestAtlasEntry);
         });
 
-        var countTri0 = guiVAO.Vertices.Count;
-
         // store the ai plan targets' vertices (lines)
-        if (world.ShowDetails)
-            EcsCoordinator.IterateWorkerArchetype((in EcsCoordinator.WorkerIterationResult w) =>
-            {
-                if (w.WorkerComponent.CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity aiLowLevelPlanWithTargetEntity)
-                    ScreenLine(w.LocationComponent.Box,
-                        aiLowLevelPlanWithTargetEntity.TargetEntity.GetLocationComponent().Box, Colors4.Yellow);
-            });
-        else if (world.SelectedEntity.HasValue && world.SelectedEntity.Value.HasWorkerComponent()
-            && world.SelectedEntity.Value.GetWorkerComponent().CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity { } aiLowLevelPlanWithTargetEntity)
-        {
-            ScreenLine(world.SelectedEntity.Value.GetLocationComponent().Box,
-                aiLowLevelPlanWithTargetEntity.TargetEntity.GetLocationComponent().Box, Colors4.Yellow);
-        }
+        //if (world.ShowDetails)
+        //    EcsCoordinator.IterateWorkerArchetype((in EcsCoordinator.WorkerIterationResult w) =>
+        //    {
+        //        if (w.WorkerComponent.CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity aiLowLevelPlanWithTargetEntity)
+        //            ScreenLine(w.LocationComponent.Box,
+        //                aiLowLevelPlanWithTargetEntity.TargetEntity.GetLocationComponent().Box, Colors4.Yellow);
+        //    });
+        //else if (world.SelectedEntity.HasValue && world.SelectedEntity.Value.HasWorkerComponent()
+        //    && world.SelectedEntity.Value.GetWorkerComponent().CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity { } aiLowLevelPlanWithTargetEntity)
+        //{
+        //    ScreenLine(world.SelectedEntity.Value.GetLocationComponent().Box,
+        //        aiLowLevelPlanWithTargetEntity.TargetEntity.GetLocationComponent().Box, Colors4.Yellow);
+        //}
 
         // selection box (lines)
         if (world.SelectedEntity is { } entity)
-            ScreenLineQuad(entity.GetLocationComponent().Box, Colors4.White);
-        var countLines1 = guiVAO.Vertices.Count - countTri0;
+            ScreenStrokeQuad(RenderLayer.Gui, ConvertWorldToScreenBox(entity.GetLocationComponent().Box), 1f, Colors4.White, blankAtlasEntry);
 
         // render top layer (tri2)
         EcsCoordinator.IterateVillagerArchetype((in EcsCoordinator.VillagerIterationResult w) =>
         {
-            ScreenString(w.IdentityComponent.Name, new() { Size = 16 },
+            ScreenString(RenderLayer.Gui, w.IdentityComponent.Name, new() { Size = 16 },
                 new Vector2((w.LocationComponent.Box.Left + .5f - world.Offset.X) * world.Zoom, (w.LocationComponent.Box.Top - world.Offset.Y) * world.Zoom - 20),
                 Colors4.White, new(0, 0, 0, .4f), HorizontalAlignment.Center);
             //if (world.ShowDetails)
             //    ScreenString(villager.AIPlan?.Description, new() { Size = 13 },
             //        new Vector2((villager.InterpolatedLocation.X + .5f - world.Offset.X) * world.Zoom, (villager.InterpolatedLocation.Y + 1 - world.Offset.Y) * world.Zoom),
             //        Colors4.White, new(0, 0, 0, .4f), HorizontalAlignment.Center);
-
         });
 
         // building template
         if (world.CurrentWorldTemplate.BuildingTemplate is not null)
         {
             var box = Box2.FromCornerSize(world.MouseWorldPosition.ToVector2i(), world.CurrentWorldTemplate.BuildingTemplate.Width, world.CurrentWorldTemplate.BuildingTemplate.Height);
-            ScreenFillQuad(box, World.IsBoxFreeOfBuildings(box) ? Colors4.Lime : Colors4.Red, atlas[world.CurrentWorldTemplate.BuildingTemplate.ImageFileName]);
+            ScreenFillQuad(RenderLayer.BelowPawns, box, World.IsBoxFreeOfBuildings(box) ? Colors4.Lime : Colors4.Red, atlas[world.CurrentWorldTemplate.BuildingTemplate.ImageFileName]);
         }
 
         // zone template
@@ -373,10 +369,6 @@ partial class RenderSystem
         // render gui (tri2)
         RenderGui();
 
-        var countTri2 = guiVAO.Vertices.Count - countTri0 - countLines1;
-
-        guiVAO.UploadNewData();
-
         // draw the world (with light mapping)
         guiLightMapShaderProgram.Use();
         guiLightMapShaderProgram.Uniform("ambientColor",
@@ -387,11 +379,12 @@ partial class RenderSystem
         GraphicsEngine.Viewport(0, 0, (int)windowUbo.Data.WindowSize.X, (int)windowUbo.Data.WindowSize.Y);
         GraphicsEngine.BlendNormalAlpha();
 
-        guiVAO.Draw(PrimitiveType.Triangles, vertexOrIndexCount: countTri0);
+        guiVAO.UploadNewData(..((int)RenderLayer.BelowGui + 1));
+        guiVAO.Draw(PrimitiveType.Triangles);
 
         // draw the gui overlays, which shouldn't be light mapped
         guiShaderProgram.Use();
-        guiVAO.Draw(PrimitiveType.Lines, countTri0, countLines1);
-        guiVAO.Draw(PrimitiveType.Triangles, countTri0 + countLines1, countTri2);
+        guiVAO.UploadNewData(Range.All);
+        guiVAO.Draw(PrimitiveType.Triangles);
     }
 }
