@@ -2,7 +2,7 @@
 
 public class StreamingVertexArrayObject<TVertex> : BaseVertexArrayObject where TVertex : unmanaged
 {
-    public unsafe StreamingVertexArrayObject(int initialVertexCapacity = ushort.MaxValue)
+    public unsafe StreamingVertexArrayObject(int layerCount = 1, int initialVertexCapacity = ushort.MaxValue)
     {
         newVertexCapacity = vertexCapacity = initialVertexCapacity;
 
@@ -14,22 +14,28 @@ public class StreamingVertexArrayObject<TVertex> : BaseVertexArrayObject where T
 
         VertexDefinitionSetup?.Invoke(typeof(TVertex), vertexArrayHandle);
 
-        Vertices = new(initialVertexCapacity);
+        LayerVertices = new List<TVertex>[layerCount];
+        foreach (ref var vertexList in LayerVertices.AsSpan())
+            vertexList = new(initialVertexCapacity);
     }
 
     unsafe void OrphanVertexBuffer() =>
         GL.NamedBufferData(vertexBufferHandle, Unsafe.SizeOf<TVertex>() * vertexCapacity, null, VertexBufferObjectUsage.StreamDraw);
 
-    public unsafe void UploadNewData()
+    public unsafe void UploadNewData(Range layerRange)
     {
-        if (Vertices.Count == 0)
+        var totalVertexCount = 0;
+        foreach (ref var list in LayerVertices.AsSpan()[layerRange])
+            totalVertexCount += list.Count;
+
+        if (totalVertexCount == 0)
             return;
 
         const int minBufferMultiplier = 10, maxBufferMultiplier = 15;
-        if (Vertices.Count * minBufferMultiplier > newVertexCapacity)
-            newVertexCapacity = Vertices.Count * maxBufferMultiplier;
+        if (totalVertexCount * minBufferMultiplier > newVertexCapacity)
+            newVertexCapacity = totalVertexCount * maxBufferMultiplier;
 
-        if (vertexCurrentOffset + Vertices.Count >= vertexCapacity)
+        if (vertexCurrentOffset + totalVertexCount >= vertexCapacity)
         {
             // orphan the buffer
             vertexCapacity = newVertexCapacity;
@@ -38,14 +44,19 @@ public class StreamingVertexArrayObject<TVertex> : BaseVertexArrayObject where T
         }
 
         // copy the temp vertex data to the driver
-        // TODO: perhaps implement the Add() directly to this mapped memory
-        var dest = GL.MapNamedBufferRange(vertexBufferHandle, vertexCurrentOffset * Unsafe.SizeOf<TVertex>(), Vertices.Count * Unsafe.SizeOf<TVertex>(),
-            MapBufferAccessMask.MapWriteBit | MapBufferAccessMask.MapUnsynchronizedBit | MapBufferAccessMask.MapInvalidateBufferBit | MapBufferAccessMask.MapInvalidateRangeBit);
-        CollectionsMarshal.AsSpan(Vertices).CopyTo(new Span<TVertex>(dest, Vertices.Count));
+        var dest = new Span<TVertex>(GL.MapNamedBufferRange(vertexBufferHandle, vertexCurrentOffset * Unsafe.SizeOf<TVertex>(), totalVertexCount * Unsafe.SizeOf<TVertex>(),
+            MapBufferAccessMask.MapWriteBit | MapBufferAccessMask.MapUnsynchronizedBit | MapBufferAccessMask.MapInvalidateBufferBit | MapBufferAccessMask.MapInvalidateRangeBit), totalVertexCount);
+
+        foreach (ref var vertexList in LayerVertices.AsSpan()[layerRange])
+        {
+            CollectionsMarshal.AsSpan(vertexList).CopyTo(dest);
+            dest = dest[vertexList.Count..];
+            vertexList.Clear();
+        }
+
         GL.UnmapNamedBuffer(vertexBufferHandle);
 
-        vertexCurrentOffset += lastUploadedVertexLength = Vertices.Count;
-        Vertices.Clear();
+        vertexCurrentOffset += lastUploadedVertexLength = totalVertexCount;
     }
 
     /// <summary>
@@ -73,5 +84,6 @@ public class StreamingVertexArrayObject<TVertex> : BaseVertexArrayObject where T
     readonly VertexArrayHandle vertexArrayHandle;
     int vertexCapacity, newVertexCapacity, vertexCurrentOffset, lastUploadedVertexLength;
 
-    public List<TVertex> Vertices { get; }
+    public List<TVertex>[] LayerVertices { get; }
+    public int CurrentVertexCount => LayerVertices.Sum(x => x.Count);
 }

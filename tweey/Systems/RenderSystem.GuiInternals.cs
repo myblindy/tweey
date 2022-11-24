@@ -12,10 +12,15 @@ partial class RenderSystem
     bool IsWorldViewBoxInView(in Box2 box) =>
         Box2.FromCornerSize(world.Offset, windowUbo.Data.WindowSize / world.Zoom).Intersects(box);
 
-    void ScreenFillQuad(in Box2 box, in AtlasEntry entry, bool asWorldCoords = true, GuiTransformType transform = GuiTransformType.None) =>
-        ScreenFillQuad(box, Colors4.White, entry, asWorldCoords, transform);
+    enum RenderLayer { Ground, Zone, BelowPawns, Pawn, Gui, MaximumCount, BelowGui = Gui - 1 }
 
-    void ScreenFillQuad(in Box2 box, in Vector4 color, in AtlasEntry entry, bool asWorldCoords = true, GuiTransformType transform = GuiTransformType.None)
+    Box2 ConvertWorldToScreenBox(in Box2 box) =>
+        Box2.FromCornerSize((box.TopLeft - world.Offset) * world.Zoom, box.Size * world.Zoom);
+
+    void ScreenFillQuad(RenderLayer renderLayer, in Box2 box, in AtlasEntry entry, bool asWorldCoords = true, GuiTransformType transform = GuiTransformType.None) =>
+        ScreenFillQuad(renderLayer, box, Colors4.White, entry, asWorldCoords, transform);
+
+    void ScreenFillQuad(RenderLayer renderLayer, in Box2 box, in Vector4 color, in AtlasEntry entry, bool asWorldCoords = true, GuiTransformType transform = GuiTransformType.None)
     {
         if (color.W == 0)
             return;
@@ -35,21 +40,21 @@ partial class RenderSystem
         var zoom = asWorldCoords ? world.Zoom : 1;
         var offset = asWorldCoords ? world.Offset : default;
         var br = box.BottomRight + Vector2.One;
-        guiVAO.Vertices.Add(new((box.TopLeft - offset) * zoom, color, uv0));
-        guiVAO.Vertices.Add(new((br - offset) * zoom, color, uv1));
-        guiVAO.Vertices.Add(new(new((br.X - offset.X) * zoom, (box.Top - offset.Y) * zoom), color, uv2));
+        guiVAO.LayerVertices[(int)renderLayer].Add(new((box.TopLeft - offset) * zoom, color, uv0));
+        guiVAO.LayerVertices[(int)renderLayer].Add(new((br - offset) * zoom, color, uv1));
+        guiVAO.LayerVertices[(int)renderLayer].Add(new(new((br.X - offset.X) * zoom, (box.Top - offset.Y) * zoom), color, uv2));
 
-        guiVAO.Vertices.Add(new(new((box.Left - offset.X) * zoom, (br.Y - offset.Y) * zoom), color, uv3));
-        guiVAO.Vertices.Add(new((br - offset) * zoom, color, uv1));
-        guiVAO.Vertices.Add(new((box.TopLeft - offset) * zoom, color, uv0));
+        guiVAO.LayerVertices[(int)renderLayer].Add(new(new((box.Left - offset.X) * zoom, (br.Y - offset.Y) * zoom), color, uv3));
+        guiVAO.LayerVertices[(int)renderLayer].Add(new((br - offset) * zoom, color, uv1));
+        guiVAO.LayerVertices[(int)renderLayer].Add(new((box.TopLeft - offset) * zoom, color, uv0));
     }
 
-    void ScreenStrokeQuad(in Box2 box, float strokeWidth, in Vector4 color, in AtlasEntry entry)
+    void ScreenStrokeQuad(RenderLayer renderLayer, in Box2 box, float strokeWidth, in Vector4 color, in AtlasEntry entry)
     {
-        ScreenFillQuad(Box2.FromCornerSize(box.TopLeft, new(box.Size.X, strokeWidth)), color, entry, false);
-        ScreenFillQuad(Box2.FromCornerSize(box.TopRight - new Vector2(strokeWidth - 1, 0), new(strokeWidth, box.Size.Y)), color, entry, false);
-        ScreenFillQuad(Box2.FromCornerSize(box.BottomLeft - new Vector2(0, strokeWidth - 1), new(box.Size.X, strokeWidth)), color, entry, false);
-        ScreenFillQuad(Box2.FromCornerSize(box.TopLeft, new(strokeWidth, box.Size.Y)), color, entry, false);
+        ScreenFillQuad(renderLayer, Box2.FromCornerSize(box.TopLeft, new(box.Size.X, strokeWidth)), color, entry, false);
+        ScreenFillQuad(renderLayer, Box2.FromCornerSize(box.TopRight - new Vector2(strokeWidth - 1, 0), new(strokeWidth, box.Size.Y)), color, entry, false);
+        ScreenFillQuad(renderLayer, Box2.FromCornerSize(box.BottomLeft - new Vector2(0, strokeWidth - 1), new(box.Size.X, strokeWidth)), color, entry, false);
+        ScreenFillQuad(renderLayer, Box2.FromCornerSize(box.TopLeft, new(strokeWidth, box.Size.Y)), color, entry, false);
     }
 
     [Flags]
@@ -67,7 +72,7 @@ partial class RenderSystem
     /// Some examples: <c>/Data/Frames/button/tex-corner.png</c>, <c>/Data/Frames/button/tex-hover-edge.png</c>, etc.
     /// </summary>
     /// <param name="elementWidth">The width of the corner &amp; edge textures, in pixels. Looks best with the pixel width, but it scales as needed.</param>
-    void ScreenFillFrame(in Box2 box, string baseTextureName, float elementWidth, FrameType frameType = FrameType.Normal)
+    void ScreenFillFrame(RenderLayer renderLayer, in Box2 box, string baseTextureName, float elementWidth, FrameType frameType = FrameType.Normal)
     {
         var hoverPart = frameType.HasFlag(FrameType.Hover) ? "-hover" : null;
         var checkedPart = frameType.HasFlag(FrameType.Checked) ? "-checked" : null;
@@ -76,13 +81,13 @@ partial class RenderSystem
         if (!frameType.HasFlag(FrameType.NoCorners))
         {
             var cornerTexture = atlas[$"Data/Frames/{baseTextureName}/tex{hoverPart}{checkedPart}-corner.png"];
-            ScreenFillQuad(Box2.FromCornerSize(box.TopLeft, new(elementWidth)),
+            ScreenFillQuad(renderLayer, Box2.FromCornerSize(box.TopLeft, new(elementWidth)),
                 Colors4.White, cornerTexture, false);
-            ScreenFillQuad(Box2.FromCornerSize(box.TopRight - new Vector2(elementWidth + 1, -1), new(elementWidth)),
+            ScreenFillQuad(renderLayer, Box2.FromCornerSize(box.TopRight - new Vector2(elementWidth + 1, -1), new(elementWidth)),
                 Colors4.White, cornerTexture, false, GuiTransformType.Rotate90);
-            ScreenFillQuad(Box2.FromCornerSize(box.BottomRight - new Vector2(elementWidth + 2), new(elementWidth)),
+            ScreenFillQuad(renderLayer, Box2.FromCornerSize(box.BottomRight - new Vector2(elementWidth + 2), new(elementWidth)),
                 Colors4.White, cornerTexture, false, GuiTransformType.Rotate180);
-            ScreenFillQuad(Box2.FromCornerSize(box.BottomLeft - new Vector2(1, elementWidth + 3), new(elementWidth)),
+            ScreenFillQuad(renderLayer, Box2.FromCornerSize(box.BottomLeft - new Vector2(1, elementWidth + 3), new(elementWidth)),
                 Colors4.White, cornerTexture, false, GuiTransformType.Rotate270);
 
             if (edgeColor == default) edgeColor = cornerTexture.EdgeColor;
@@ -91,13 +96,13 @@ partial class RenderSystem
         if (!frameType.HasFlag(FrameType.NoEdges))
         {
             var edgeTexture = atlas[$"Data/Frames/{baseTextureName}/tex{hoverPart}{checkedPart}-edge.png"];
-            ScreenFillQuad(Box2.FromCornerSize(box.TopLeft + new Vector2(elementWidth - 1, 0), new(box.Size.X - 2 * elementWidth + 3, elementWidth)),
+            ScreenFillQuad(renderLayer, Box2.FromCornerSize(box.TopLeft + new Vector2(elementWidth - 1, 0), new(box.Size.X - 2 * elementWidth + 3, elementWidth)),
                 Colors4.White, edgeTexture, false);
-            ScreenFillQuad(Box2.FromCornerSize(box.TopRight - new Vector2(elementWidth + 1, -elementWidth), new(elementWidth, box.Size.Y - 2 * elementWidth + 2)),
+            ScreenFillQuad(renderLayer, Box2.FromCornerSize(box.TopRight - new Vector2(elementWidth + 1, -elementWidth), new(elementWidth, box.Size.Y - 2 * elementWidth + 2)),
                 Colors4.White, edgeTexture, false, GuiTransformType.Rotate90);
-            ScreenFillQuad(Box2.FromCornerSize(box.BottomLeft + new Vector2(elementWidth - 5, -elementWidth - 2), new(box.Size.X - 2 * elementWidth + 3, elementWidth)),
+            ScreenFillQuad(renderLayer, Box2.FromCornerSize(box.BottomLeft + new Vector2(elementWidth - 5, -elementWidth - 2), new(box.Size.X - 2 * elementWidth + 3, elementWidth)),
                 Colors4.White, edgeTexture, false, GuiTransformType.Rotate180);
-            ScreenFillQuad(Box2.FromCornerSize(box.TopLeft + new Vector2(-1, elementWidth - 3), new(elementWidth, box.Size.Y - 2 * elementWidth)),
+            ScreenFillQuad(renderLayer, Box2.FromCornerSize(box.TopLeft + new Vector2(-1, elementWidth - 3), new(elementWidth, box.Size.Y - 2 * elementWidth)),
                 Colors4.White, edgeTexture, false, GuiTransformType.Rotate270);
 
             if (edgeColor == default) edgeColor = edgeTexture.EdgeColor;
@@ -105,13 +110,13 @@ partial class RenderSystem
 
         if (!frameType.HasFlag(FrameType.NoBackground))
         {
-            ScreenFillQuad(Box2.FromCornerSize(box.TopLeft + new Vector2(elementWidth - 1), new(box.Size.X - 2 * elementWidth, box.Size.Y - 2 * elementWidth)),
+            ScreenFillQuad(renderLayer, Box2.FromCornerSize(box.TopLeft + new Vector2(elementWidth - 1), new(box.Size.X - 2 * elementWidth, box.Size.Y - 2 * elementWidth)),
                 edgeColor, blankAtlasEntry, false);
         }
     }
 
-    void ScreenString(string? s, FontDescription fontDescription, in Box2 box, in Vector4 fgColor, in Vector4 bgColor, HorizontalAlignment horizontalAlignment = HorizontalAlignment.Left) =>
-        ScreenString(s, fontDescription, horizontalAlignment switch
+    void ScreenString(RenderLayer renderLayer, string? s, FontDescription fontDescription, in Box2 box, in Vector4 fgColor, in Vector4 bgColor, HorizontalAlignment horizontalAlignment = HorizontalAlignment.Left) =>
+        ScreenString(renderLayer, s, fontDescription, horizontalAlignment switch
         {
             HorizontalAlignment.Left => box.TopLeft,
             HorizontalAlignment.Right => box.TopRight,
@@ -119,33 +124,33 @@ partial class RenderSystem
             _ => throw new NotImplementedException()
         }, fgColor, bgColor, horizontalAlignment);
 
-    void ScreenString(string? s, FontDescription fontDescription, Vector2 location, Vector4 fgColor, Vector4 bgColor, HorizontalAlignment horizontalAlignment = HorizontalAlignment.Left)
+    void ScreenString(RenderLayer renderLayer, string? s, FontDescription fontDescription, Vector2 location, Vector4 fgColor, Vector4 bgColor, HorizontalAlignment horizontalAlignment = HorizontalAlignment.Left)
     {
         if (s is { })
             fontRenderer.Render(s, fontDescription, location.ToVector2i(),
                 box =>
                 {
                     if (bgColor.W > 0)
-                        ScreenFillQuad(box, bgColor, blankAtlasEntry, false);
+                        ScreenFillQuad(renderLayer, box, bgColor, blankAtlasEntry, false);
                 },
-                (box, atlasEntry) => ScreenFillQuad(box, fgColor, atlasEntry, false), horizontalAlignment);
+                (box, atlasEntry) => ScreenFillQuad(renderLayer, box, fgColor, atlasEntry, false), horizontalAlignment);
     }
 
-    void ScreenLine(in Box2 box1, in Box2 box2) =>
-        ScreenLine(box1, box2, Colors4.White);
+    void ScreenLine(RenderLayer renderLayer, in Box2 box1, in Box2 box2) =>
+        ScreenLine(renderLayer, box1, box2, Colors4.White);
 
-    void ScreenLine(in Box2 box1, in Box2 box2, in Vector4 color)
+    void ScreenLine(RenderLayer renderLayer, in Box2 box1, in Box2 box2, in Vector4 color)
     {
         if (color.W == 0) return;
 
-        guiVAO.Vertices.Add(new((box1.Center + new Vector2(.5f, .5f) - world.Offset) * world.Zoom, color, blankAtlasEntry.TextureCoordinate0));
-        guiVAO.Vertices.Add(new((box2.Center + new Vector2(.5f, .5f) - world.Offset) * world.Zoom, color, blankAtlasEntry.TextureCoordinate1));
+        guiVAO.LayerVertices[(int)renderLayer].Add(new((box1.Center + new Vector2(.5f, .5f) - world.Offset) * world.Zoom, color, blankAtlasEntry.TextureCoordinate0));
+        guiVAO.LayerVertices[(int)renderLayer].Add(new((box2.Center + new Vector2(.5f, .5f) - world.Offset) * world.Zoom, color, blankAtlasEntry.TextureCoordinate1));
     }
 
-    void ScreenLineQuad(in Box2 box, bool asWorldCoords = true) =>
-        ScreenLineQuad(box, asWorldCoords);
+    void ScreenLineQuad(RenderLayer renderLayer, in Box2 box, bool asWorldCoords = true) =>
+        ScreenLineQuad(renderLayer, box, asWorldCoords);
 
-    void ScreenLineQuad(in Box2 box, in Vector4 color, bool asWorldCoords = true)
+    void ScreenLineQuad(RenderLayer renderLayer, in Box2 box, in Vector4 color, bool asWorldCoords = true)
     {
         if (color.W == 0) return;
 
@@ -153,14 +158,14 @@ partial class RenderSystem
         var offset = asWorldCoords ? world.Offset : default;
         var br = box.BottomRight + Vector2.One;
 
-        guiVAO.Vertices.Add(new((box.TopLeft - offset) * zoom, color, blankAtlasEntry.TextureCoordinate0));
-        guiVAO.Vertices.Add(new(new((box.Right + 1 - offset.X) * zoom, (box.Top - offset.Y) * zoom), color, new(blankAtlasEntry.TextureCoordinate1.X, blankAtlasEntry.TextureCoordinate0.Y, blankAtlasEntry.TextureCoordinate0.Z)));
-        guiVAO.Vertices.Add(new(new((box.Left - offset.X) * zoom, (box.Bottom + 1 - offset.Y) * zoom), color, new(blankAtlasEntry.TextureCoordinate0.X, blankAtlasEntry.TextureCoordinate1.Y, blankAtlasEntry.TextureCoordinate0.Z)));
-        guiVAO.Vertices.Add(new((br - offset) * zoom, color, blankAtlasEntry.TextureCoordinate1));
-        guiVAO.Vertices.Add(new((box.TopLeft - offset) * zoom, color, blankAtlasEntry.TextureCoordinate0));
-        guiVAO.Vertices.Add(new(new((box.Left - offset.X) * zoom, (box.Bottom + 1 - offset.Y) * zoom), color, new(blankAtlasEntry.TextureCoordinate0.X, blankAtlasEntry.TextureCoordinate1.Y, blankAtlasEntry.TextureCoordinate0.Z)));
-        guiVAO.Vertices.Add(new(new((box.Right + 1 - offset.X) * zoom, (box.Top - offset.Y) * zoom), color, new(blankAtlasEntry.TextureCoordinate1.X, blankAtlasEntry.TextureCoordinate0.Y, blankAtlasEntry.TextureCoordinate0.Z)));
-        guiVAO.Vertices.Add(new((br - offset) * zoom, color, blankAtlasEntry.TextureCoordinate1));
+        guiVAO.LayerVertices[(int)renderLayer].Add(new((box.TopLeft - offset) * zoom, color, blankAtlasEntry.TextureCoordinate0));
+        guiVAO.LayerVertices[(int)renderLayer].Add(new(new((box.Right + 1 - offset.X) * zoom, (box.Top - offset.Y) * zoom), color, new(blankAtlasEntry.TextureCoordinate1.X, blankAtlasEntry.TextureCoordinate0.Y, blankAtlasEntry.TextureCoordinate0.Z)));
+        guiVAO.LayerVertices[(int)renderLayer].Add(new(new((box.Left - offset.X) * zoom, (box.Bottom + 1 - offset.Y) * zoom), color, new(blankAtlasEntry.TextureCoordinate0.X, blankAtlasEntry.TextureCoordinate1.Y, blankAtlasEntry.TextureCoordinate0.Z)));
+        guiVAO.LayerVertices[(int)renderLayer].Add(new((br - offset) * zoom, color, blankAtlasEntry.TextureCoordinate1));
+        guiVAO.LayerVertices[(int)renderLayer].Add(new((box.TopLeft - offset) * zoom, color, blankAtlasEntry.TextureCoordinate0));
+        guiVAO.LayerVertices[(int)renderLayer].Add(new(new((box.Left - offset.X) * zoom, (box.Bottom + 1 - offset.Y) * zoom), color, new(blankAtlasEntry.TextureCoordinate0.X, blankAtlasEntry.TextureCoordinate1.Y, blankAtlasEntry.TextureCoordinate0.Z)));
+        guiVAO.LayerVertices[(int)renderLayer].Add(new(new((box.Right + 1 - offset.X) * zoom, (box.Top - offset.Y) * zoom), color, new(blankAtlasEntry.TextureCoordinate1.X, blankAtlasEntry.TextureCoordinate0.Y, blankAtlasEntry.TextureCoordinate0.Z)));
+        guiVAO.LayerVertices[(int)renderLayer].Add(new((br - offset) * zoom, color, blankAtlasEntry.TextureCoordinate1));
     }
 
     View GetTemplatedView(View view) => view.ViewData.TemplatedView ?? view;
@@ -378,7 +383,7 @@ partial class RenderSystem
 
         var box = view.ViewData.Box;
         if (view is not LabelView && view.BackgroundColor.W > 0)
-            ScreenFillQuad(box.WithExpand(view.Padding), view.BackgroundColor, blankAtlasEntry, false);
+            ScreenFillQuad(RenderLayer.Gui, box.WithExpand(view.Padding), view.BackgroundColor, blankAtlasEntry, false);
 
         switch (view)
         {
@@ -388,7 +393,7 @@ partial class RenderSystem
                 break;
             case LabelView labelView:
                 if (labelView.Text?.Invoke() is { } text && !string.IsNullOrEmpty(text) && labelView.ForegroundColor.Invoke() is { } labelForegroundColor)
-                    ScreenString(text, new() { Size = labelView.FontSize() },
+                    ScreenString(RenderLayer.Gui, text, new() { Size = labelView.FontSize() },
                         new Box2(box.TopLeft + new Vector2(view.Margin.Left, view.Margin.Top), box.BottomRight - new Vector2(view.Margin.Right, view.Margin.Bottom)),
                         labelForegroundColor, labelView.BackgroundColor, labelView.HorizontalTextAlignment);
                 break;
@@ -399,23 +404,23 @@ partial class RenderSystem
                 {
                     var borderOffset = progressView.BorderColor.W > 0;
                     if (borderOffset)
-                        ScreenFillQuad(box, progressView.BorderColor, blankAtlasEntry, false);
+                        ScreenFillQuad(RenderLayer.Gui, box, progressView.BorderColor, blankAtlasEntry, false);
 
                     box = box.WithExpand(new Thickness(-1));
                     if (progressView.BackgroundColor.W > 0)
-                        ScreenFillQuad(box, progressView.BackgroundColor, blankAtlasEntry, false);
-                    ScreenFillQuad(Box2.FromCornerSize(box.TopLeft, (float)(box.Size.X * value / maximum), box.Size.Y), progressForegroundColor, blankAtlasEntry, false);
-                    ScreenString(string.Format(stringFormat, value / maximum * 100), new() { Size = progressView.FontSize },
+                        ScreenFillQuad(RenderLayer.Gui, box, progressView.BackgroundColor, blankAtlasEntry, false);
+                    ScreenFillQuad(RenderLayer.Gui, Box2.FromCornerSize(box.TopLeft, (float)(box.Size.X * value / maximum), box.Size.Y), progressForegroundColor, blankAtlasEntry, false);
+                    ScreenString(RenderLayer.Gui, string.Format(stringFormat, value / maximum * 100), new() { Size = progressView.FontSize },
                         new Box2(box.TopLeft + new Vector2(view.Margin.Left, view.Margin.Top), box.BottomRight - new Vector2(view.Margin.Right, view.Margin.Bottom)),
                         progressView.TextColor, Colors4.Transparent, progressView.HorizontalTextAlignment);
                 }
                 break;
             case ImageView imageView:
                 if (imageView.Source?.Invoke() is { } src && !string.IsNullOrWhiteSpace(src) && imageView.ForegroundColor?.Invoke() is { } imageForegroundColor)
-                    ScreenFillQuad(box.WithExpand(-view.Margin), imageForegroundColor, atlas[src], false);
+                    ScreenFillQuad(RenderLayer.Gui, box.WithExpand(-view.Margin), imageForegroundColor, atlas[src], false);
                 break;
             case ButtonView buttonView:
-                ScreenFillFrame(box, "button", ButtonBorderTextureWidth,
+                ScreenFillFrame(RenderLayer.Gui, box, "button", ButtonBorderTextureWidth,
                     (box.Contains(world.MouseScreenPosition) ? FrameType.Hover : FrameType.Normal)
                     | (buttonView.IsChecked?.Invoke() is true ? FrameType.Checked : FrameType.Normal));
 
