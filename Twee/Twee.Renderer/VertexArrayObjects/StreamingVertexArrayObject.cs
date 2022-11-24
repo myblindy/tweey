@@ -24,6 +24,8 @@ public class StreamingVertexArrayObject<TVertex> : BaseVertexArrayObject where T
 
     public unsafe void UploadNewData(Range layerRange)
     {
+        // TODO: instead upload everything and store the indices of each layer to only render
+        // selective layers later
         var totalVertexCount = 0;
         foreach (ref var list in LayerVertices.AsSpan()[layerRange])
             totalVertexCount += list.Count;
