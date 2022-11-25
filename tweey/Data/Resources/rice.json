@@ -2,5 +2,6 @@
   "$schema": "./_schema.json",
   "name": "Rice",
   "weight": 0.1,
-  "pickupSpeedMultiplier": 1
+  "pickupSpeedMultiplier": 1,
+  "groups": [ "rawFood", "vegetable" ]
 }

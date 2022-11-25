@@ -10,9 +10,25 @@
       }
     ]
   },
-  "productionLines": [],
+  "productionLines": [
+    {
+      "inputs": [
+        {
+          "resource": "rawFood",
+          "quantity": 10
+        }
+      ],
+      "outputs": [
+        {
+          "resource": "meal",
+          "quantity": 1
+        }
+      ],
+      "workTicks": 10
+    }
+  ],
   "emitLight": {
-    "color": [0.81, 0.37, 0.22],
+    "color": [ 0.81, 0.37, 0.22 ],
     "range": 16
   },
   "width": 1,

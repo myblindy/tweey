@@ -4,9 +4,9 @@ internal enum BuildingType { Production, Storage }
 
 internal class BuildingProductionLineTemplate
 {
-    public ResourceBucket Inputs { get; set; } = null!;
-    public ResourceBucket Outputs { get; set; } = null!;
-    public int WorkTicks { get; set; }
+    public required ResourceBucket[] PossibleInputs { get; set; }
+    public required ResourceBucket Outputs { get; set; }
+    public required int WorkTicks { get; set; }
 }
 
 internal class BuildingLightTemplate
