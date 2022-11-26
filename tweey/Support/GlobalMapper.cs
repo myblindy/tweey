@@ -17,7 +17,8 @@ internal static class GlobalMapper
             .ForMember(x => x.ProductionLines, (src, resources) => new((src.ProductionLines ?? Enumerable.Empty<BuildingProductionLineTemplateIn>())
                 .Select(pl => new BuildingProductionLineTemplate
                 {
-                    PossibleInputs = new(pl.Inputs.Select(rq => new ResourceQuantity(((ResourceTemplates)resources!)[rq.Resource!], rq.Quantity))),
+                    Name = pl.Name,
+                    PossibleInputs = pl.Inputs.ToArray(),
                     Outputs = new(pl.Outputs.Select(rq => new ResourceQuantity(((ResourceTemplates)resources!)[rq.Resource!], rq.Quantity))),
                     WorkTicks = pl.WorkTicks
                 })

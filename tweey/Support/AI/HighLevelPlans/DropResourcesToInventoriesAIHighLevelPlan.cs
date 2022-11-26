@@ -25,6 +25,12 @@ class DropResourcesToInventoriesAIHighLevelPlan : AIHighLevelPlan
                     targets.Add((w.Entity, w.LocationComponent.Box.Center));
             });
 
+            EcsCoordinator.IterateBuildingArchetype((in EcsCoordinator.BuildingIterationResult w) =>
+            {
+                if (w.InventoryComponent.Inventory.HasMarker(marker))
+                    targets.Add((w.Entity, w.LocationComponent.Box.Center));
+            });
+
             foreach (var targetEntity in targets.OrderByDistanceFrom(MainEntity.GetLocationComponent().Box.Center, w => w.location, w => w.entity))
             {
                 yield return new WalkToEntityLowLevelPlan(World, MainEntity, targetEntity);

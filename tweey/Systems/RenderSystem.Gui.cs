@@ -192,6 +192,96 @@ partial class RenderSystem
                             },
                         }
                     },
+
+                    // bills
+                    new StackView(StackType.Vertical)
+                    {
+                        IsVisible = () => world.SelectedEntity.HasValue && world.SelectedEntity.Value.HasWorkableComponent()
+                            && world.SelectedEntity.Value.HasBuildingComponent()
+                            && world.SelectedEntity.Value.GetBuildingComponent().IsBuilt
+                            && world.SelectedEntity.Value.GetBuildingComponent().Template.ProductionLines.Count > 0,
+                        Children =
+                        {
+                            new StackView(StackType.Horizontal)
+                            {
+                                Children =
+                                {
+                                    new LabelView
+                                    {
+                                        Text = () => "Bills: "
+                                    },
+                                    new ButtonView
+                                    {
+                                        Clicked = () => world.SelectedEntity!.Value.GetWorkableComponent().Bills.Add(new()
+                                        {
+                                            ProductionLine = world.SelectedEntity.Value.GetBuildingComponent().Template.ProductionLines[0],
+                                            AmountType = BillAmountType.FixedValue,
+                                            Amount = 10,
+                                        }),
+                                        Child = new LabelView { Text = () => "Add" }
+                                    }
+                                }
+                            },
+                            new RepeaterView<Bill>
+                            {
+                                Source = () => world.SelectedEntity!.Value.GetWorkableComponent().Bills,
+                                ItemView = b => new StackView(StackType.Horizontal)
+                                {
+                                    Children =
+                                    {
+                                        new ButtonView
+                                        {
+                                            Child = new LabelView
+                                            {
+                                                Text = () => "Del",
+                                            }
+                                        },
+                                        new ButtonView
+                                        {
+                                            Child = new LabelView
+                                            {
+                                                Text = () => b.ProductionLine.Name,
+                                            }
+                                        },
+                                        new ButtonView
+                                        {
+                                            Clicked = () => b.AmountType = b.AmountType switch
+                                            {
+                                                BillAmountType.FixedValue => BillAmountType.UntilInStock,
+                                                BillAmountType.UntilInStock => BillAmountType.FixedValue,
+                                                _ => throw new NotImplementedException()
+                                            },
+                                            Child = new LabelView
+                                            {
+                                                Text = () => b.AmountType switch
+                                                {
+                                                    BillAmountType.UntilInStock => $" until you have {b.Amount} in stock.",
+                                                    BillAmountType.FixedValue => $" {b.Amount} times.",
+                                                    _ => throw new NotImplementedException()
+                                                }
+                                            }
+                                        },
+                                        new ButtonView
+                                        {
+                                            Clicked = () => --b.Amount,
+                                            Child = new LabelView
+                                            {
+                                                Text = () => "-",
+                                            }
+                                        },
+                                        new ButtonView
+                                        {
+                                            Clicked = () => ++b.Amount,
+                                            Child = new LabelView
+                                            {
+                                                Text = () => "+",
+                                            }
+                                        },
+                                    }
+                                }
+                            }
+                        }
+                    },
                 }
             }, Anchor.BottomLeft));
 

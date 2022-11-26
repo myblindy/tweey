@@ -22,6 +22,9 @@
       "items": {
         "type": "object",
         "properties": {
+          "name": {
+            "type": "string"
+          },
           "inputs": {
             "type": "array",
             "items": { "$ref": "../BaseSchemas/resource_quantity.json#/definitions/resourceQuantity" }
@@ -35,7 +38,7 @@
             "minimum": 0
           }
         },
-        "required": [ "inputs", "outputs" ]
+        "required": [ "name", "inputs", "outputs", "workTicks" ]
       }
     },
     "buildCost": {

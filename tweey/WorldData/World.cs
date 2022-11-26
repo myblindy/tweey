@@ -112,8 +112,7 @@ internal partial class World
         entity.AddLocationComponent(Box2.FromCornerSize(location, new(1, 1)));
         entity.AddRenderableComponent($"Data/Plants/{plantTemplate.FileName}.png",
             OcclusionCircle: true, OcclusionScale: plantTemplate.OccludeLight ? .3f : 0f);
-        entity.AddWorkableComponent()
-            .ResizeSlots(1);
+        entity.AddWorkableComponent();
         entity.AddPlantComponent(plantTemplate, plantTemplate.HarvestWorkTicks, isMature ? CustomDateTime.Invalid : WorldTime);
         entity.AddIdentityComponent(plantTemplate.Name);
         entity.AddInventoryComponent().Inventory
@@ -222,8 +221,7 @@ internal partial class World
             LightEmission: buildingTemplate.EmitLight?.Color.ToVector4(1) ?? default, LightRange: buildingTemplate.EmitLight?.Range ?? 0f);
         entity.AddBuildingComponent(buildingTemplate, isBuilt ? 0 : buildingTemplate.BuildWorkTicks);
         entity.AddInventoryComponent();
-        entity.AddWorkableComponent()
-            .ResizeSlots(isBuilt ? buildingTemplate.MaxWorkersAmount : 1);
+        entity.AddWorkableComponent();
         entity.AddIdentityComponent(buildingTemplate.Name);
 
         MarkAllPlantsForHarvest(locationComponent.Box);
@@ -381,50 +379,6 @@ internal partial class World
 
         (MouseScreenPosition, MouseWorldPosition) = (screenPosition, worldLocation);
     }
-
-    event Action<Entity /* workable */, Entity /* worker */>? StartedJob;
-    public static void PlanWork(Entity workable, Entity worker)
-    {
-        ref var workableComponent = ref workable.GetWorkableComponent();
-        ref var emptyWorkerSlot = ref workableComponent.GetEmptyWorkerSlot();
-
-        if (emptyWorkerSlot.Entity != Entity.Invalid)
-            emptyWorkerSlot.Entity = worker;
-        else
-            throw new InvalidOperationException($"Could not find an empty worker slot for {worker} to work on {workable}.");
-    }
-
-    public void StartWork(Entity workable, Entity worker)
-    {
-        StartedJob?.Invoke(workable, worker);
-
-        ref var workableComponent = ref workable.GetWorkableComponent();
-        ref var emptyWorkerSlot = ref workableComponent.GetAssignedWorkerSlot(worker);
-
-        if (emptyWorkerSlot.Entity != Entity.Invalid)
-            emptyWorkerSlot.EntityWorking = true;
-        else
-            throw new InvalidOperationException($"Could not find worker slot on {workable} supposedly worked by {worker}.");
-    }
-
-    event Action<Entity /* workable */, Entity /* worker */, bool /* last */>? EndedBuildingJob;
-    public void EndWork(Entity workable, Entity worker)
-    {
-        ref var workableComponent = ref workable.GetWorkableComponent();
-        ref var emptyWorkerSlot = ref workableComponent.GetAssignedWorkerSlot(worker);
-
-        if (emptyWorkerSlot.Entity != Entity.Invalid)
-        {
-            EndedBuildingJob?.Invoke(workable, worker, !workableComponent.WorkerSlots.Any(w => w.EntityWorking));
-            emptyWorkerSlot.Clear();
-        }
-        else
-            throw new InvalidOperationException($"Could not find worker slot on {workable} supposedly worked by {worker}.");
-    }
-
-    event Action<BuildingTemplate?>? CurrentBuildingTemplateChanged;
-    public void FireCurrentBuildingTemplateChanged() =>
-        CurrentBuildingTemplateChanged?.Invoke(CurrentWorldTemplate.BuildingTemplate);
 
     public void KeyEvent(InputAction inputAction, Keys key, int scanCode, KeyModifiers keyModifiers)
     {

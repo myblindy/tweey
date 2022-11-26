@@ -16,13 +16,13 @@ class WorkAIHighLevelPlan : AIHighLevelPlan
     {
         yield return new WalkToEntityLowLevelPlan(World, MainEntity, workableEntity);
 
-        workableEntity.GetWorkableComponent().GetAssignedWorkerSlot(MainEntity).EntityWorking = true;
+        workableEntity.GetWorkableComponent().EntityWorking = true;
         if (workableEntity.HasBuildingComponent())
         {
             while (workableEntity.GetBuildingComponent().BuildWorkTicks-- > 0)
                 yield return new WaitLowLevelPlan(World, MainEntity, World.RawWorldTime
                     + World.GetWorldTimeFromTicks(MainEntity.GetVillagerComponent().WorkSpeedMultiplier));
-            workableEntity.GetWorkableComponent().GetAssignedWorkerSlot(MainEntity).Clear();
+            workableEntity.GetWorkableComponent().ClearWorkers();
         }
         else if (workableEntity.HasPlantComponent())
         {

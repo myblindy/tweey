@@ -12,6 +12,7 @@
   },
   "productionLines": [
     {
+      "name": "Cook meal",
       "inputs": [
         {
           "resource": "rawFood",
