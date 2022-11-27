@@ -309,7 +309,7 @@ partial class RenderSystem
             {
                 if (w.Entity.HasInventoryComponent() && w.Entity.HasResourceComponent() && w.Entity.GetInventoryComponent().Inventory.IsEmpty(ResourceMarker.Default))
                     return;
-                ScreenFillQuad(RenderLayer.BelowPawns, w.LocationComponent.Box, atlas[atlasEntryName]);
+                ScreenFillQuad(w.Entity.HasVillagerComponent() ? RenderLayer.Pawn : RenderLayer.BelowPawns, w.LocationComponent.Box, atlas[atlasEntryName]);
             }
             else if (w.Entity.HasZoneComponent())
             {
@@ -379,7 +379,7 @@ partial class RenderSystem
         GraphicsEngine.Viewport(0, 0, (int)windowUbo.Data.WindowSize.X, (int)windowUbo.Data.WindowSize.Y);
         GraphicsEngine.BlendNormalAlpha();
 
-        guiVAO.UploadNewData(..((int)RenderLayer.BelowGui + 1));
+        guiVAO.UploadNewData(..^1);
         guiVAO.Draw(PrimitiveType.Triangles);
 
         // draw the gui overlays, which shouldn't be light mapped
