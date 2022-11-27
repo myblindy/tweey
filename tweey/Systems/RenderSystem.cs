@@ -322,19 +322,19 @@ partial class RenderSystem
         });
 
         // store the ai plan targets' vertices (lines)
-        //if (world.ShowDetails)
-        //    EcsCoordinator.IterateWorkerArchetype((in EcsCoordinator.WorkerIterationResult w) =>
-        //    {
-        //        if (w.WorkerComponent.CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity aiLowLevelPlanWithTargetEntity)
-        //            ScreenLine(w.LocationComponent.Box,
-        //                aiLowLevelPlanWithTargetEntity.TargetEntity.GetLocationComponent().Box, Colors4.Yellow);
-        //    });
-        //else if (world.SelectedEntity.HasValue && world.SelectedEntity.Value.HasWorkerComponent()
-        //    && world.SelectedEntity.Value.GetWorkerComponent().CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity { } aiLowLevelPlanWithTargetEntity)
-        //{
-        //    ScreenLine(world.SelectedEntity.Value.GetLocationComponent().Box,
-        //        aiLowLevelPlanWithTargetEntity.TargetEntity.GetLocationComponent().Box, Colors4.Yellow);
-        //}
+        if (world.ShowDetails)
+            EcsCoordinator.IterateWorkerArchetype((in EcsCoordinator.WorkerIterationResult w) =>
+            {
+                if (w.WorkerComponent.CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity aiLowLevelPlanWithTargetEntity)
+                    ScreenLine(RenderLayer.Gui, w.LocationComponent.Box,
+                        aiLowLevelPlanWithTargetEntity.TargetEntity.GetLocationComponent().Box, 1.5f, Colors4.Yellow);
+            });
+        else if (world.SelectedEntity.HasValue && world.SelectedEntity.Value.HasWorkerComponent()
+            && world.SelectedEntity.Value.GetWorkerComponent().CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity { } aiLowLevelPlanWithTargetEntity)
+        {
+            ScreenLine(RenderLayer.Gui, world.SelectedEntity.Value.GetLocationComponent().Box,
+                aiLowLevelPlanWithTargetEntity.TargetEntity.GetLocationComponent().Box, 1.5f, Colors4.Yellow);
+        }
 
         // selection box (lines)
         if (world.SelectedEntity is { } entity)

@@ -1,4 +1,6 @@
-﻿namespace Tweey.Systems;
+﻿using Twee.Core.Ecs;
+
+namespace Tweey.Systems;
 
 partial class RenderSystem
 {
@@ -136,15 +138,39 @@ partial class RenderSystem
                 (box, atlasEntry) => ScreenFillQuad(renderLayer, box, fgColor, atlasEntry, false), horizontalAlignment);
     }
 
-    void ScreenLine(RenderLayer renderLayer, in Box2 box1, in Box2 box2) =>
-        ScreenLine(renderLayer, box1, box2, Colors4.White);
+    void ScreenLine(RenderLayer renderLayer, in Box2 b0, in Box2 b1, float thickness = 1f, bool asWorldCoords = true) =>
+        ScreenLine(renderLayer, b0, b1, thickness, Colors4.White, blankAtlasEntry, asWorldCoords);
 
-    void ScreenLine(RenderLayer renderLayer, in Box2 box1, in Box2 box2, in Vector4 color)
+    void ScreenLine(RenderLayer renderLayer, in Box2 b0, in Box2 b1, float thickness, in Vector4 color, bool asWorldCoords = true) =>
+        ScreenLine(renderLayer, b0, b1, thickness, color, blankAtlasEntry, asWorldCoords);
+
+    void ScreenLine(RenderLayer renderLayer, in Box2 b0, in Box2 b1, float thickness, in Vector4 color, in AtlasEntry entry, bool asWorldCoords = true)
     {
         if (color.W == 0) return;
 
-        guiVAO.LayerVertices[(int)renderLayer].Add(new((box1.Center + new Vector2(.5f, .5f) - world.Offset) * world.Zoom, color, blankAtlasEntry.TextureCoordinate0));
-        guiVAO.LayerVertices[(int)renderLayer].Add(new((box2.Center + new Vector2(.5f, .5f) - world.Offset) * world.Zoom, color, blankAtlasEntry.TextureCoordinate1));
+        var p0 = asWorldCoords ? ConvertWorldToScreenBox(b0).Center : b0.Center;
+        var p1 = asWorldCoords ? ConvertWorldToScreenBox(b1).Center : b1.Center;
+
+        var dir = Vector2.Normalize(p1 - p0);
+        var normal = new Vector2(-dir.Y, dir.X) * (thickness / 2);
+
+        var uv0 = entry.TextureCoordinate0;
+        var uv1 = entry.TextureCoordinate1;
+        var uv2 = new Vector3(uv1.X, uv0.Y, uv0.Z);
+        var uv3 = new Vector3(uv0.X, uv1.Y, uv0.Z);
+
+        var p0p = p0 - normal;
+        var p1p = p0 + normal;
+        var p2p = p1 - normal;
+        var p3p = p1 + normal;
+
+        guiVAO.LayerVertices[(int)renderLayer].Add(new(p0p, color, uv0));
+        guiVAO.LayerVertices[(int)renderLayer].Add(new(p1p, color, uv1));
+        guiVAO.LayerVertices[(int)renderLayer].Add(new(p2p, color, uv2));
+
+        guiVAO.LayerVertices[(int)renderLayer].Add(new(p3p, color, uv3));
+        guiVAO.LayerVertices[(int)renderLayer].Add(new(p2p, color, uv1));
+        guiVAO.LayerVertices[(int)renderLayer].Add(new(p0p, color, uv0));
     }
 
     void ScreenLineQuad(RenderLayer renderLayer, in Box2 box, bool asWorldCoords = true) =>
