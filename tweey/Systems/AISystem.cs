@@ -1,4 +1,5 @@
 ﻿using Twee.Core.Ecs;
+using Twee.Core.Support;
 using Tweey.Support.AI.HighLevelPlans;
 using Tweey.Support.AI.LowLevelPlans;
 
@@ -27,36 +28,28 @@ partial class AISystem
             {
                 var neededResources = bw.BuildingComponent.Template.BuildCost.WithRemove(bw.InventoryComponent.Inventory);
                 var buildingInventory = bw.InventoryComponent.Inventory;
-                var foundResources = ObjectPool<List<(Entity entity, Vector2 location)>>.Shared.Get();
-                foundResources.Clear();
+                using var foundResources = CollectionPool<(Entity entity, Vector2 location)>.Get();
 
-                try
+                EcsCoordinator.IteratePlacedResourceArchetype((in EcsCoordinator.PlacedResourceIterationResult rw) =>
                 {
-                    EcsCoordinator.IteratePlacedResourceArchetype((in EcsCoordinator.PlacedResourceIterationResult rw) =>
-                    {
-                        if (rw.InventoryComponent.Inventory.Overlaps(neededResources))
-                            foundResources.Add((rw.Entity, rw.LocationComponent.Box.Center));
-                    });
+                    if (rw.InventoryComponent.Inventory.Overlaps(neededResources))
+                        foundResources.Add((rw.Entity, rw.LocationComponent.Box.Center));
+                });
 
-                    if (foundResources.Count > 0)
-                    {
-                        // we found some resources, order them by distance and plan them out
-                        var planMarker = ResourceMarker.Create();
-                        ResourceBucket.MarkResources(planMarker,
-                            foundResources.OrderByDistanceFrom(entityLocation, w => w.location, w => w.entity).Select(e => e.GetInventoryComponent().Inventory),
-                            ResourceMarker.Default, villagerAvailableWeight, bw.BuildingComponent.Template.BuildCost, rq => buildingInventory.Add(rq, planMarker), out _);
-
-                        selectedPlans = new AIHighLevelPlan[]
-                        {
-                            new GatherResourcesAIHighLevelPlan(world, entity, planMarker),
-                            new DropResourcesToInventoriesAIHighLevelPlan(world, entity, planMarker)
-                        };
-                        return false;
-                    }
-                }
-                finally
+                if (foundResources.Count > 0)
                 {
-                    ObjectPool<List<(Entity entity, Vector2 location)>>.Shared.Return(foundResources);
+                    // we found some resources, order them by distance and plan them out
+                    var planMarker = ResourceMarker.Create();
+                    ResourceBucket.MarkResources(planMarker,
+                        foundResources.OrderByDistanceFrom(entityLocation, w => w.location, w => w.entity).Select(e => e.GetInventoryComponent().Inventory),
+                        ResourceMarker.Default, villagerAvailableWeight, bw.BuildingComponent.Template.BuildCost, rq => buildingInventory.Add(rq, planMarker), out _);
+
+                    selectedPlans = new AIHighLevelPlan[]
+                    {
+                        new GatherResourcesAIHighLevelPlan(world, entity, planMarker),
+                        new DropResourcesToInventoriesAIHighLevelPlan(world, entity, planMarker)
+                    };
+                    return false;
                 }
             }
 
@@ -153,80 +146,63 @@ partial class AISystem
         var workerAvailableWeight = w.VillagerComponent.MaxCarryWeight - w.InventoryComponent.Inventory.GetWeight(ResourceMarker.All);
         AIHighLevelPlan[]? selectedPlans = default;
 
-        var foundFreeResources = ObjectPool<List<(Entity entity, ResourceBucket inventory, Vector2i location)>>.Shared.Get();
-        foundFreeResources.Clear();
-        var foundStoredResources = ObjectPool<List<(Entity entity, ResourceBucket inventory, Vector2i location)>>.Shared.Get();
-        foundStoredResources.Clear();
+        using var foundFreeResources = CollectionPool<(Entity entity, ResourceBucket inventory, Vector2i location)>.Get();
+        using var foundStoredResources = CollectionPool<(Entity entity, ResourceBucket inventory, Vector2i location)>.Get();
 
-        try
+        EcsCoordinator.IteratePlacedResourceArchetype((in EcsCoordinator.PlacedResourceIterationResult rw) =>
         {
-            EcsCoordinator.IteratePlacedResourceArchetype((in EcsCoordinator.PlacedResourceIterationResult rw) =>
+            if (!rw.InventoryComponent.Inventory.IsEmpty(ResourceMarker.Default))
+                if (!rw.Entity.HasPlacedResourceIsStoredComponent())
+                    foundFreeResources.Add((rw.Entity, rw.InventoryComponent.Inventory, rw.LocationComponent.Box.TopLeft.ToVector2i()));
+                else
+                    foundStoredResources.Add((rw.Entity, rw.InventoryComponent.Inventory, rw.LocationComponent.Box.TopLeft.ToVector2i()));
+        });
+
+        if (foundFreeResources.Count > 0)
+        {
+            ResourceMarker? planMarker = default;
+            using var foundZones = CollectionPool<(Entity entity, Box2 box)>.Get();
+
+            EcsCoordinator.IterateZoneArchetype((in EcsCoordinator.ZoneIterationResult zw) =>
             {
-                if (!rw.InventoryComponent.Inventory.IsEmpty(ResourceMarker.Default))
-                    if (!rw.Entity.HasPlacedResourceIsStoredComponent())
-                        foundFreeResources.Add((rw.Entity, rw.InventoryComponent.Inventory, rw.LocationComponent.Box.TopLeft.ToVector2i()));
-                    else
-                        foundStoredResources.Add((rw.Entity, rw.InventoryComponent.Inventory, rw.LocationComponent.Box.TopLeft.ToVector2i()));
+                if (zw.ZoneComponent.Type is ZoneType.Storage)
+                    foundZones.Add((zw.Entity, zw.LocationComponent.Box));
             });
 
-            if (foundFreeResources.Count > 0)
+            if (foundZones.Count > 0)
             {
-                ResourceMarker? planMarker = default;
-                var foundZones = ObjectPool<List<(Entity entity, Box2 box)>>.Shared.Get();
-                foundZones.Clear();
-
-                try
-                {
-                    EcsCoordinator.IterateZoneArchetype((in EcsCoordinator.ZoneIterationResult zw) =>
+                // we found some resources and zones, order them by distance and plan them out
+                planMarker ??= ResourceMarker.Create();
+                ResourceBucket.MarkResources(world, planMarker.Value,
+                    foundFreeResources.OrderByDistanceFrom(workerEntityLocation, w => w.location.ToNumericsVector2Center(), w => w.entity).Select(e => e.GetInventoryComponent().Inventory),
+                    ResourceMarker.Default, workerAvailableWeight, foundZones.Select(w => w.box), foundStoredResources,
+                    (srcRQ, dstEntity, dstRB, dstLoc) =>
                     {
-                        if (zw.ZoneComponent.Type is ZoneType.Storage)
-                            foundZones.Add((zw.Entity, zw.LocationComponent.Box));
-                    });
-
-                    if (foundZones.Count > 0)
-                    {
-                        // we found some resources and zones, order them by distance and plan them out
-                        planMarker ??= ResourceMarker.Create();
-                        ResourceBucket.MarkResources(world, planMarker.Value,
-                            foundFreeResources.OrderByDistanceFrom(workerEntityLocation, w => w.location.ToNumericsVector2Center(), w => w.entity).Select(e => e.GetInventoryComponent().Inventory),
-                            ResourceMarker.Default, workerAvailableWeight, foundZones.Select(w => w.box), foundStoredResources,
-                            (srcRQ, dstEntity, dstRB, dstLoc) =>
-                            {
-                                if (dstEntity is not null && dstRB is not null)
-                                {
-                                    dstRB.Add(srcRQ, planMarker.Value);
-                                    return (dstRB, dstEntity.Value);
-                                }
-                                else if (dstLoc is not null)
-                                {
-                                    var newEntity = world.AddResourceEntities(ResourceMarker.All, new(srcRQ), planMarker.Value, dstLoc.Value.ToNumericsVector2()).Single();
-                                    newEntity.AddPlacedResourceIsStoredComponent();
-
-                                    return (newEntity.GetInventoryComponent().Inventory, newEntity);
-                                }
-                                else
-                                    throw new NotImplementedException();
-                            }, out _);
-
-                        selectedPlans = new AIHighLevelPlan[]
+                        if (dstEntity is not null && dstRB is not null)
                         {
-                            new GatherResourcesAIHighLevelPlan(world, workerEntity, planMarker.Value, r => !r.HasPlacedResourceIsStoredComponent()),
-                            new DropResourcesToInventoriesAIHighLevelPlan(world, workerEntity, planMarker.Value)
-                        };
-                    }
-                }
-                finally
-                {
-                    ObjectPool<List<(Entity entity, Box2 box)>>.Shared.Return(foundZones);
-                }
-            }
+                            dstRB.Add(srcRQ, planMarker.Value);
+                            return (dstRB, dstEntity.Value);
+                        }
+                        else if (dstLoc is not null)
+                        {
+                            var newEntity = world.AddResourceEntities(ResourceMarker.All, new(srcRQ), planMarker.Value, dstLoc.Value.ToNumericsVector2()).Single();
+                            newEntity.AddPlacedResourceIsStoredComponent();
 
-            return (plans = selectedPlans) is not null;
+                            return (newEntity.GetInventoryComponent().Inventory, newEntity);
+                        }
+                        else
+                            throw new NotImplementedException();
+                    }, out _);
+
+                selectedPlans = new AIHighLevelPlan[]
+                {
+                    new GatherResourcesAIHighLevelPlan(world, workerEntity, planMarker.Value, r => !r.HasPlacedResourceIsStoredComponent()),
+                    new DropResourcesToInventoriesAIHighLevelPlan(world, workerEntity, planMarker.Value)
+                };
+            }
         }
-        finally
-        {
-            ObjectPool<List<(Entity entity, ResourceBucket inventory, Vector2i location)>>.Shared.Return(foundFreeResources);
-        }
+
+        return (plans = selectedPlans) is not null;
     }
 
     record PlanRunner(World World, Entity Entity) : IDisposable

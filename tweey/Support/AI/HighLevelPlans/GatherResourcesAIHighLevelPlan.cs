@@ -16,32 +16,24 @@ class GatherResourcesAIHighLevelPlan : AIHighLevelPlan
 
     public override IEnumerable<AILowLevelPlan> GetLowLevelPlans()
     {
-        var targets = ObjectPool<List<(Entity entity, Vector2 location)>>.Shared.Get();
-        targets.Clear();
+        using var targets = CollectionPool<(Entity entity, Vector2 location)>.Get();
 
-        try
+        EcsCoordinator.IteratePlacedResourceArchetype((in EcsCoordinator.PlacedResourceIterationResult w) =>
         {
-            EcsCoordinator.IteratePlacedResourceArchetype((in EcsCoordinator.PlacedResourceIterationResult w) =>
-            {
-                if (w.InventoryComponent.Inventory.HasMarker(marker) && (resourceEntityTest?.Invoke(w.Entity) ?? true))
-                    targets.Add((w.Entity, w.LocationComponent.Box.Center));
-            });
+            if (w.InventoryComponent.Inventory.HasMarker(marker) && (resourceEntityTest?.Invoke(w.Entity) ?? true))
+                targets.Add((w.Entity, w.LocationComponent.Box.Center));
+        });
 
-            foreach (var targetEntity in targets.OrderByDistanceFrom(MainEntity.GetLocationComponent().Box.Center, w => w.location, w => w.entity))
-            {
-                yield return new WalkToEntityLowLevelPlan(World, MainEntity, targetEntity);
-                yield return new WaitLowLevelPlan(World, MainEntity, World.RawWorldTime + World.GetWorldTimeFromTicks(
-                    MainEntity.GetVillagerComponent().PickupSpeedMultiplier * World.Configuration.Data.BasePickupSpeed
-                        * targetEntity.GetInventoryComponent().Inventory.GetWeight(marker)));
-                yield return new MoveInventoryLowLevelPlan(World, targetEntity, marker, MainEntity, marker);       // from the resource (marked) to the villager (marked)
-
-                if (targetEntity.HasResourceComponent() && targetEntity.GetInventoryComponent().Inventory.IsEmpty(ResourceMarker.All))
-                    targetEntity.Delete();
-            }
-        }
-        finally
+        foreach (var targetEntity in targets.OrderByDistanceFrom(MainEntity.GetLocationComponent().Box.Center, w => w.location, w => w.entity))
         {
-            ObjectPool<List<(Entity entity, Vector2 location)>>.Shared.Return(targets);
+            yield return new WalkToEntityLowLevelPlan(World, MainEntity, targetEntity);
+            yield return new WaitLowLevelPlan(World, MainEntity, World.RawWorldTime + World.GetWorldTimeFromTicks(
+                MainEntity.GetVillagerComponent().PickupSpeedMultiplier * World.Configuration.Data.BasePickupSpeed
+                    * targetEntity.GetInventoryComponent().Inventory.GetWeight(marker)));
+            yield return new MoveInventoryLowLevelPlan(World, targetEntity, marker, MainEntity, marker);       // from the resource (marked) to the villager (marked)
+
+            if (targetEntity.HasResourceComponent() && targetEntity.GetInventoryComponent().Inventory.IsEmpty(ResourceMarker.All))
+                targetEntity.Delete();
         }
     }
 }

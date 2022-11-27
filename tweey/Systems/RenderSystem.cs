@@ -132,6 +132,8 @@ partial class RenderSystem
 
         IterateRenderPartitionByLocationComponents(worldViewBox, (in IterationResult w) =>
         {
+            if (w.Entity.HasBuildingComponent() && !w.Entity.GetBuildingComponent().IsBuilt) return;
+
             if (w.RenderableComponent.OcclusionScale > 0)
                 markOcclusionBox(w.LocationComponent.Box, w.RenderableComponent.OcclusionCircle, w.RenderableComponent.OcclusionScale);
         });
@@ -185,11 +187,9 @@ partial class RenderSystem
         // call the engine once for each light
         IterateRenderPartitionByLocationComponents(worldViewBox, (in IterationResult w) =>
         {
-            if (w.RenderableComponent.LightEmission.W == 0)
-                return;
-
-            if (!useTorches && w.Entity.HasVillagerComponent())
-                return;
+            if (w.RenderableComponent.LightEmission.W == 0) return;
+            if (!useTorches && w.Entity.HasVillagerComponent()) return;
+            if (w.Entity.HasBuildingComponent() && !w.Entity.GetBuildingComponent().IsBuilt) return;
 
             addLight((w.LocationComponent.Box.Center + new Vector2(.5f) - world.Offset) * world.Zoom, w.RenderableComponent.LightRange * world.Zoom,
                 w.RenderableComponent.LightEmission.GetXYZ(), w.RenderableComponent.LightFullCircle ? LightMapFBUbo.Light.FullAngle :
@@ -241,7 +241,7 @@ partial class RenderSystem
 
     void RenderBuildingSite(in Box2 box, in BuildingComponent buildingComponent)
     {
-        var worldBox = Box2.FromCornerSize((box.TopLeft + world.Offset) * world.Zoom, new(world.Zoom));
+        var worldBox = Box2.FromCornerSize((box.TopLeft - world.Offset) * world.Zoom, new(world.Zoom));
         ScreenFillFrame(RenderLayer.BelowPawns, worldBox, "BuildingSite", world.Zoom / 3, FrameType.NoEdges | FrameType.NoBackground);
 
         var percentageFilled = 1 - buildingComponent.BuildWorkTicks / buildingComponent.Template.BuildWorkTicks;
