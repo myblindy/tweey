@@ -1,5 +1,4 @@
-﻿using System.Data;
-using Twee.Core.Support;
+﻿using Twee.Core.Support;
 
 namespace Twee.Core;
 

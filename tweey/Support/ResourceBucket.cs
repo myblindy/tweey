@@ -151,6 +151,12 @@ internal class ResourceBucket
         }
     }
 
+    public static bool TryToMarkResources(World world, ResourceMarker marker, IEnumerable<ResourceBucket> sourceRBs, ResourceMarker sourceMarker, double maxWeight,
+        Entity workableEntity, IEnumerable<BuildingResouceQuantityTemplate> _requiredResourceGroups)
+    {
+        var requiredResourceGroups = _requiredResourceGroups.ToList();
+    }
+
     public bool IsEmpty(ResourceMarker marker) =>
         GetResourceQuantities(marker).All(w => w.IsEmpty);
 

@@ -1,6 +1,4 @@
-﻿using Tweey.Support.AI.LowLevelPlans;
-
-namespace Tweey.Support.AI.HighLevelPlans;
+﻿namespace Tweey.Support.AI.HighLevelPlans;
 
 class GatherResourcesAIHighLevelPlan : AIHighLevelPlan
 {

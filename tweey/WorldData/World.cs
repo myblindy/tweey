@@ -290,10 +290,26 @@ internal partial class World
         return okay;
     }
 
+    public Dictionary<Resource, int> GetStoredResources(ResourceMarker marker)
+    {
+        var result = new Dictionary<Resource, int>();
+
+        EcsCoordinator.IteratePlacedResourceArchetype((in EcsCoordinator.PlacedResourceIterationResult rw) =>
+        {
+            if (rw.Entity.HasPlacedResourceIsStoredComponent())
+                foreach (var rq in rw.InventoryComponent.Inventory.GetResourceQuantities(marker))
+                    if (result.TryGetValue(rq.Resource, out var qty))
+                        result[rq.Resource] = qty + rq.Quantity;
+                    else
+                        result[rq.Resource] = rq.Quantity;
+        });
+
+        return result;
+    }
+
     public Vector2 GetWorldLocationFromScreenPoint(Vector2i screenPoint) =>
         new(screenPoint.X / Zoom + Offset.X, screenPoint.Y / Zoom + Offset.Y);
 
-    event Action<Entity>? PlacedBuilding;
     public void MouseEvent(Vector2i screenPosition, Vector2 worldLocation, InputAction? inputAction = null, MouseButton? mouseButton = null, KeyModifiers? keyModifiers = null)
     {
         if (inputAction == InputAction.Press && mouseButton == MouseButton.Button1)
@@ -325,7 +341,6 @@ internal partial class World
                 if (IsBoxFreeOfBuildings(Box2.FromCornerSize(worldLocation.ToVector2i(), CurrentWorldTemplate.BuildingTemplate.Width, CurrentWorldTemplate.BuildingTemplate.Height)))
                 {
                     var building = AddBuildingEntity(CurrentWorldTemplate.BuildingTemplate, worldLocation.Floor(), false);
-                    PlacedBuilding?.Invoke(building);
                     if (keyModifiers?.HasFlag(KeyModifiers.Shift) != true)
                         CurrentWorldTemplate.Clear();
                 }

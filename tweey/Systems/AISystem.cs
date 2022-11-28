@@ -1,9 +1,4 @@
-﻿using Twee.Core.Ecs;
-using Twee.Core.Support;
-using Tweey.Support.AI.HighLevelPlans;
-using Tweey.Support.AI.LowLevelPlans;
-
-namespace Tweey.Systems;
+﻿namespace Tweey.Systems;
 
 [EcsSystem(Archetypes.Worker)]
 partial class AISystem
@@ -205,101 +200,35 @@ partial class AISystem
         return (plans = selectedPlans) is not null;
     }
 
-    record PlanRunner(World World, Entity Entity) : IDisposable
+    bool TryToWorkBills(in IterationResult w, out AIHighLevelPlan[]? plans)
     {
-        private bool disposedValue;
-        IEnumerator<AIHighLevelPlan>? highLevelEnumerator;
-        IEnumerator<AILowLevelPlan>? lowLevelEnumerator;
+        var workerEntity = w.Entity;
+        var workerEntityLocation = w.LocationComponent.Box.Center;
+        var workerAvailableWeight = w.VillagerComponent.MaxCarryWeight - w.InventoryComponent.Inventory.GetWeight(ResourceMarker.All);
+        AIHighLevelPlan[]? selectedPlans = default;
 
-        /// <summary>
-        /// Runs the next step for the configured AI steps.
-        /// </summary>
-        /// <returns><see cref="false"/> if done, otherwise <see cref="true"/>.</returns>
-        public bool Run()
+        using var foundWorkables = CollectionPool<(Entity entity, Vector2i location)>.Get();
+        EcsCoordinator.IterateWorkableArchetype((in EcsCoordinator.WorkableIterationResult ww) =>
         {
-            if (highLevelEnumerator is null)
-            {
-                highLevelEnumerator = Entity.GetWorkerComponent().Plans!.Select(w => w).GetEnumerator();
-                if (!highLevelEnumerator.MoveNext())
-                {
-                    Entity.GetWorkerComponent().CurrentHighLevelPlan = null;
-                    Entity.GetWorkerComponent().CurrentLowLevelPlan = null;
-                    highLevelEnumerator.Dispose();
-                    return false;
-                }
-                Entity.GetWorkerComponent().CurrentHighLevelPlan = highLevelEnumerator.Current;
-            }
+            if (ww.WorkableComponent.Entity == Entity.Invalid && ww.WorkableComponent.Bills.Count > 0)
+                foundWorkables.Add((ww.Entity, ww.LocationComponent.Box.Center.ToVector2i()));
+        });
 
-            if (lowLevelEnumerator is null)
-            {
-                lowLevelEnumerator = highLevelEnumerator.Current.GetLowLevelPlans().GetEnumerator();
+        var storedResources = world.GetStoredResources(ResourceMarker.Default);
 
-                retry0:
-                if (!lowLevelEnumerator.MoveNext())
-                {
-                    lowLevelEnumerator.Dispose();
-                    if (!highLevelEnumerator.MoveNext())
+        if (foundWorkables.Count > 0)
+        {
+            foreach (var workable in foundWorkables.OrderByDistanceFrom(w.LocationComponent.Box.Center, w => w.location.ToNumericsVector2(), w => w.entity))
+                foreach (var bill in workable.GetWorkableComponent().Bills)
+                    if (ResourceBucket.TryToMarkResources())
                     {
-                        highLevelEnumerator.Dispose();
-                        return false;
+
                     }
-                    Entity.GetWorkerComponent().CurrentHighLevelPlan = highLevelEnumerator.Current;
-                    lowLevelEnumerator = highLevelEnumerator.Current.GetLowLevelPlans().GetEnumerator();
-                    goto retry0;
-                }
-                Entity.GetWorkerComponent().CurrentLowLevelPlan = lowLevelEnumerator.Current;
-            }
-
-            if (!lowLevelEnumerator.Current.Run())
-            {
-                retry1:
-                if (!lowLevelEnumerator.MoveNext())
-                {
-                    lowLevelEnumerator.Dispose();
-                    if (!highLevelEnumerator.MoveNext())
-                    {
-                        highLevelEnumerator.Dispose();
-                        return false;
-                    }
-                    Entity.GetWorkerComponent().CurrentHighLevelPlan = highLevelEnumerator.Current;
-                    lowLevelEnumerator = highLevelEnumerator.Current.GetLowLevelPlans().GetEnumerator();
-                    goto retry1;
-                }
-                Entity.GetWorkerComponent().CurrentLowLevelPlan = lowLevelEnumerator.Current;
-            }
-
-            return true;
         }
 
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposedValue)
-            {
-                if (disposing)
-                {
-                    // managed
-                    lowLevelEnumerator?.Dispose();
-                    highLevelEnumerator?.Dispose();
-                }
-
-                // TODO: unmanaged
-                disposedValue = true;
-            }
-        }
-
-        ~PlanRunner()
-        {
-            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-            Dispose(disposing: false);
-        }
-
-        public void Dispose()
-        {
-            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
-        }
+        return (plans = selectedPlans) is not null;
     }
+
     readonly List<PlanRunner?> planRunners = new();
     readonly Dictionary<Entity, Vector2> wanderCenterLocations = new();
 
@@ -310,7 +239,7 @@ partial class AISystem
             if (w.WorkerComponent.Plans is null)
             {
                 _ = TryToPlant(w, out var plans) || TryToBuild(w, out plans) || TryToHaulToBuilingSite(w, out plans) || TryToHarvest(w, out plans)
-                    || TryToHaulToStorage(w, out plans);
+                    || TryToWorkBills(w, out plans) || TryToHaulToStorage(w, out plans);
                 w.WorkerComponent.Plans = plans;
 
                 if (w.WorkerComponent.Plans is not null && w.WorkerComponent.Plans is not [WanderAIHighLevelPlan])

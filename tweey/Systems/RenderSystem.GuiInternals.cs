@@ -1,6 +1,4 @@
-﻿using Twee.Core.Ecs;
-
-namespace Tweey.Systems;
+﻿namespace Tweey.Systems;
 
 partial class RenderSystem
 {
@@ -262,7 +260,7 @@ partial class RenderSystem
         return size;
     }
 
-    static Box2 ConstrainSize(View view, Box2 box) => Box2.FromCornerSize(box.TopLeft, ConstrainSize(view, box.Size));
+    static Box2 ConstrainSize(View view, in Box2 box) => Box2.FromCornerSize(box.TopLeft, ConstrainSize(view, box.Size));
 
     Vector2 MeasureView(View view)
     {

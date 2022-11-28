@@ -1,6 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-
-namespace Tweey.Components;
+﻿namespace Tweey.Components;
 
 [EcsComponent]
 struct WorkableComponent
