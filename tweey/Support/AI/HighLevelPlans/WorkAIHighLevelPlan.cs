@@ -3,11 +3,13 @@
 class WorkAIHighLevelPlan : AIHighLevelPlan
 {
     private readonly Entity workableEntity;
+    private readonly ResourceMarker? billMarker;
 
-    public WorkAIHighLevelPlan(World world, Entity workerEntity, Entity workableEntity)
+    public WorkAIHighLevelPlan(World world, Entity workerEntity, Entity workableEntity, ResourceMarker? billMarker = null)
         : base(world, workerEntity)
     {
         this.workableEntity = workableEntity;
+        this.billMarker = billMarker;
     }
 
     public override IEnumerable<AILowLevelPlan> GetLowLevelPlans()
@@ -16,12 +18,26 @@ class WorkAIHighLevelPlan : AIHighLevelPlan
 
         workableEntity.GetWorkableComponent().EntityWorking = true;
         if (workableEntity.HasBuildingComponent())
-        {
-            while (workableEntity.GetBuildingComponent().BuildWorkTicks-- > 0)
-                yield return new WaitLowLevelPlan(World, MainEntity, World.RawWorldTime
-                    + World.GetWorldTimeFromTicks(MainEntity.GetVillagerComponent().WorkSpeedMultiplier));
-            workableEntity.GetWorkableComponent().ClearWorkers();
-        }
+            if (workableEntity.GetBuildingComponent().IsBuilt)
+            {
+                while (workableEntity.GetWorkableComponent().ActiveBillTicks-- > 0)
+                    yield return new WaitLowLevelPlan(World, MainEntity, World.RawWorldTime
+                        + World.GetWorldTimeFromTicks(MainEntity.GetVillagerComponent().WorkSpeedMultiplier));
+
+                workableEntity.GetWorkableComponent().ClearWorkers();
+                MainEntity.GetInventoryComponent().Inventory.Remove(billMarker!.Value);
+                World.AddResourceEntities(ResourceMarker.All, workableEntity.GetWorkableComponent().ActiveBill!.ProductionLine.Outputs.Clone(), ResourceMarker.Default,
+                    workableEntity.GetLocationComponent().Box.Center.Floor());
+                if (workableEntity.GetWorkableComponent().ActiveBill!.AmountType is BillAmountType.FixedValue)
+                    --workableEntity.GetWorkableComponent().ActiveBill!.Amount;
+            }
+            else
+            {
+                while (workableEntity.GetBuildingComponent().BuildWorkTicks-- > 0)
+                    yield return new WaitLowLevelPlan(World, MainEntity, World.RawWorldTime
+                        + World.GetWorldTimeFromTicks(MainEntity.GetVillagerComponent().WorkSpeedMultiplier));
+                workableEntity.GetWorkableComponent().ClearWorkers();
+            }
         else if (workableEntity.HasPlantComponent())
         {
             while (workableEntity.GetPlantComponent().WorkTicks-- > 0)

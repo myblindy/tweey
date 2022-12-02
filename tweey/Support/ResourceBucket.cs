@@ -151,10 +151,40 @@ internal class ResourceBucket
         }
     }
 
-    public static bool TryToMarkResources(World world, ResourceMarker marker, IEnumerable<ResourceBucket> sourceRBs, ResourceMarker sourceMarker, double maxWeight,
-        Entity workableEntity, IEnumerable<BuildingResouceQuantityTemplate> _requiredResourceGroups)
+    public static bool TryToMarkResources(Func<ResourceMarker> markerGen, IEnumerable<ResourceBucket> sourceRBs, ResourceMarker sourceMarker, double maxWeight,
+        IEnumerable<BuildingResouceQuantityTemplate> _requiredResourceGroups, out double usedWeight)
     {
+        usedWeight = 0;
+        var actions = new List<Action>();
         var requiredResourceGroups = _requiredResourceGroups.ToList();
+        ResourceMarker marker = default;
+
+        foreach (var reqRQ in requiredResourceGroups)
+            foreach (var srcRB in sourceRBs)
+                foreach (var srcRQ in srcRB.GetResourceQuantities(sourceMarker))
+                    if (!srcRQ.IsEmpty && (srcRQ.Resource.Name == reqRQ.Resource || srcRQ.Resource.Groups.Contains(reqRQ.Resource)))
+                    {
+                        var qtyUsed = Math.Min(reqRQ.Quantity, Math.Min(srcRQ.Quantity, ((maxWeight - usedWeight) / srcRQ.Resource.Weight).Floor<int>()));
+
+                        if (qtyUsed > 0)
+                        {
+                            reqRQ.Quantity -= qtyUsed;
+                            actions.Add(() =>
+                            {
+                                srcRQ.Quantity -= qtyUsed;
+                                srcRB.Add(new(srcRQ.Resource, qtyUsed), marker);
+                            });
+                            usedWeight += qtyUsed * srcRQ.Resource.Weight;
+                        }
+                    }
+
+        if (requiredResourceGroups.Any(w => w.Quantity > 0))
+            return false;
+
+        marker = markerGen();
+        foreach (var action in actions)
+            action();
+        return true;
     }
 
     public bool IsEmpty(ResourceMarker marker) =>

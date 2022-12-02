@@ -24,4 +24,6 @@ public class PooledCollection<T> : Collection<T>, IDisposable
 {
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA1816:Dispose methods should call SuppressFinalize", Justification = "Specialized use to free pooled collection")]
     public void Dispose() => CollectionPool<T>.Return(this);
+
+    public void Sort(Comparison<T> comparison) => ((List<T>)Items).Sort(comparison);
 }

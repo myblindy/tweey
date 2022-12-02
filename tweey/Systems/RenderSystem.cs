@@ -115,7 +115,7 @@ partial class RenderSystem
             var zoom = world.Zoom;
             var uvHalf = new Vector2(.5f);         // the center of the circle texture is white, use that for the box case
 
-            var center = box.Center + new Vector2(.5f) - world.Offset;
+            var center = box.Center - world.Offset;
             var rx = box.Size.X / 2 * scale;
             var ry = box.Size.Y / 2 * scale;
 

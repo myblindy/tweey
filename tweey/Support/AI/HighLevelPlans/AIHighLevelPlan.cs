@@ -2,10 +2,10 @@
 
 abstract class AIHighLevelPlan
 {
-    public AIHighLevelPlan(World world, Entity entity)
+    public AIHighLevelPlan(World world, Entity mainEntity)
     {
         World = world;
-        MainEntity = entity;
+        MainEntity = mainEntity;
     }
 
     protected World World { get; }

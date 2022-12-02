@@ -6,6 +6,8 @@ struct WorkableComponent
     public Entity Entity { get; set; }
     public bool EntityWorking { get; set; }
 
+    public Bill? ActiveBill { get; set; }
+    public int ActiveBillTicks { get; set; }
     public List<Bill> Bills { get; } = new();
 
     public void ClearWorkers() =>

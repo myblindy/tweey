@@ -50,9 +50,9 @@ internal partial class PlantTemplates : BaseTemplates<PlantTemplateIn, PlantTemp
             if (PathComponentExtractRegex().Match(file) is { Success: true } m)
                 files.Add((m.Groups[2].Value, m.Groups[1].Value, m.Groups[3].Success ? int.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture) : 0));
 
-        foreach (var file in files.OrderBy(w => w.value))
-            if (Keys.Contains(file.name))
-                this[file.name].Images.Add((file.value / 100.0, file.path));
+        foreach (var (name, path, value) in files.OrderBy(w => w.value))
+            if (Keys.Contains(name))
+                this[name].Images.Add((value / 100.0, path));
     }
 
     [GeneratedRegex("^(Data[/\\\\]Plants[/\\\\](.*?)(?:-(\\d+))?\\.png)$", RegexOptions.IgnoreCase)]
