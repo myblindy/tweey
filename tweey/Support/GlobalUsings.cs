@@ -35,9 +35,9 @@ global using Tweey.Gui;
 global using Tweey.Gui.Base;
 global using Tweey.Loaders;
 global using Tweey.Support;
+global using Tweey.Support.AI.HighLevelPlans;
+global using Tweey.Support.AI.LowLevelPlans;
 global using Tweey.WorldData;
-
-global using OpenTK.Audio.OpenAL;
 global using OpenTK.Graphics;
 global using OpenTK.Graphics.OpenGL;
 global using OpenTK.Windowing.Common;

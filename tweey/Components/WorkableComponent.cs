@@ -1,56 +1,26 @@
-﻿using System.Runtime.CompilerServices;
-
-namespace Tweey.Components;
+﻿namespace Tweey.Components;
 
 [EcsComponent]
 struct WorkableComponent
 {
-    public WorkableComponent() =>
-        ResizeSlots(0);
+    public Entity Entity { get; set; }
+    public bool EntityWorking { get; set; }
 
-    [MemberNotNull(nameof(WorkerSlots))]
-    public void ResizeSlots(int slots)
-    {
-        if (slots == 0)
-            WorkerSlots = Array.Empty<WorkerSlot>();
-        else
-        {
-            var extraNewSlots = slots - (WorkerSlots?.Length ?? 0);
-            WorkerSlots = new WorkerSlot[slots];
+    public Bill? ActiveBill { get; set; }
+    public int ActiveBillTicks { get; set; }
+    public List<Bill> Bills { get; } = new();
 
-            while (extraNewSlots-- > 0)
-                WorkerSlots[extraNewSlots] = new();
-        }
-    }
+    public void ClearWorkers() =>
+        (Entity, EntityWorking) = (Entity.Invalid, false);
 
-    public ref WorkerSlot GetEmptyWorkerSlot()
-    {
-        for (int i = 0; i < WorkerSlots.Length; i++)
-            if (WorkerSlots[i].Entity == Entity.Invalid)
-                return ref WorkerSlots[i];
-
-        return ref Unsafe.NullRef<WorkerSlot>();
-    }
-
-    public ref WorkerSlot GetAssignedWorkerSlot(Entity worker)
-    {
-        for (int i = 0; i < WorkerSlots.Length; i++)
-            if (WorkerSlots[i].Entity == worker)
-                return ref WorkerSlots[i];
-
-        return ref Unsafe.NullRef<WorkerSlot>();
-    }
-
-    public WorkerSlot[] WorkerSlots { get; private set; }
+    public WorkableComponent() => ClearWorkers();
 }
 
-struct WorkerSlot
+enum BillAmountType { FixedValue, UntilInStock }
+
+class Bill
 {
-    public WorkerSlot() { }
-
-    public void Clear() =>
-        (Entity, EntityWorking) = (Entity.Invalid, default);
-
-    public Entity Entity { get; set; } = Entity.Invalid;
-    public bool EntityWorking { get; set; }
+    public required BuildingProductionLineTemplate ProductionLine { get; init; }
+    public required BillAmountType AmountType { get; set; }
+    public required int Amount { get; set; }
 }

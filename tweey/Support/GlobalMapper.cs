@@ -17,12 +17,14 @@ internal static class GlobalMapper
             .ForMember(x => x.ProductionLines, (src, resources) => new((src.ProductionLines ?? Enumerable.Empty<BuildingProductionLineTemplateIn>())
                 .Select(pl => new BuildingProductionLineTemplate
                 {
-                    Inputs = new(pl.Inputs.Select(rq => new ResourceQuantity(((ResourceTemplates)resources!)[rq.Resource!], rq.Quantity))),
+                    Name = pl.Name,
+                    PossibleInputs = pl.Inputs.ToArray(),
                     Outputs = new(pl.Outputs.Select(rq => new ResourceQuantity(((ResourceTemplates)resources!)[rq.Resource!], rq.Quantity))),
                     WorkTicks = pl.WorkTicks
                 })
                 .ToArray()));
-        Mapper.CreateMap<ResourceIn, Resource>();
+        Mapper.CreateMap<ResourceIn, Resource>()
+            .ForMember(x => x.Groups, src => src.Groups?.ToArray() ?? Array.Empty<string>());
         Mapper.CreateMap<PlantTemplateIn, PlantTemplate>()
             .ForMember(x => x.Inventory, (src, resources) => new ResourceBucket(src.ContainingResources!.Select(rq => new ResourceQuantity(((ResourceTemplates)resources!)[rq.Resource!], rq.Quantity))));
     }

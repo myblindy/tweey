@@ -1,6 +1,4 @@
-﻿using Tweey.Support.AI.LowLevelPlans;
-
-namespace Tweey.Systems;
+﻿namespace Tweey.Systems;
 
 [EcsSystem(Archetypes.Render)]
 partial class RenderSystem
@@ -117,7 +115,7 @@ partial class RenderSystem
             var zoom = world.Zoom;
             var uvHalf = new Vector2(.5f);         // the center of the circle texture is white, use that for the box case
 
-            var center = box.Center + new Vector2(.5f) - world.Offset;
+            var center = box.Center - world.Offset;
             var rx = box.Size.X / 2 * scale;
             var ry = box.Size.Y / 2 * scale;
 
@@ -132,6 +130,8 @@ partial class RenderSystem
 
         IterateRenderPartitionByLocationComponents(worldViewBox, (in IterationResult w) =>
         {
+            if (w.Entity.HasBuildingComponent() && !w.Entity.GetBuildingComponent().IsBuilt) return;
+
             if (w.RenderableComponent.OcclusionScale > 0)
                 markOcclusionBox(w.LocationComponent.Box, w.RenderableComponent.OcclusionCircle, w.RenderableComponent.OcclusionScale);
         });
@@ -185,11 +185,9 @@ partial class RenderSystem
         // call the engine once for each light
         IterateRenderPartitionByLocationComponents(worldViewBox, (in IterationResult w) =>
         {
-            if (w.RenderableComponent.LightEmission.W == 0)
-                return;
-
-            if (!useTorches && w.Entity.HasVillagerComponent())
-                return;
+            if (w.RenderableComponent.LightEmission.W == 0) return;
+            if (!useTorches && w.Entity.HasVillagerComponent()) return;
+            if (w.Entity.HasBuildingComponent() && !w.Entity.GetBuildingComponent().IsBuilt) return;
 
             addLight((w.LocationComponent.Box.Center + new Vector2(.5f) - world.Offset) * world.Zoom, w.RenderableComponent.LightRange * world.Zoom,
                 w.RenderableComponent.LightEmission.GetXYZ(), w.RenderableComponent.LightFullCircle ? LightMapFBUbo.Light.FullAngle :
@@ -241,7 +239,7 @@ partial class RenderSystem
 
     void RenderBuildingSite(in Box2 box, in BuildingComponent buildingComponent)
     {
-        var worldBox = Box2.FromCornerSize((box.TopLeft + world.Offset) * world.Zoom, new(world.Zoom));
+        var worldBox = Box2.FromCornerSize((box.TopLeft - world.Offset) * world.Zoom, new(world.Zoom));
         ScreenFillFrame(RenderLayer.BelowPawns, worldBox, "BuildingSite", world.Zoom / 3, FrameType.NoEdges | FrameType.NoBackground);
 
         var percentageFilled = 1 - buildingComponent.BuildWorkTicks / buildingComponent.Template.BuildWorkTicks;
@@ -309,7 +307,7 @@ partial class RenderSystem
             {
                 if (w.Entity.HasInventoryComponent() && w.Entity.HasResourceComponent() && w.Entity.GetInventoryComponent().Inventory.IsEmpty(ResourceMarker.Default))
                     return;
-                ScreenFillQuad(RenderLayer.BelowPawns, w.LocationComponent.Box, atlas[atlasEntryName]);
+                ScreenFillQuad(w.Entity.HasVillagerComponent() ? RenderLayer.Pawn : RenderLayer.BelowPawns, w.LocationComponent.Box, atlas[atlasEntryName]);
             }
             else if (w.Entity.HasZoneComponent())
             {
@@ -322,19 +320,19 @@ partial class RenderSystem
         });
 
         // store the ai plan targets' vertices (lines)
-        //if (world.ShowDetails)
-        //    EcsCoordinator.IterateWorkerArchetype((in EcsCoordinator.WorkerIterationResult w) =>
-        //    {
-        //        if (w.WorkerComponent.CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity aiLowLevelPlanWithTargetEntity)
-        //            ScreenLine(w.LocationComponent.Box,
-        //                aiLowLevelPlanWithTargetEntity.TargetEntity.GetLocationComponent().Box, Colors4.Yellow);
-        //    });
-        //else if (world.SelectedEntity.HasValue && world.SelectedEntity.Value.HasWorkerComponent()
-        //    && world.SelectedEntity.Value.GetWorkerComponent().CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity { } aiLowLevelPlanWithTargetEntity)
-        //{
-        //    ScreenLine(world.SelectedEntity.Value.GetLocationComponent().Box,
-        //        aiLowLevelPlanWithTargetEntity.TargetEntity.GetLocationComponent().Box, Colors4.Yellow);
-        //}
+        if (world.ShowDetails)
+            EcsCoordinator.IterateWorkerArchetype((in EcsCoordinator.WorkerIterationResult w) =>
+            {
+                if (w.WorkerComponent.CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity aiLowLevelPlanWithTargetEntity)
+                    ScreenLine(RenderLayer.Gui, w.LocationComponent.Box,
+                        aiLowLevelPlanWithTargetEntity.TargetEntity.GetLocationComponent().Box, 1.5f, Colors4.Yellow);
+            });
+        else if (world.SelectedEntity.HasValue && world.SelectedEntity.Value.HasWorkerComponent()
+            && world.SelectedEntity.Value.GetWorkerComponent().CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity { } aiLowLevelPlanWithTargetEntity)
+        {
+            ScreenLine(RenderLayer.Gui, world.SelectedEntity.Value.GetLocationComponent().Box,
+                aiLowLevelPlanWithTargetEntity.TargetEntity.GetLocationComponent().Box, 1.5f, Colors4.Yellow);
+        }
 
         // selection box (lines)
         if (world.SelectedEntity is { } entity)
@@ -379,7 +377,7 @@ partial class RenderSystem
         GraphicsEngine.Viewport(0, 0, (int)windowUbo.Data.WindowSize.X, (int)windowUbo.Data.WindowSize.Y);
         GraphicsEngine.BlendNormalAlpha();
 
-        guiVAO.UploadNewData(..((int)RenderLayer.BelowGui + 1));
+        guiVAO.UploadNewData(..^1);
         guiVAO.Draw(PrimitiveType.Triangles);
 
         // draw the gui overlays, which shouldn't be light mapped

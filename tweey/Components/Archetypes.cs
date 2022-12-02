@@ -26,6 +26,9 @@ static class Archetypes
 
     public const EcsComponents Worker =
         EcsComponents.Worker | EcsComponents.Location | EcsComponents.Inventory | EcsComponents.Villager;
+
+    public const EcsComponents Workable =
+        EcsComponents.Workable | EcsComponents.Location;
 }
 
 [EcsPartition(Archetypes.Render)]

@@ -14,6 +14,13 @@
       "minimum": 0,
       "description": "The weight of one unit of this resource."
     },
+    "groups": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "description": "Group name for this resource, like vegetable or meat or cloth."
+      }
+    },
     "pickupSpeedMultiplier": {
       "type": "number",
       "minimum": 0,

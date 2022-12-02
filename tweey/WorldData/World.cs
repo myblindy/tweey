@@ -112,8 +112,7 @@ internal partial class World
         entity.AddLocationComponent(Box2.FromCornerSize(location, new(1, 1)));
         entity.AddRenderableComponent($"Data/Plants/{plantTemplate.FileName}.png",
             OcclusionCircle: true, OcclusionScale: plantTemplate.OccludeLight ? .3f : 0f);
-        entity.AddWorkableComponent()
-            .ResizeSlots(1);
+        entity.AddWorkableComponent();
         entity.AddPlantComponent(plantTemplate, plantTemplate.HarvestWorkTicks, isMature ? CustomDateTime.Invalid : WorldTime);
         entity.AddIdentityComponent(plantTemplate.Name);
         entity.AddInventoryComponent().Inventory
@@ -128,87 +127,79 @@ internal partial class World
     {
         // obey the maximum ground stack weight
         var result = new List<Entity>();
-        var availableNeighbours = ObjectPool<List<(Vector2i pt, Entity? entity, ResourceBucket? rb)>>.Shared.Get();
-        availableNeighbours.Clear();
+        using var availableNeighbours = CollectionPool<(Vector2i pt, Entity? entity, ResourceBucket? rb)>.Get();
 
-        try
+        var availableNeighboursSearchRadius = -1;
+        while (!srcRB.IsEmpty(srcMarker))
         {
-            var availableNeighboursSearchRadius = -1;
-            while (!srcRB.IsEmpty(srcMarker))
+            // take any spill-over and put it in a random direction, up to maximumGroundDropSpillOverRange range
+            while (availableNeighbours.Count == 0)
             {
-                // take any spill-over and put it in a random direction, up to maximumGroundDropSpillOverRange range
-                while (availableNeighbours.Count == 0)
-                {
-                    ++availableNeighboursSearchRadius;
+                ++availableNeighboursSearchRadius;
 
-                    foreach (var dv in GameUtilities.EnumerateNeighbourLocations(location, radiusMin: availableNeighboursSearchRadius, radiusMax: availableNeighboursSearchRadius))
+                foreach (var dv in GameUtilities.EnumerateNeighbourLocations(location, radiusMin: availableNeighboursSearchRadius, radiusMax: availableNeighboursSearchRadius))
+                {
+                    var okay = true;
+                    ResourceBucket? foundResourceBucket = default;
+                    Entity? foundEntity = default;
+
+                    EcsCoordinator.IteratePlacedResourceArchetype((in EcsCoordinator.PlacedResourceIterationResult w) =>
                     {
-                        var okay = true;
-                        ResourceBucket? foundResourceBucket = default;
-                        Entity? foundEntity = default;
+                        if (w.LocationComponent.Box.Contains(dv.ToNumericsVector2Center()))
+                            if (w.InventoryComponent.Inventory.GetWeight(dstMarker) >= Configuration.Data.GroundStackMaximumWeight)
+                            {
+                                okay = false;
+                                return false;
+                            }
+                            else
+                                (foundEntity, foundResourceBucket) = (w.Entity, w.InventoryComponent.Inventory);
+                        return true;
+                    });
 
-                        EcsCoordinator.IteratePlacedResourceArchetype((in EcsCoordinator.PlacedResourceIterationResult w) =>
-                        {
-                            if (w.LocationComponent.Box.Contains(dv.ToNumericsVector2Center()))
-                                if (w.InventoryComponent.Inventory.GetWeight(dstMarker) >= Configuration.Data.GroundStackMaximumWeight)
-                                {
-                                    okay = false;
-                                    return false;
-                                }
-                                else
-                                    (foundEntity, foundResourceBucket) = (w.Entity, w.InventoryComponent.Inventory);
-                            return true;
-                        });
-
-                        if (okay)
-                            availableNeighbours.Add((dv, foundEntity, foundResourceBucket));
-                    }
-                }
-
-                var chosenNeighbourIndex = Random.Shared.Next(availableNeighbours.Count);
-                var chosenNeighbour = availableNeighbours[chosenNeighbourIndex];
-                availableNeighbours.Remove(chosenNeighbour);
-
-                var newRB = chosenNeighbour.rb;
-                var newEntity = chosenNeighbour.entity ?? Entity.Invalid;
-                if (newRB is null)
-                {
-                    newEntity = EcsCoordinator.CreateEntity();
-                    newEntity.AddRenderableComponent(null);
-                    newEntity.AddLocationComponent(Box2.FromCornerSize(chosenNeighbour.pt, new(1, 1)));
-                    newEntity.AddResourceComponent();
-                    newRB = newEntity.AddInventoryComponent().Inventory;
-                    newEntity.AddIdentityComponent();
-                }
-                result.Add(newEntity);
-                var newRBWeight = newRB.GetWeight(dstMarker);
-
-                foreach (var resQ in srcRB.GetResourceQuantities(srcMarker).Where(w => !w.IsEmpty))
-                    // only allow one resource kind on the ground
-                    if (!newRB.GetResourceQuantities(dstMarker).Any() || newRB.GetResourceQuantities(dstMarker).Any(rq => rq.Resource == resQ.Resource))
-                    {
-                        var maxNewWeight = Configuration.Data.GroundStackMaximumWeight - newRBWeight;
-                        var quantityToMove = (int)Math.Floor(Math.Min(maxNewWeight, resQ.Weight) / resQ.Resource.Weight);
-
-                        var newResQ = new ResourceQuantity(resQ.Resource, quantityToMove);
-                        newRB.Add(newResQ, dstMarker);
-                        srcRB.Remove(newResQ);
-                        if (!resQ.IsEmpty)
-                            break;  // couldn't finish the stack
-                        newRBWeight += resQ.Resource.Weight * quantityToMove;
-                    }
-
-                if (newRB.GetResourceQuantities(dstMarker).FirstOrDefault() is { } newRQ)
-                {
-                    // once we finished this resource clump, set its name and render image
-                    newEntity.GetIdentityComponent().Name = newRQ.Resource.Name;
-                    newEntity.GetRenderableComponent().AtlasEntryName = $"Data/Resources/{newRQ.Resource.FileName}.png";
+                    if (okay)
+                        availableNeighbours.Add((dv, foundEntity, foundResourceBucket));
                 }
             }
-        }
-        finally
-        {
-            ObjectPool<List<(Vector2i pt, Entity? entity, ResourceBucket? rb)>>.Shared.Return(availableNeighbours);
+
+            var chosenNeighbourIndex = Random.Shared.Next(availableNeighbours.Count);
+            var chosenNeighbour = availableNeighbours[chosenNeighbourIndex];
+            availableNeighbours.Remove(chosenNeighbour);
+
+            var newRB = chosenNeighbour.rb;
+            var newEntity = chosenNeighbour.entity ?? Entity.Invalid;
+            if (newRB is null)
+            {
+                newEntity = EcsCoordinator.CreateEntity();
+                newEntity.AddRenderableComponent(null);
+                newEntity.AddLocationComponent(Box2.FromCornerSize(chosenNeighbour.pt, new(1, 1)));
+                newEntity.AddResourceComponent();
+                newRB = newEntity.AddInventoryComponent().Inventory;
+                newEntity.AddIdentityComponent();
+            }
+            result.Add(newEntity);
+            var newRBWeight = newRB.GetWeight(dstMarker);
+
+            foreach (var resQ in srcRB.GetResourceQuantities(srcMarker).Where(w => !w.IsEmpty))
+                // only allow one resource kind on the ground
+                if (!newRB.GetResourceQuantities(dstMarker).Any() || newRB.GetResourceQuantities(dstMarker).Any(rq => rq.Resource == resQ.Resource))
+                {
+                    var maxNewWeight = Configuration.Data.GroundStackMaximumWeight - newRBWeight;
+                    var quantityToMove = (int)Math.Floor(Math.Min(maxNewWeight, resQ.Weight) / resQ.Resource.Weight);
+
+                    var newResQ = new ResourceQuantity(resQ.Resource, quantityToMove);
+                    newRB.Add(newResQ, dstMarker);
+                    srcRB.Remove(newResQ);
+                    if (!resQ.IsEmpty)
+                        break;  // couldn't finish the stack
+                    newRBWeight += resQ.Resource.Weight * quantityToMove;
+                }
+
+            if (newRB.GetResourceQuantities(dstMarker).FirstOrDefault() is { } newRQ)
+            {
+                // once we finished this resource clump, set its name and render image
+                newEntity.GetIdentityComponent().Name = newRQ.Resource.Name;
+                newEntity.GetRenderableComponent().AtlasEntryName = $"Data/Resources/{newRQ.Resource.FileName}.png";
+            }
         }
 
         return result;
@@ -218,12 +209,12 @@ internal partial class World
     {
         var entity = EcsCoordinator.CreateEntity();
         ref var locationComponent = ref entity.AddLocationComponent(Box2.FromCornerSize(location, buildingTemplate.Width, buildingTemplate.Height));
-        entity.AddRenderableComponent($"Data/Buildings/{buildingTemplate.FileName}.png", OcclusionScale: 1,
+        entity.AddRenderableComponent($"Data/Buildings/{buildingTemplate.FileName}.png",
+            OcclusionScale: buildingTemplate.EmitLight is null ? 1 : 0,
             LightEmission: buildingTemplate.EmitLight?.Color.ToVector4(1) ?? default, LightRange: buildingTemplate.EmitLight?.Range ?? 0f);
         entity.AddBuildingComponent(buildingTemplate, isBuilt ? 0 : buildingTemplate.BuildWorkTicks);
         entity.AddInventoryComponent();
-        entity.AddWorkableComponent()
-            .ResizeSlots(isBuilt ? buildingTemplate.MaxWorkersAmount : 1);
+        entity.AddWorkableComponent();
         entity.AddIdentityComponent(buildingTemplate.Name);
 
         MarkAllPlantsForHarvest(locationComponent.Box);
@@ -299,10 +290,26 @@ internal partial class World
         return okay;
     }
 
+    public Dictionary<Resource, int> GetStoredResources(ResourceMarker marker)
+    {
+        var result = new Dictionary<Resource, int>();
+
+        EcsCoordinator.IteratePlacedResourceArchetype((in EcsCoordinator.PlacedResourceIterationResult rw) =>
+        {
+            if (rw.Entity.HasPlacedResourceIsStoredComponent())
+                foreach (var rq in rw.InventoryComponent.Inventory.GetResourceQuantities(marker))
+                    if (result.TryGetValue(rq.Resource, out var qty))
+                        result[rq.Resource] = qty + rq.Quantity;
+                    else
+                        result[rq.Resource] = rq.Quantity;
+        });
+
+        return result;
+    }
+
     public Vector2 GetWorldLocationFromScreenPoint(Vector2i screenPoint) =>
         new(screenPoint.X / Zoom + Offset.X, screenPoint.Y / Zoom + Offset.Y);
 
-    event Action<Entity>? PlacedBuilding;
     public void MouseEvent(Vector2i screenPosition, Vector2 worldLocation, InputAction? inputAction = null, MouseButton? mouseButton = null, KeyModifiers? keyModifiers = null)
     {
         if (inputAction == InputAction.Press && mouseButton == MouseButton.Button1)
@@ -334,7 +341,6 @@ internal partial class World
                 if (IsBoxFreeOfBuildings(Box2.FromCornerSize(worldLocation.ToVector2i(), CurrentWorldTemplate.BuildingTemplate.Width, CurrentWorldTemplate.BuildingTemplate.Height)))
                 {
                     var building = AddBuildingEntity(CurrentWorldTemplate.BuildingTemplate, worldLocation.Floor(), false);
-                    PlacedBuilding?.Invoke(building);
                     if (keyModifiers?.HasFlag(KeyModifiers.Shift) != true)
                         CurrentWorldTemplate.Clear();
                 }
@@ -381,50 +387,6 @@ internal partial class World
 
         (MouseScreenPosition, MouseWorldPosition) = (screenPosition, worldLocation);
     }
-
-    event Action<Entity /* workable */, Entity /* worker */>? StartedJob;
-    public static void PlanWork(Entity workable, Entity worker)
-    {
-        ref var workableComponent = ref workable.GetWorkableComponent();
-        ref var emptyWorkerSlot = ref workableComponent.GetEmptyWorkerSlot();
-
-        if (emptyWorkerSlot.Entity != Entity.Invalid)
-            emptyWorkerSlot.Entity = worker;
-        else
-            throw new InvalidOperationException($"Could not find an empty worker slot for {worker} to work on {workable}.");
-    }
-
-    public void StartWork(Entity workable, Entity worker)
-    {
-        StartedJob?.Invoke(workable, worker);
-
-        ref var workableComponent = ref workable.GetWorkableComponent();
-        ref var emptyWorkerSlot = ref workableComponent.GetAssignedWorkerSlot(worker);
-
-        if (emptyWorkerSlot.Entity != Entity.Invalid)
-            emptyWorkerSlot.EntityWorking = true;
-        else
-            throw new InvalidOperationException($"Could not find worker slot on {workable} supposedly worked by {worker}.");
-    }
-
-    event Action<Entity /* workable */, Entity /* worker */, bool /* last */>? EndedBuildingJob;
-    public void EndWork(Entity workable, Entity worker)
-    {
-        ref var workableComponent = ref workable.GetWorkableComponent();
-        ref var emptyWorkerSlot = ref workableComponent.GetAssignedWorkerSlot(worker);
-
-        if (emptyWorkerSlot.Entity != Entity.Invalid)
-        {
-            EndedBuildingJob?.Invoke(workable, worker, !workableComponent.WorkerSlots.Any(w => w.EntityWorking));
-            emptyWorkerSlot.Clear();
-        }
-        else
-            throw new InvalidOperationException($"Could not find worker slot on {workable} supposedly worked by {worker}.");
-    }
-
-    event Action<BuildingTemplate?>? CurrentBuildingTemplateChanged;
-    public void FireCurrentBuildingTemplateChanged() =>
-        CurrentBuildingTemplateChanged?.Invoke(CurrentWorldTemplate.BuildingTemplate);
 
     public void KeyEvent(InputAction inputAction, Keys key, int scanCode, KeyModifiers keyModifiers)
     {

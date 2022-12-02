@@ -4,9 +4,10 @@ internal enum BuildingType { Production, Storage }
 
 internal class BuildingProductionLineTemplate
 {
-    public ResourceBucket Inputs { get; set; } = null!;
-    public ResourceBucket Outputs { get; set; } = null!;
-    public int WorkTicks { get; set; }
+    public required string Name { get; set; }
+    public required BuildingResouceQuantityTemplate[] PossibleInputs { get; set; }
+    public required ResourceBucket Outputs { get; set; }
+    public required int WorkTicks { get; set; }
 }
 
 internal class BuildingLightTemplate
@@ -34,12 +35,13 @@ internal class BuildingTemplate : ITemplateFileName
 
 internal class BuildingProductionLineTemplateIn
 {
-    public List<BuildingResouceQuantityTemplateIn> Inputs { get; set; } = null!;
-    public List<BuildingResouceQuantityTemplateIn> Outputs { get; set; } = null!;
+    public string Name { get; set; } = null!;
+    public List<BuildingResouceQuantityTemplate> Inputs { get; set; } = null!;
+    public List<BuildingResouceQuantityTemplate> Outputs { get; set; } = null!;
     public int WorkTicks { get; set; }
 }
 
-internal class BuildingResouceQuantityTemplateIn
+internal class BuildingResouceQuantityTemplate
 {
     public string? Resource { get; set; }
     public int Quantity { get; set; }
@@ -48,7 +50,7 @@ internal class BuildingResouceQuantityTemplateIn
 internal class BuildingCostTemplateIn
 {
     public int WorkTicks { get; set; }
-    public List<BuildingResouceQuantityTemplateIn> Resources { get; set; } = null!;
+    public List<BuildingResouceQuantityTemplate> Resources { get; set; } = null!;
 }
 
 internal class BuildingTemplateIn
