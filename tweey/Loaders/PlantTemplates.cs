@@ -9,7 +9,8 @@ internal class PlantTemplate : ITemplateFileName
     public required int HarvestWorkTicks { get; set; }
     public required ResourceBucket Inventory { get; set; }
     public required double DaysFromSpawnToFullGrowth { get; set; }
-    public required bool OccludeLight { get; set; }
+    public required bool IsOccludingLight { get; set; }
+    public required bool IsTree { get; set; }
     public string FileName { get; set; } = null!;
 
     public Collection<(double growth, string image)> Images { get; } = new();
@@ -36,7 +37,8 @@ internal class PlantTemplateIn
     public string Name { get; set; } = null!;
     public int HarvestWorkTicks { get; set; }
     public double DaysFromSpawnToFullGrowth { get; set; }
-    public bool OccludeLight { get; set; }
+    public bool IsOccludingLight { get; set; }
+    public bool IsTree { get; set; }
     public List<PlantResouceTemplateIn>? ContainingResources { get; set; }
 }
 

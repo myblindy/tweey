@@ -275,14 +275,14 @@ partial class RenderSystem
         // render the background (tri0)
         var normalizedGrassOffset = world.Offset.ToVector2i().ToNumericsVector2();
 
-        if (world.TerrainTileNames is { })
+        if (world.TerrainCells is { })
             for (int y = -1; y < windowUbo.Data.WindowSize.Y / world.Zoom + 1; ++y)
                 for (int x = -1; x < windowUbo.Data.WindowSize.X / world.Zoom + 1; ++x)
                     if ((int)(x + normalizedGrassOffset.X) is { } xIdx && (int)(y + normalizedGrassOffset.Y) is { } yIdx
-                        && xIdx >= 0 && yIdx >= 0 && xIdx < world.TerrainTileNames.GetLength(0) && yIdx < world.TerrainTileNames.GetLength(1))
+                        && xIdx >= 0 && yIdx >= 0 && xIdx < world.TerrainCells.GetLength(0) && yIdx < world.TerrainCells.GetLength(1))
                     {
                         ScreenFillQuad(RenderLayer.Ground, Box2.FromCornerSize(new Vector2(x, y) + normalizedGrassOffset, 1, 1), Colors4.White,
-                            atlas[world.TerrainTileNames[(int)(x + normalizedGrassOffset.X), (int)(y + normalizedGrassOffset.Y)]]);
+                            atlas[world.TerrainCells[(int)(x + normalizedGrassOffset.X), (int)(y + normalizedGrassOffset.Y)].TileFileName!]);
                     }
 
         // store the actual entities' vertices(tri0)

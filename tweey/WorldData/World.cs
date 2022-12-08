@@ -10,7 +10,7 @@ internal partial class World
     public Configuration Configuration { get; }
     public Biomes Biomes { get; }
 
-    public string[,]? TerrainTileNames { get; private set; }
+    public TerrainCell[,]? TerrainCells { get; private set; }
 
     internal Entity? SelectedEntity { get; set; }
     public CurrentWorldTemplate CurrentWorldTemplate { get; } = new();
@@ -45,7 +45,7 @@ internal partial class World
         Biomes = new(loader, PlantTemplates);
     }
 
-    [MemberNotNull(nameof(TerrainTileNames))]
+    [MemberNotNull(nameof(TerrainCells))]
     public void GenerateMap(int width, int height)
     {
         // generate the terrain
@@ -72,12 +72,14 @@ internal partial class World
             .GroupBy(w => w.Groups[1].Value)
             .ToDictionary(w => w.Key, w => w.Select(ww => ww.Groups[0].Value).ToList());
 
-        TerrainTileNames = new string[width, height];
+        TerrainCells = new TerrainCell[width, height];
         for (var y = 0; y < height; y++)
             for (var x = 0; x < width; x++)
             {
                 var biome = Biomes[map[x, y].BiomeIndex];
-                TerrainTileNames[x, y] = biomeTiles[biome.TileName].RandomSubset(1).First();
+                ref var tile = ref TerrainCells[x, y];
+                tile.TileFileName = biomeTiles[biome.TileName].RandomSubset(1).First();
+                tile.GroundMovementModifier = (float)biome.MovementModifier;
 
                 // plant a tree?
                 foreach (var (template, chance) in biome.Plants)
@@ -111,7 +113,7 @@ internal partial class World
         var entity = EcsCoordinator.CreateEntity();
         entity.AddLocationComponent(Box2.FromCornerSize(location, new(1, 1)));
         entity.AddRenderableComponent($"Data/Plants/{plantTemplate.FileName}.png",
-            OcclusionCircle: true, OcclusionScale: plantTemplate.OccludeLight ? .3f : 0f);
+            OcclusionCircle: true, OcclusionScale: plantTemplate.IsOccludingLight ? .3f : 0f);
         entity.AddWorkableComponent();
         entity.AddPlantComponent(plantTemplate, plantTemplate.HarvestWorkTicks, isMature ? CustomDateTime.Invalid : WorldTime);
         entity.AddIdentityComponent(plantTemplate.Name);
@@ -119,6 +121,10 @@ internal partial class World
             .Add(ResourceMarker.All, plantTemplate.Inventory, ResourceMarker.Default);
         if (isFarmed)
             entity.AddPlantIsFarmedComponent();
+
+        if (plantTemplate.IsTree)
+            TerrainCells![(int)Math.Round(location.X), (int)Math.Round(location.Y)].AboveGroundMovementModifier =
+                (float)Configuration.Data.TreeMovementModifier;
 
         return entity;
     }
@@ -255,6 +261,12 @@ internal partial class World
     internal bool DeleteEntity(Entity entity)
     {
         if (SelectedEntity == entity) SelectedEntity = null;
+        if (entity.HasPlantComponent() && entity.GetPlantComponent().Template.IsTree
+            && entity.GetLocationComponent().Box.TopLeft.ToVector2i() is { } pos)
+        {
+            TerrainCells![pos.X, pos.Y].AboveGroundMovementModifier = 1;
+        }
+
         return entity.Delete();
     }
 
@@ -463,4 +475,15 @@ internal partial class World
 
     [GeneratedRegex("Data[/\\\\]Biomes[/\\\\](.*)[/\\\\].*\\.png", RegexOptions.IgnoreCase)]
     private static partial Regex ExtractBiomeNameFromPathRegex();
+}
+
+struct TerrainCell
+{
+    public TerrainCell()
+    {
+    }
+
+    public string? TileFileName { get; set; }
+    public float GroundMovementModifier { get; set; } = 1;
+    public float AboveGroundMovementModifier { get; set; } = 1;
 }

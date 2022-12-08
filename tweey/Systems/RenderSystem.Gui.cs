@@ -10,6 +10,7 @@ partial class RenderSystem
         var descriptionColor = new Vector4(.8f, .8f, .8f, 1);
         var highlightColor = Colors4.Aqua;
 
+        // time gui
         gui.RootViewDescriptions.Add(new(
             new StackView(StackType.Vertical)
             {
@@ -364,6 +365,33 @@ partial class RenderSystem
         gui.RootViewDescriptions.Add(new(
             new StackView(StackType.Vertical)
             {
+                BackgroundColor = panelBackgroundColor,
+                Children =
+                {
+                    new LabelView
+                    {
+                        Text = () => "Resources in stock:",
+                        FontSize = () => defaultFontSize
+                    },
+                    new RepeaterView<ResourceQuantity>
+                    {
+                        Source = () => world.GetStoredResources(ResourceMarker.Default).Select(w => new ResourceQuantity(w.Key, w.Value)),
+                        ContainerView = new StackView(StackType.Vertical),
+                        ItemView = rq => getResourceRowView(false, rq.Resource, () => rq.Quantity),
+                        EmptyView = new LabelView
+                        {
+                            Text = () => "None",
+                            FontSize = () => defaultFontSize,
+                            ForegroundColor = () => descriptionColor
+                        }
+                    }
+                }
+            }, Anchor.TopRight));
+
+        // timing info
+        gui.RootViewDescriptions.Add(new(
+            new StackView(StackType.Vertical)
+            {
                 Children =
                 {
                     new LabelView
@@ -377,7 +405,7 @@ partial class RenderSystem
                         FontSize = () => smallFontSize,
                         Padding = new(2),
                         ForegroundColor = () => Colors4.White,
-                        BackgroundColor = new(0,0,0,.4f)
+                        BackgroundColor = panelBackgroundColor
                     },
                     new LabelView
                     {

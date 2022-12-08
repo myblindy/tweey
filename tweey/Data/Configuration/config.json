@@ -23,5 +23,7 @@
   "zoneErrorColor": [ 0.8, 0.2, 0.2 ],
 
   "midDayColor": [ 1.0, 1.0, 1.0 ],
-  "midNightColor": [ 0.1, 0.13, 0.32 ]
+  "midNightColor": [ 0.1, 0.13, 0.32 ],
+
+  "treeMovementModifier": 0.5
 }

@@ -22,6 +22,7 @@ class ConfigurationData
     public Vector3 ZoneErrorColor { get; set; }
     public Vector3 MidDayColor { get; set; }
     public Vector3 MidNightColor { get; set; }
+    public double TreeMovementModifier { get; set; }
 }
 
 class Configuration

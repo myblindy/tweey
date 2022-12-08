@@ -21,7 +21,10 @@
       "type": "number",
       "minimum": 0
     },
-    "occludeLight": {
+    "isOccludingLight": {
+      "type": "boolean"
+    },
+    "isTree": {
       "type": "boolean"
     }
   },

@@ -10,6 +10,7 @@ class BiomeIn
 {
     public string Name { get; set; } = null!;
     public string? TileName { get; set; }
+    public double MovementModifier { get; set; }
     public double MinHeight { get; set; }
     public double MinMoisture { get; set; }
     public double MinHeat { get; set; }
@@ -18,11 +19,12 @@ class BiomeIn
 
 class Biome
 {
-    public required string Name { get; set; }
-    public required string TileName { get; set; }
-    public required double MinHeight { get; set; }
-    public required double MinMoisture { get; set; }
-    public required double MinHeat { get; set; }
+    public required string Name { get; init; }
+    public required string TileName { get; init; }
+    public required double MovementModifier { get; init; }
+    public required double MinHeight { get; init; }
+    public required double MinMoisture { get; init; }
+    public required double MinHeat { get; init; }
     public required (PlantTemplate template, double chance)[] Plants { get; init; }
 }
 
