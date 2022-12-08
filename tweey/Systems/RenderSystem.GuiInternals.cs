@@ -40,13 +40,15 @@ partial class RenderSystem
         var zoom = asWorldCoords ? world.Zoom : 1;
         var offset = asWorldCoords ? world.Offset : default;
         var br = box.BottomRight + Vector2.One;
-        guiVAO.LayerVertices[(int)renderLayer].Add(new((box.TopLeft - offset) * zoom, color, uv0));
-        guiVAO.LayerVertices[(int)renderLayer].Add(new((br - offset) * zoom, color, uv1));
-        guiVAO.LayerVertices[(int)renderLayer].Add(new(new((br.X - offset.X) * zoom, (box.Top - offset.Y) * zoom), color, uv2));
 
-        guiVAO.LayerVertices[(int)renderLayer].Add(new(new((box.Left - offset.X) * zoom, (br.Y - offset.Y) * zoom), color, uv3));
-        guiVAO.LayerVertices[(int)renderLayer].Add(new((br - offset) * zoom, color, uv1));
-        guiVAO.LayerVertices[(int)renderLayer].Add(new((box.TopLeft - offset) * zoom, color, uv0));
+        var vertices = guiVAO.LayerVertices[(int)renderLayer];
+        vertices.Add(new((box.TopLeft - offset) * zoom, color, uv0));
+        vertices.Add(new((br - offset) * zoom, color, uv1));
+        vertices.Add(new(new((br.X - offset.X) * zoom, (box.Top - offset.Y) * zoom), color, uv2));
+
+        vertices.Add(new(new((box.Left - offset.X) * zoom, (br.Y - offset.Y) * zoom), color, uv3));
+        vertices.Add(new((br - offset) * zoom, color, uv1));
+        vertices.Add(new((box.TopLeft - offset) * zoom, color, uv0));
     }
 
     void ScreenStrokeQuad(RenderLayer renderLayer, in Box2 box, float strokeWidth, in Vector4 color, in AtlasEntry entry)

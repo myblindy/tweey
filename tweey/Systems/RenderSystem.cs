@@ -37,9 +37,10 @@ partial class RenderSystem
     FrameBuffer lightMapOcclusionFrameBuffer = null!;
     readonly StreamingVertexArrayObject<LightMapOcclusionFBVertex> lightMapOcclusionVAO = new();
     readonly ShaderProgram lightMapOcclusionShaderProgram;
+    const int lightMapOcclusionTextureDivisor = 2;
     readonly Texture2D lightMapOcclusionCircleTexture;
 
-    const int lightsUboBindingPoint = 2;
+    const int lightsUboBindingPoint = 3;
     Texture2D lightMapTexture = null!;
     FrameBuffer lightMapFrameBuffer = null!;
 
@@ -103,7 +104,7 @@ partial class RenderSystem
 
         lightMapOcclusionFrameBuffer?.Dispose();
         lightMapOcclusionTexture?.Dispose();
-        lightMapOcclusionTexture = new(width, height, SizedInternalFormat.R8);
+        lightMapOcclusionTexture = new(width / lightMapOcclusionTextureDivisor, height / lightMapOcclusionTextureDivisor, SizedInternalFormat.R8);
         lightMapOcclusionFrameBuffer = new(new[] { lightMapOcclusionTexture });
     }
 
@@ -119,13 +120,14 @@ partial class RenderSystem
             var rx = box.Size.X / 2 * scale;
             var ry = box.Size.Y / 2 * scale;
 
-            lightMapOcclusionVAO.LayerVertices[0].Add(new((center + new Vector2(-rx, ry)) * zoom, circle ? new(0, 0) : uvHalf));
-            lightMapOcclusionVAO.LayerVertices[0].Add(new((center + new Vector2(rx, -ry)) * zoom, circle ? new(1, 1) : uvHalf));
-            lightMapOcclusionVAO.LayerVertices[0].Add(new((center + new Vector2(rx, ry)) * zoom, circle ? new(1, 0) : uvHalf));
+            var vertices = lightMapOcclusionVAO.LayerVertices[0];
+            vertices.Add(new((center + new Vector2(-rx, ry)) * zoom, circle ? new(0, 0) : uvHalf));
+            vertices.Add(new((center + new Vector2(rx, -ry)) * zoom, circle ? new(1, 1) : uvHalf));
+            vertices.Add(new((center + new Vector2(rx, ry)) * zoom, circle ? new(1, 0) : uvHalf));
 
-            lightMapOcclusionVAO.LayerVertices[0].Add(new((center + new Vector2(-rx, -ry)) * zoom, circle ? new(0, 1) : uvHalf));
-            lightMapOcclusionVAO.LayerVertices[0].Add(new((center + new Vector2(rx, -ry)) * zoom, circle ? new(1, 1) : uvHalf));
-            lightMapOcclusionVAO.LayerVertices[0].Add(new((center + new Vector2(-rx, ry)) * zoom, circle ? new(0, 0) : uvHalf));
+            vertices.Add(new((center + new Vector2(-rx, -ry)) * zoom, circle ? new(0, 1) : uvHalf));
+            vertices.Add(new((center + new Vector2(rx, -ry)) * zoom, circle ? new(1, 1) : uvHalf));
+            vertices.Add(new((center + new Vector2(-rx, ry)) * zoom, circle ? new(0, 0) : uvHalf));
         }
 
         IterateRenderPartitionByLocationComponents(worldViewBox, (in IterationResult w) =>
@@ -139,6 +141,7 @@ partial class RenderSystem
         lightMapOcclusionVAO.UploadNewData(Range.All);
 
         lightMapOcclusionFrameBuffer.Bind(FramebufferTarget.Framebuffer);
+        GraphicsEngine.Viewport(0, 0, (int)windowUbo.Data.WindowSize.X / lightMapOcclusionTextureDivisor, (int)windowUbo.Data.WindowSize.Y / lightMapOcclusionTextureDivisor);
         GraphicsEngine.Clear();
         lightMapOcclusionShaderProgram.Use();
         lightMapOcclusionCircleTexture.Bind(0);
@@ -151,6 +154,7 @@ partial class RenderSystem
 
         // setup the re-callable engine to render the light maps
         lightMapFrameBuffer.Bind(FramebufferTarget.Framebuffer);
+        GraphicsEngine.Viewport(0, 0, (int)windowUbo.Data.WindowSize.X, (int)windowUbo.Data.WindowSize.Y);
         GraphicsEngine.Clear();
         lightMapFBShaderProgram.Use();
         lightMapOcclusionTexture.Bind(0);
@@ -189,7 +193,7 @@ partial class RenderSystem
             if (!useTorches && w.Entity.HasVillagerComponent()) return;
             if (w.Entity.HasBuildingComponent() && !w.Entity.GetBuildingComponent().IsBuilt) return;
 
-            addLight((w.LocationComponent.Box.Center + new Vector2(.5f) - world.Offset) * world.Zoom, w.RenderableComponent.LightRange * world.Zoom,
+            addLight((w.LocationComponent.Box.Center - world.Offset) * world.Zoom, w.RenderableComponent.LightRange * world.Zoom,
                 w.RenderableComponent.LightEmission.GetXYZ(), w.RenderableComponent.LightFullCircle ? LightMapFBUbo.Light.FullAngle :
                     getAngleMinMaxFromHeading(w.Entity.GetHeadingComponent().Heading, w.RenderableComponent.LightAngleRadius));
         });

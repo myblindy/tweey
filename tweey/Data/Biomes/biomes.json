@@ -34,8 +34,8 @@
       "movementModifier": 0.9,
       "tileName": "Grass",
       "minHeight": 0.25,
-      "minMoisture": 0.4,
-      "minHeat": 0.3,
+      "minMoisture": 0.3,
+      "minHeat": 0.2,
       "plants": [
         {
           "name": "tree-leafy",
@@ -48,8 +48,8 @@
       "movementModifier": 0.8,
       "tileName": "Grass",
       "minHeight": 0.25,
-      "minMoisture": 0.5,
-      "minHeat": 0.4,
+      "minMoisture": 0.4,
+      "minHeat": 0.3,
       "plants": [
         {
           "name": "tree-pine",
