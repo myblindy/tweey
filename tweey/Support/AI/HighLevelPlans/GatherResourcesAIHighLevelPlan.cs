@@ -24,7 +24,7 @@ class GatherResourcesAIHighLevelPlan : AIHighLevelPlan
 
         foreach (var targetEntity in targets.OrderByDistanceFrom(MainEntity.GetLocationComponent().Box.Center, w => w.location, w => w.entity))
         {
-            yield return new WalkToEntityLowLevelPlan(World, MainEntity, targetEntity);
+            yield return new WalkLowLevelPlan(World, MainEntity, targetEntity);
             yield return new WaitLowLevelPlan(World, MainEntity, World.RawWorldTime + World.GetWorldTimeFromTicks(
                 MainEntity.GetVillagerComponent().PickupSpeedMultiplier * World.Configuration.Data.BasePickupSpeed
                     * targetEntity.GetInventoryComponent().Inventory.GetWeight(marker)));

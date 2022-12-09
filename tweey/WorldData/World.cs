@@ -78,8 +78,7 @@ internal partial class World
             {
                 var biome = Biomes[map[x, y].BiomeIndex];
                 ref var tile = ref TerrainCells[x, y];
-                tile.TileFileName = biomeTiles[biome.TileName].RandomSubset(1).First();
-                tile.GroundMovementModifier = (float)biome.MovementModifier;
+                tile = new(biomeTiles[biome.TileName].RandomSubset(1).First(), (float)biome.MovementModifier);
 
                 // plant a tree?
                 foreach (var (template, chance) in biome.Plants)
@@ -302,7 +301,7 @@ internal partial class World
         return okay;
     }
 
-    public Dictionary<Resource, int> GetStoredResources(ResourceMarker marker)
+    public static Dictionary<Resource, int> GetStoredResources(ResourceMarker marker)
     {
         var result = new Dictionary<Resource, int>();
 
@@ -430,6 +429,7 @@ internal partial class World
             Save("quick");
     }
 
+    #region Saving
     static readonly string SavesFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "My Games", "Tweey");
     const string SavesExtension = "sav";
 
@@ -454,6 +454,7 @@ internal partial class World
         using var compressStream = new GZipStream(file, CompressionLevel.SmallestSize, true);
         JsonSerializer.Serialize(compressStream, saveData, Loader.BuildJsonOptions());
     }
+    #endregion
 
     public TimeSpan TotalRealTime { get; private set; }
     const double worldTimeMultiplier = 96 * 6;
@@ -477,13 +478,4 @@ internal partial class World
     private static partial Regex ExtractBiomeNameFromPathRegex();
 }
 
-struct TerrainCell
-{
-    public TerrainCell()
-    {
-    }
-
-    public string? TileFileName { get; set; }
-    public float GroundMovementModifier { get; set; } = 1;
-    public float AboveGroundMovementModifier { get; set; } = 1;
-}
+record struct TerrainCell(string? TileFileName, float GroundMovementModifier = 1, float AboveGroundMovementModifier = 1);

@@ -327,15 +327,19 @@ partial class RenderSystem
         if (world.ShowDetails)
             EcsCoordinator.IterateWorkerArchetype((in EcsCoordinator.WorkerIterationResult w) =>
             {
-                if (w.WorkerComponent.CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity aiLowLevelPlanWithTargetEntity)
+                if (w.WorkerComponent.CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity aiLowLevelPlanWithTargetEntity
+                    && aiLowLevelPlanWithTargetEntity.TargetEntity is { } targetEntity)
+                {
                     ScreenLine(RenderLayer.Gui, w.LocationComponent.Box,
-                        aiLowLevelPlanWithTargetEntity.TargetEntity.GetLocationComponent().Box, 1.5f, Colors4.Yellow);
+                        aiLowLevelPlanWithTargetEntity.TargetEntity!.Value.GetLocationComponent().Box, 1.5f, Colors4.Yellow);
+                }
             });
         else if (world.SelectedEntity.HasValue && world.SelectedEntity.Value.HasWorkerComponent()
-            && world.SelectedEntity.Value.GetWorkerComponent().CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity { } aiLowLevelPlanWithTargetEntity)
+            && world.SelectedEntity.Value.GetWorkerComponent().CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity { } aiLowLevelPlanWithTargetEntity
+            && aiLowLevelPlanWithTargetEntity.TargetEntity is { } targetEntity)
         {
             ScreenLine(RenderLayer.Gui, world.SelectedEntity.Value.GetLocationComponent().Box,
-                aiLowLevelPlanWithTargetEntity.TargetEntity.GetLocationComponent().Box, 1.5f, Colors4.Yellow);
+                targetEntity.GetLocationComponent().Box, 1.5f, Colors4.Yellow);
         }
 
         // selection box (lines)

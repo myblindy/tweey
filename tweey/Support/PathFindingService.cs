@@ -14,9 +14,16 @@ class PathFindingService
         public ushort TotalCost { get; set; }
     }
 
-    static public PathFindingResult Calculate(ReadOnlySpan<byte> cells, int width, Vector2i startPosition, Vector2i goalPosition)
+    static public PathFindingResult Calculate(World world, Vector2i startPosition, Vector2i goalPosition)
     {
-        var height = cells.Length / width;
+        var width = world.TerrainCells!.GetLength(0);
+        var height = world.TerrainCells!.GetLength(1);
+        var cells = new byte[height * width];
+
+        for (int y = 0; y < height; ++y)
+            for (int x = 0; x < width; ++x)
+                cells[y * width + x] = (byte)(255 - Math.Round(Math.Min(world.TerrainCells![x, y].GroundMovementModifier, world.TerrainCells![x, y].AboveGroundMovementModifier) * 255));
+
         var open = new PriorityQueue<Node, float>();
         var openSet = new HashSet<Vector2i>();
         var closedSet = new HashSet<Vector2i>();
@@ -24,8 +31,8 @@ class PathFindingService
 
         float getDistance(Vector2i position) =>
             Math.Abs(position.X - goalPosition.X) + Math.Abs(position.Y - goalPosition.Y);
-
-        open.Enqueue(new Node(null, startPosition, cells[startPosition.X * height + startPosition.Y]), getDistance(startPosition));
+        
+        open.Enqueue(new Node(null, startPosition, cells[startPosition.X + startPosition.Y * width]), getDistance(startPosition));
         openSet.Add(startPosition);
 
         while (open.Count != 0 && !closedSet.Contains(goalPosition))
@@ -34,10 +41,10 @@ class PathFindingService
             openSet.Remove(currentNode.Position);
             closedSet.Add(currentNode.Position);
 
-            void process(ReadOnlySpan<byte> cells, Vector2i delta)
+            void process(Vector2i delta)
             {
                 var newPosition = currentNode.Position + delta;
-                if (!closedSet.Contains(newPosition) && cells[newPosition.X * height + newPosition.Y] is { } weight && weight < byte.MaxValue && !openSet.Contains(newPosition))
+                if (!closedSet.Contains(newPosition) && cells[newPosition.X + newPosition.Y * width] is { } weight && weight < byte.MaxValue && !openSet.Contains(newPosition))
                 {
                     var newNode = new Node(currentNode, newPosition, weight);
                     open.Enqueue(newNode, getDistance(newPosition) + newNode.TotalCost / 255f);
@@ -48,16 +55,16 @@ class PathFindingService
                 }
             }
 
-            if (currentNode.Position.X > 0) process(cells, new(-1, 0));
-            if (currentNode.Position.Y > 0) process(cells, new(0, -1));
-            if (currentNode.Position.X < width - 1) process(cells, new(1, 0));
-            if (currentNode.Position.Y < height - 1) process(cells, new(0, 1));
+            if (currentNode.Position.X > 0) process(new(-1, 0));
+            if (currentNode.Position.Y > 0) process(new(0, -1));
+            if (currentNode.Position.X < width - 1) process(new(1, 0));
+            if (currentNode.Position.Y < height - 1) process(new(0, 1));
         }
 
         if (!closedSet.Contains(goalPosition))
-            return new() { IsValid = false };
+            return new() { IsComplete = true, IsValid = false };
 
-        var result = new PathFindingResult { IsValid = true, Positions = new() };
+        var result = new PathFindingResult { IsComplete = true, IsValid = true, Positions = new() };
 
         while (goalNode is not null)
         {
@@ -72,6 +79,7 @@ class PathFindingService
 
 class PathFindingResult
 {
+    public required bool IsComplete { get; init; }
     public required bool IsValid { get; init; }
     public List<Vector2i>? Positions { get; init; }
 }

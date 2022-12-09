@@ -14,7 +14,7 @@ class WorkAIHighLevelPlan : AIHighLevelPlan
 
     public override IEnumerable<AILowLevelPlan> GetLowLevelPlans()
     {
-        yield return new WalkToEntityLowLevelPlan(World, MainEntity, workableEntity);
+        yield return new WalkLowLevelPlan(World, MainEntity, workableEntity);
 
         workableEntity.GetWorkableComponent().EntityWorking = true;
         if (workableEntity.HasBuildingComponent())

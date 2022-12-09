@@ -58,7 +58,7 @@ class Program : GameWindow
         world.GenerateMap(400, 400);
 
         var villager = world.SelectedEntity = world.AddVillagerEntity("Sana", new(200, 200));
-        world.AddVillagerEntity("Momo", new(215, 220));
+        //world.AddVillagerEntity("Momo", new(215, 220));
         world.Offset = new(190, 190);
 
         EcsCoordinator.ConstructFarmSystem(() => new(world));

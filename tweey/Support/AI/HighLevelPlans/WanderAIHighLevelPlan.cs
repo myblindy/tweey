@@ -14,6 +14,6 @@ class WanderAIHighLevelPlan : AIHighLevelPlan
 
     public override IEnumerable<AILowLevelPlan> GetLowLevelPlans()
     {
-        yield return new WalkToWorldPositionLowLevelPlan(World, MainEntity, targetWorldPosition, speedMultiplier);
+        yield return new WanderLowLevelPlan(World, MainEntity, targetWorldPosition, speedMultiplier);
     }
 }

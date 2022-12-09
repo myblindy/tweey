@@ -375,7 +375,7 @@ partial class RenderSystem
                     },
                     new RepeaterView<ResourceQuantity>
                     {
-                        Source = () => world.GetStoredResources(ResourceMarker.Default).Select(w => new ResourceQuantity(w.Key, w.Value)),
+                        Source = () => World.GetStoredResources(ResourceMarker.Default).Select(w => new ResourceQuantity(w.Key, w.Value)),
                         ContainerView = new StackView(StackType.Vertical),
                         ItemView = rq => getResourceRowView(false, rq.Resource, () => rq.Quantity),
                         EmptyView = new LabelView

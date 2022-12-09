@@ -63,7 +63,7 @@
     },
     {
       "name": "Mountain",
-      "movementModifier": 0.8,
+      "movementModifier": 0.3,
       "minHeight": 0.7,
       "minMoisture": 0,
       "minHeat": 0

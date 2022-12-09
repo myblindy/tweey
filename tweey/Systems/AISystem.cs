@@ -220,7 +220,7 @@ partial class AISystem
         foundPlacedResources.Sort((a, b) => (int)((a.location.ToNumericsVector2Center() - workerEntityLocation).LengthSquared()
             - (b.location.ToNumericsVector2Center() - workerEntityLocation).LengthSquared()));
 
-        var storedResources = world.GetStoredResources(ResourceMarker.Default);
+        var storedResources = World.GetStoredResources(ResourceMarker.Default);
         int getStoredResourceAmount(Resource res) =>
             storedResources!.TryGetValue(res, out var val) ? val : 0;
 

@@ -15,7 +15,7 @@ class MoveInventoryLowLevelPlan : AILowLevelPlanWithTargetEntity
 
     public override bool Run()
     {
-        var targetRB = TargetEntity.GetInventoryComponent().Inventory;
+        var targetRB = TargetEntity!.Value.GetInventoryComponent().Inventory;
         if (clearDestination)
             targetRB.Remove(sourceMarker);
         MainEntity.GetInventoryComponent().Inventory.MoveTo(sourceMarker, targetRB, targetMarker);
