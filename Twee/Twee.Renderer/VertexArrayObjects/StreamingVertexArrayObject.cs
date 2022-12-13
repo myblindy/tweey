@@ -1,4 +1,6 @@
-﻿namespace Twee.Renderer.VertexArrayObjects;
+﻿using Twee.Core.Support;
+
+namespace Twee.Renderer.VertexArrayObjects;
 
 public class StreamingVertexArrayObject<TVertex> : BaseVertexArrayObject where TVertex : unmanaged
 {
@@ -14,7 +16,7 @@ public class StreamingVertexArrayObject<TVertex> : BaseVertexArrayObject where T
 
         VertexDefinitionSetup?.Invoke(typeof(TVertex), vertexArrayHandle);
 
-        LayerVertices = new List<TVertex>[layerCount];
+        LayerVertices = new FastList<TVertex>[layerCount];
         foreach (ref var vertexList in LayerVertices.AsSpan())
             vertexList = new(initialVertexCapacity);
     }
@@ -51,7 +53,7 @@ public class StreamingVertexArrayObject<TVertex> : BaseVertexArrayObject where T
 
         foreach (ref var vertexList in LayerVertices.AsSpan()[layerRange])
         {
-            CollectionsMarshal.AsSpan(vertexList).CopyTo(dest);
+            vertexList.AsSpanUnsafe().CopyTo(dest);
             dest = dest[vertexList.Count..];
             vertexList.Clear();
         }
@@ -86,6 +88,6 @@ public class StreamingVertexArrayObject<TVertex> : BaseVertexArrayObject where T
     readonly VertexArrayHandle vertexArrayHandle;
     int vertexCapacity, newVertexCapacity, vertexCurrentOffset, lastUploadedVertexLength;
 
-    public List<TVertex>[] LayerVertices { get; }
+    public FastList<TVertex>[] LayerVertices { get; }
     public int CurrentVertexCount => LayerVertices.Sum(x => x.Count);
 }

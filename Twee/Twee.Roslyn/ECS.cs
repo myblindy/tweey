@@ -230,7 +230,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
             {
                 static int maxGeneratedEntityID;
                 static readonly SortedSet<int> extraAvailableEntityIDs = new();
-                static readonly List<EcsComponents> entityComponents = new();
+                static readonly FastList<EcsComponents> entityComponents = new();
 
                 static readonly HashSet<Entity> entities = new();
                 public static IReadOnlyCollection<Entity> Entities { get; } = entities;
@@ -296,7 +296,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                     {{(p.Namespace is not null ? $"namespace {p.Namespace} {{" : "")}}
                     partial class {{p.TypeRootName}} : IEcsPartition
                     {
-                        readonly List<int> entityPositions = new();
+                        readonly FastList<int> entityPositions = new();
                         readonly HashSet<Entity>[] entityPartitions;
 
                         internal Vector2i WorldSize;
@@ -436,7 +436,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                     
                     // components
                     {{string.Join(Environment.NewLine, components.Select(c => $$"""
-                        static readonly List<{{c!.FullName}}> {{c!.TypeName}}s = new();
+                        static readonly FastList<{{c!.FullName}}> {{c!.TypeName}}s = new();
                         static readonly SortedSet<int> extraAvailable{{c!.TypeName}}IDs = new();
                         """))}}
 
@@ -582,7 +582,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                                     }
                                     """)))}}
 
-                            return ref CollectionsMarshal.AsSpan({{c!.TypeName}}s)[componentId]; 
+                            return ref {{c!.TypeName}}s.AsSpanUnsafe()[componentId]; 
                         }
 
                         {{(c.Parameters.Length == 0 ? "" : $$"""
@@ -609,7 +609,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         public static ref {{c!.FullName}} Get{{c!.TypeRootName}}Component(Entity entity)
                         {
                             if(entityComponentMapping[entity, {{findIndex(components, w => w == c)}}] is { } idx && idx >= 0)
-                                return ref CollectionsMarshal.AsSpan({{c!.TypeName}}s)[idx];
+                                return ref {{c!.TypeName}}s.AsSpanUnsafe()[idx];
                             return ref Unsafe.NullRef<{{c!.FullName}}>();
                         }
                         
@@ -629,7 +629,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         """))}}
 
                     // system data
-                    static readonly List<(Action action, string name)> constructedSystems = new();
+                    static readonly FastList<(Action action, string name)> constructedSystems = new();
                     public static readonly Dictionary<string, TimeSpan> SystemTimingInformation = new();
                     public const int SystemsCount = {{systems.Length}};
                     {{string.Join(Environment.NewLine, systems.Select(s => $$"""
@@ -683,9 +683,9 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                 internal class EcsDataDump
                 {
                     public int MaxGeneratedEntityID { get; set; }
-                    public List<int> ExtraAvailableEntitiesIDs { get; } = new();
+                    public FastList<int> ExtraAvailableEntitiesIDs { get; } = new();
                     {{string.Join(Environment.NewLine, components.Select(c => $$"""
-                        public List<(Entity Entity, {{c!.FullName}} Component)> {{c!.TypeRootName}}s { get; } = new();
+                        public FastList<(Entity Entity, {{c!.FullName}} Component)> {{c!.TypeRootName}}s { get; } = new();
                         """))}}
                 }
 
