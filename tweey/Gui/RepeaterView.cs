@@ -10,6 +10,7 @@ public class RepeaterView<T> : View, IRepeaterView
     public RepeaterView() : base(new()) { }
 
     public required Func<IEnumerable<T>?> Source { get; set; }
+    public bool DisposeSource = true;
     public IContainerView? ContainerView { get; set; }
     public required Func<T, View> ItemView { get; set; }
     public View? EmptyView { get; set; }
@@ -19,6 +20,7 @@ public class RepeaterView<T> : View, IRepeaterView
         IContainerView? result = null;
 
         if (Source() is { } items)
+        {
             foreach (var item in items)
             {
                 if (result is null)
@@ -29,6 +31,10 @@ public class RepeaterView<T> : View, IRepeaterView
 
                 result.Children.Add(ItemView!(item));
             }
+
+            if (DisposeSource)
+                (items as IDisposable)?.Dispose();
+        }
 
         return ((View?)result) ?? EmptyView ?? Gui.EmptyView.Default;
     }

@@ -26,7 +26,7 @@ class WorkAIHighLevelPlan : AIHighLevelPlan
 
                 workableEntity.GetWorkableComponent().ClearWorkers();
                 MainEntity.GetInventoryComponent().Inventory.Remove(billMarker!.Value);
-                World.AddResourceEntities(ResourceMarker.All, workableEntity.GetWorkableComponent().ActiveBill!.ProductionLine.Outputs.Clone(), ResourceMarker.Default,
+                World.AddResourceEntities(ResourceMarker.All, workableEntity.GetWorkableComponent().ActiveBill!.ProductionLine.Outputs.Clone(), ResourceMarker.Unmarked,
                     workableEntity.GetLocationComponent().Box.Center.Floor());
                 if (workableEntity.GetWorkableComponent().ActiveBill!.AmountType is BillAmountType.FixedValue)
                     --workableEntity.GetWorkableComponent().ActiveBill!.Amount;
@@ -44,7 +44,7 @@ class WorkAIHighLevelPlan : AIHighLevelPlan
                 yield return new WaitLowLevelPlan(World, MainEntity, World.RawWorldTime
                     + World.GetWorldTimeFromTicks(MainEntity.GetVillagerComponent().HarvestSpeedMultiplier));
 
-            World.AddResourceEntities(ResourceMarker.All, workableEntity.GetInventoryComponent().Inventory.Clone(), ResourceMarker.Default,
+            World.AddResourceEntities(ResourceMarker.All, workableEntity.GetInventoryComponent().Inventory.Clone(), ResourceMarker.Unmarked,
                 workableEntity.GetLocationComponent().Box.Center.Floor());
             World.DeleteEntity(workableEntity);
         }

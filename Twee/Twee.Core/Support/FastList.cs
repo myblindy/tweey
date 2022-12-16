@@ -58,8 +58,13 @@ public class FastList<T> : IList<T>, IReadOnlyList<T>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Add(T item)
     {
-        EnsureCapacity(count + 1);
-        items[count++] = item;
+        if (count < items.Length)
+            items[count++] = item;
+        else
+        {
+            EnsureCapacity(count + 1);
+            items[count++] = item;
+        }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

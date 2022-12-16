@@ -35,7 +35,7 @@ public static class VFSWriter
 
                 footerActions.Add(() =>
                 {
-                    var directoryPaths = inputFile.GetDirectoryParts(".").Reverse().ToList();
+                    using var directoryPaths = inputFile.GetDirectoryParts(".").Reverse().ToPooledCollection();
 
                     outputWriter.Write((byte)directoryPaths.Count);
                     foreach (var part in directoryPaths)

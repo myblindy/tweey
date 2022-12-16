@@ -68,7 +68,7 @@ partial class RenderSystem
                     },
                     new LabelView
                     {
-                        Text = () => $" {(labor ? "Work" : resource!.Name)}{(marker is null || marker() == ResourceMarker.Default ? null : $" [{marker()}]")}",
+                        Text = () => $" {(labor ? "Work" : resource!.Name)}{(marker is null || marker() == ResourceMarker.Unmarked ? null : $" [{marker()}]")}",
                         FontSize = () => defaultFontSize,
                         ForegroundColor = () => descriptionColor
                     }
@@ -130,7 +130,7 @@ partial class RenderSystem
                             new RepeaterView<ResourceQuantity>
                             {
                                 Source = () => world.SelectedEntity!.Value.GetBuildingComponent().Template.BuildCost
-                                    .WithRemove(ResourceMarker.All, world.SelectedEntity!.Value.GetInventoryComponent().Inventory, ResourceMarker.Default, ResourceMarker.Default)
+                                    .WithRemove(ResourceMarker.All, world.SelectedEntity!.Value.GetInventoryComponent().Inventory, ResourceMarker.Unmarked, ResourceMarker.Unmarked)
                                     .GetResourceQuantities(ResourceMarker.All),
                                 ContainerView = new StackView(StackType.Vertical),
                                 ItemView = rq => getResourceRowView(false, rq.Resource, () => rq.Quantity),
@@ -375,7 +375,7 @@ partial class RenderSystem
                     },
                     new RepeaterView<ResourceQuantity>
                     {
-                        Source = () => World.GetStoredResources(ResourceMarker.Default).Select(w => new ResourceQuantity(w.Key, w.Value)),
+                        Source = () => World.GetAllResources(ResourceMarker.Unmarked, true).Select(w => new ResourceQuantity(w.Key, w.Value)),
                         ContainerView = new StackView(StackType.Vertical),
                         ItemView = rq => getResourceRowView(false, rq.Resource, () => rq.Quantity),
                         EmptyView = new LabelView

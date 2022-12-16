@@ -118,4 +118,11 @@ public static class Extensions
     {
         return TRes.CreateTruncating(Math.Ceiling(val));
     }
+
+    public static PooledCollection<T> ToPooledCollection<T>(this IEnumerable<T> source)
+    {
+        var pooledCollection = CollectionPool<T>.Get();
+        pooledCollection.AddRange(source);
+        return pooledCollection;
+    }
 }

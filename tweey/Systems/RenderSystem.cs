@@ -309,7 +309,7 @@ partial class RenderSystem
             }
             else if (w.RenderableComponent.AtlasEntryName is { } atlasEntryName)
             {
-                if (w.Entity.HasInventoryComponent() && w.Entity.HasResourceComponent() && w.Entity.GetInventoryComponent().Inventory.IsEmpty(ResourceMarker.Default))
+                if (w.Entity.HasInventoryComponent() && w.Entity.HasResourceComponent() && w.Entity.GetInventoryComponent().Inventory.IsEmpty(ResourceMarker.Unmarked))
                     return;
                 ScreenFillQuad(w.Entity.HasVillagerComponent() ? RenderLayer.Pawn : RenderLayer.BelowPawns, w.LocationComponent.Box, atlas[atlasEntryName]);
             }

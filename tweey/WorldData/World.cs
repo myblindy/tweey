@@ -117,7 +117,7 @@ internal partial class World
         entity.AddPlantComponent(plantTemplate, plantTemplate.HarvestWorkTicks, isMature ? CustomDateTime.Invalid : WorldTime);
         entity.AddIdentityComponent(plantTemplate.Name);
         entity.AddInventoryComponent().Inventory
-            .Add(ResourceMarker.All, plantTemplate.Inventory, ResourceMarker.Default);
+            .Add(ResourceMarker.All, plantTemplate.Inventory, ResourceMarker.Unmarked);
         if (isFarmed)
             entity.AddPlantIsFarmedComponent();
 
@@ -301,13 +301,14 @@ internal partial class World
         return okay;
     }
 
-    public static Dictionary<Resource, int> GetStoredResources(ResourceMarker marker)
+    public static PooledDictionary<Resource, int> GetAllResources(ResourceMarker marker, bool onlyStored)
     {
-        var result = new Dictionary<Resource, int>();
+        var result = DictionaryPool<Resource, int>.Get();
+        Func<Entity, bool> conditionTest = onlyStored ? entity => entity.HasPlacedResourceIsStoredComponent() : _ => true;
 
         EcsCoordinator.IteratePlacedResourceArchetype((in EcsCoordinator.PlacedResourceIterationResult rw) =>
         {
-            if (rw.Entity.HasPlacedResourceIsStoredComponent())
+            if (conditionTest(rw.Entity))
                 foreach (var rq in rw.InventoryComponent.Inventory.GetResourceQuantities(marker))
                     if (result.TryGetValue(rq.Resource, out var qty))
                         result[rq.Resource] = qty + rq.Quantity;
