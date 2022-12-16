@@ -362,14 +362,15 @@ partial class RenderSystem
         if (world.CurrentWorldTemplate.BuildingTemplate is not null)
         {
             var box = Box2.FromCornerSize(world.MouseWorldPosition.ToVector2i(), world.CurrentWorldTemplate.BuildingTemplate.Width, world.CurrentWorldTemplate.BuildingTemplate.Height);
-            ScreenFillQuad(RenderLayer.BelowPawns, box, World.IsBoxFreeOfBuildings(box) ? Colors4.Lime : Colors4.Red, atlas[world.CurrentWorldTemplate.BuildingTemplate.ImageFileName]);
+            ScreenFillQuad(RenderLayer.BelowPawns, box, World.IsBoxFreeOfBuildings(box) && world.IsBoxFreeOfBlockingTerrain(box) ? Colors4.Lime : Colors4.Red,
+                atlas[world.CurrentWorldTemplate.BuildingTemplate.ImageFileName]);
         }
 
         // zone template
         if (world.CurrentWorldTemplate.ZoneType is not null && world.CurrentZoneStartPoint is not null
             && Box2.FromCornerSize(world.CurrentZoneStartPoint.Value, (world.MouseWorldPosition - world.CurrentZoneStartPoint.Value.ToNumericsVector2() + Vector2.One).ToVector2i()) is { } zoneBox)
         {
-            RenderZone(zoneBox, world.CurrentWorldTemplate.ZoneType.Value, !World.IsBoxFreeOfBuildings(zoneBox), true, true);
+            RenderZone(zoneBox, world.CurrentWorldTemplate.ZoneType.Value, !World.IsBoxFreeOfBuildings(zoneBox) || !world.IsBoxFreeOfBlockingTerrain(zoneBox), true, true);
         }
 
         // render gui (tri2)

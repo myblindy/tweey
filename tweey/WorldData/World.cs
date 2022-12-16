@@ -301,6 +301,23 @@ internal partial class World
         return okay;
     }
 
+    public bool IsBoxFreeOfBlockingTerrain(Box2 box)
+    {
+        if (TerrainCells is not null)
+        {
+            var (ye, xe) = ((int)MathF.Round(box.Bottom), (int)MathF.Round(box.Right));
+            for (int y = (int)box.Top; y <= ye; ++y)
+                for (int x = (int)box.Left; x <= xe; ++x)
+                {
+                    ref var cell = ref TerrainCells[x, y];
+                    if (cell.AboveGroundMovementModifier == 0 || cell.GroundMovementModifier == 0)
+                        return false;
+                }
+        }
+
+        return true;
+    }
+
     public static PooledDictionary<Resource, int> GetAllResources(ResourceMarker marker, bool onlyStored)
     {
         var result = DictionaryPool<Resource, int>.Get();
@@ -336,7 +353,7 @@ internal partial class World
 
                 if (CurrentWorldTemplate.ZoneType is ZoneType.MarkHarvest)
                     MarkAllPlantsForHarvest(box);
-                else if (IsBoxFreeOfBuildings(box))
+                else if (IsBoxFreeOfBuildings(box) && IsBoxFreeOfBlockingTerrain(box))
                 {
                     MarkAllPlantsForHarvest(box);
                     if (CurrentWorldTemplate.ZoneType is ZoneType.Grow)
@@ -350,7 +367,8 @@ internal partial class World
             }
             else if (CurrentWorldTemplate.BuildingTemplate is not null)
             {
-                if (IsBoxFreeOfBuildings(Box2.FromCornerSize(worldLocation.ToVector2i(), CurrentWorldTemplate.BuildingTemplate.Width, CurrentWorldTemplate.BuildingTemplate.Height)))
+                var box = Box2.FromCornerSize(worldLocation.ToVector2i(), CurrentWorldTemplate.BuildingTemplate.Width, CurrentWorldTemplate.BuildingTemplate.Height);
+                if (IsBoxFreeOfBuildings(box) && IsBoxFreeOfBlockingTerrain(box))
                 {
                     var building = AddBuildingEntity(CurrentWorldTemplate.BuildingTemplate, worldLocation.Floor(), false);
                     if (keyModifiers?.HasFlag(KeyModifiers.Shift) != true)
