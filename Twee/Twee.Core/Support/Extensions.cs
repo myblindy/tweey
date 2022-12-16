@@ -1,4 +1,6 @@
-﻿namespace Twee.Core.Support;
+﻿using System.Runtime.CompilerServices;
+
+namespace Twee.Core.Support;
 
 public static class Extensions
 {
@@ -126,6 +128,20 @@ public static class Extensions
         return pooledCollection;
     }
 
-    public static bool HasFlagsFast<TEnum>(this TEnum @enum, TEnum flags) where TEnum : struct, Enum =>
-        ((long)@enum & (long)flags) == (long)flags;
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    public static unsafe bool HasFlagsFast<TEnum>(this TEnum @enum, TEnum flags) where TEnum : unmanaged
+    {
+        if (sizeof(TEnum) == 1)
+            return (Unsafe.As<TEnum, byte>(ref @enum) & Unsafe.As<TEnum, byte>(ref flags)) == Unsafe.As<TEnum, byte>(ref flags);
+        if (sizeof(TEnum) == 2)
+            return (Unsafe.As<TEnum, ushort>(ref @enum) & Unsafe.As<TEnum, ushort>(ref flags)) == Unsafe.As<TEnum, ushort>(ref flags);
+        if (sizeof(TEnum) == 4)
+            return (Unsafe.As<TEnum, uint>(ref @enum) & Unsafe.As<TEnum, uint>(ref flags)) == Unsafe.As<TEnum, uint>(ref flags);
+        if (sizeof(TEnum) == 8)
+            return (Unsafe.As<TEnum, ulong>(ref @enum) & Unsafe.As<TEnum, ulong>(ref flags)) == Unsafe.As<TEnum, ulong>(ref flags);
+        if (sizeof(TEnum) == 16)
+            return (Unsafe.As<TEnum, UInt128>(ref @enum) & Unsafe.As<TEnum, UInt128>(ref flags)) == Unsafe.As<TEnum, UInt128>(ref flags);
+
+        throw new NotImplementedException();
+    }
 }

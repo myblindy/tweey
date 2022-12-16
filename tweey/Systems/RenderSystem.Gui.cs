@@ -399,7 +399,7 @@ partial class RenderSystem
                         Text = () => $$"""
                             FPS: {{Math.Round(FrameData.Rate, 0, MidpointRounding.ToPositiveInfinity):0}}, Update: {{FrameData.UpdateTimePercentage * 100:0.00}}%, Render: {{FrameData.RenderTimePercentage * 100:0.00}}%
                             Draw calls: {{FrameData.DrawCallCount}}, Triangles: {{FrameData.TriangleCount}}, Lines: {{FrameData.LineCount}}
-                            {{string.Join(Environment.NewLine, EcsCoordinator.SystemTimingInformation.Select((kvp, idx)=> $"{kvp.Key}: {FrameData.GetCustomTimePercentage(idx) * 100:0.00}%"))}}
+                            {{string.Join(Environment.NewLine, EcsCoordinator.SystemTimingInformation.Select((kvp, idx) => $"{kvp.Key}: {FrameData.GetCustomTimePercentage(idx) * 100:0.00}%"))}}
                             SwapBuffer: {{FrameData.GetCustomTimePercentage(EcsCoordinator.SystemsCount) * 100:0.00}}%
                             """,
                         FontSize = () => smallFontSize,

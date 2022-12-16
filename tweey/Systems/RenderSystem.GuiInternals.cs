@@ -62,6 +62,9 @@ partial class RenderSystem
     [Flags]
     enum FrameType { Normal = 0, Hover = 1 << 0, Checked = 1 << 2, NoEdges = 1 << 3, NoCorners = 1 << 4, NoBackground = 1 << 5 }
 
+    static readonly Dictionary<(string baseTextureName, bool hover, bool @checked), string> cornerFrameTextureNameCache = new();
+    static readonly Dictionary<(string baseTextureName, bool hover, bool @checked), string> edgeFrameTextureNameCache = new();
+
     /// <summary>
     /// Fills a quad with a frame made by two textures, the corner and the edge textures respectively. 
     /// <para>Naming conventions:</para>
@@ -76,13 +79,16 @@ partial class RenderSystem
     /// <param name="elementWidth">The width of the corner &amp; edge textures, in pixels. Looks best with the pixel width, but it scales as needed.</param>
     void ScreenFillFrame(RenderLayer renderLayer, in Box2 box, string baseTextureName, float elementWidth, FrameType frameType = FrameType.Normal)
     {
-        var hoverPart = frameType.HasFlagsFast(FrameType.Hover) ? "-hover" : null;
-        var checkedPart = frameType.HasFlagsFast(FrameType.Checked) ? "-checked" : null;
+        var isHover = frameType.HasFlagsFast(FrameType.Hover);
+        var isChecked = frameType.HasFlagsFast(FrameType.Checked);
 
         Vector4 edgeColor = default;
         if (!frameType.HasFlagsFast(FrameType.NoCorners))
         {
-            var cornerTexture = atlas[$"Data/Frames/{baseTextureName}/tex{hoverPart}{checkedPart}-corner.png"];
+            if (!cornerFrameTextureNameCache.TryGetValue((baseTextureName, isHover, isChecked), out var cornerTextureName))
+                cornerFrameTextureNameCache[(baseTextureName, isHover, isChecked)] = cornerTextureName = $"Data/Frames/{baseTextureName}/tex{(isHover ? "-hover" : null)}{(isChecked ? "-checked" : null)}-corner.png";
+            var cornerTexture = atlas[cornerTextureName];
+
             ScreenFillQuad(renderLayer, Box2.FromCornerSize(box.TopLeft, new(elementWidth)),
                 Colors4.White, cornerTexture, false);
             ScreenFillQuad(renderLayer, Box2.FromCornerSize(box.TopRight - new Vector2(elementWidth + 1, -1), new(elementWidth)),
@@ -97,7 +103,10 @@ partial class RenderSystem
 
         if (!frameType.HasFlagsFast(FrameType.NoEdges))
         {
-            var edgeTexture = atlas[$"Data/Frames/{baseTextureName}/tex{hoverPart}{checkedPart}-edge.png"];
+            if (!edgeFrameTextureNameCache.TryGetValue((baseTextureName, isHover, isChecked), out var edgeTextureName))
+                edgeFrameTextureNameCache[(baseTextureName, isHover, isChecked)] = edgeTextureName = $"Data/Frames/{baseTextureName}/tex{(isHover ? "-hover" : null)}{(isChecked ? "-checked" : null)}-edge.png";
+            var edgeTexture = atlas[edgeTextureName];
+
             ScreenFillQuad(renderLayer, Box2.FromCornerSize(box.TopLeft + new Vector2(elementWidth - 1, 0), new(box.Size.X - 2 * elementWidth + 4, elementWidth)),
                 Colors4.White, edgeTexture, false);
             ScreenFillQuad(renderLayer, Box2.FromCornerSize(box.TopRight - new Vector2(elementWidth + 1, -elementWidth), new(elementWidth, box.Size.Y - 2 * elementWidth + 2)),
