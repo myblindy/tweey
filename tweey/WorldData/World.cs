@@ -371,7 +371,7 @@ internal partial class World
                 if (IsBoxFreeOfBuildings(box) && IsBoxFreeOfBlockingTerrain(box))
                 {
                     var building = AddBuildingEntity(CurrentWorldTemplate.BuildingTemplate, worldLocation.Floor(), false);
-                    if (keyModifiers?.HasFlag(KeyModifiers.Shift) != true)
+                    if (keyModifiers?.HasFlagsFast(KeyModifiers.Shift) != true)
                         CurrentWorldTemplate.Clear();
                 }
             }

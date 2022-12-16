@@ -125,4 +125,7 @@ public static class Extensions
         pooledCollection.AddRange(source);
         return pooledCollection;
     }
+
+    public static bool HasFlagsFast<TEnum>(this TEnum @enum, TEnum flags) where TEnum : struct, Enum =>
+        ((long)@enum & (long)flags) == (long)flags;
 }

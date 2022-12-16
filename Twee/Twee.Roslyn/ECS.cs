@@ -603,7 +603,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
 
                         [MethodImpl(MethodImplOptions.AggressiveInlining)]
                         public static bool Has{{c!.TypeRootName}}Component(Entity entity) =>
-                            entityComponents[entity].HasFlag(EcsComponents.{{c!.TypeRootName}});
+                            (entityComponents[entity] & EcsComponents.{{c!.TypeRootName}}) == EcsComponents.{{c!.TypeRootName}};
 
                         [MethodImpl(MethodImplOptions.AggressiveInlining)]
                         public static ref {{c!.FullName}} Get{{c!.TypeRootName}}Component(Entity entity)

@@ -76,11 +76,11 @@ partial class RenderSystem
     /// <param name="elementWidth">The width of the corner &amp; edge textures, in pixels. Looks best with the pixel width, but it scales as needed.</param>
     void ScreenFillFrame(RenderLayer renderLayer, in Box2 box, string baseTextureName, float elementWidth, FrameType frameType = FrameType.Normal)
     {
-        var hoverPart = frameType.HasFlag(FrameType.Hover) ? "-hover" : null;
-        var checkedPart = frameType.HasFlag(FrameType.Checked) ? "-checked" : null;
+        var hoverPart = frameType.HasFlagsFast(FrameType.Hover) ? "-hover" : null;
+        var checkedPart = frameType.HasFlagsFast(FrameType.Checked) ? "-checked" : null;
 
         Vector4 edgeColor = default;
-        if (!frameType.HasFlag(FrameType.NoCorners))
+        if (!frameType.HasFlagsFast(FrameType.NoCorners))
         {
             var cornerTexture = atlas[$"Data/Frames/{baseTextureName}/tex{hoverPart}{checkedPart}-corner.png"];
             ScreenFillQuad(renderLayer, Box2.FromCornerSize(box.TopLeft, new(elementWidth)),
@@ -95,7 +95,7 @@ partial class RenderSystem
             if (edgeColor == default) edgeColor = cornerTexture.EdgeColor;
         }
 
-        if (!frameType.HasFlag(FrameType.NoEdges))
+        if (!frameType.HasFlagsFast(FrameType.NoEdges))
         {
             var edgeTexture = atlas[$"Data/Frames/{baseTextureName}/tex{hoverPart}{checkedPart}-edge.png"];
             ScreenFillQuad(renderLayer, Box2.FromCornerSize(box.TopLeft + new Vector2(elementWidth - 1, 0), new(box.Size.X - 2 * elementWidth + 4, elementWidth)),
@@ -110,7 +110,7 @@ partial class RenderSystem
             if (edgeColor == default) edgeColor = edgeTexture.EdgeColor;
         }
 
-        if (!frameType.HasFlag(FrameType.NoBackground))
+        if (!frameType.HasFlagsFast(FrameType.NoBackground))
         {
             ScreenFillQuad(renderLayer, Box2.FromCornerSize(box.TopLeft + new Vector2(elementWidth - 1), new(box.Size.X - 2 * elementWidth, box.Size.Y - 2 * elementWidth)),
                 edgeColor, blankAtlasEntry, false);
@@ -130,11 +130,7 @@ partial class RenderSystem
     {
         if (s is { })
             fontRenderer.Render(s, fontDescription, location.ToVector2i(),
-                box =>
-                {
-                    if (bgColor.W > 0)
-                        ScreenFillQuad(renderLayer, box, bgColor, blankAtlasEntry, false);
-                },
+                bgColor.W > 0 ? box => ScreenFillQuad(renderLayer, box, bgColor, blankAtlasEntry, false) : static _ => { },
                 (box, atlasEntry) => ScreenFillQuad(renderLayer, box, fgColor, atlasEntry, false), horizontalAlignment);
     }
 
