@@ -31,7 +31,9 @@ internal partial class World
     /// </summary>
     public Vector2 MouseWorldPosition { get; private set; }
 
-    public Vector2 Offset { get; set; }
+    public Vector2 RawOffset { get; set; }
+    public Vector2 Offset =>
+        RawOffset - (dragStart is null ? Vector2.Zero : (MouseScreenPosition - dragStart.Value).ToNumericsVector2() / Zoom);
     public float Zoom { get; set; } = 35;
 
     Vector2 deltaOffsetNextFrame;
@@ -339,7 +341,9 @@ internal partial class World
     public Vector2 GetWorldLocationFromScreenPoint(Vector2i screenPoint) =>
         new(screenPoint.X / Zoom + Offset.X, screenPoint.Y / Zoom + Offset.Y);
 
-    public void MouseEvent(Vector2i screenPosition, Vector2 worldLocation, InputAction? inputAction = null, MouseButton? mouseButton = null, KeyModifiers? keyModifiers = null)
+    Vector2i? dragStart;
+
+    public void MouseEvent(GameWindow gameWindow, Vector2i screenPosition, Vector2 worldLocation, InputAction? inputAction = null, MouseButton? mouseButton = null, KeyModifiers? keyModifiers = null)
     {
         if (inputAction == InputAction.Press && mouseButton == MouseButton.Button1)
             if (CurrentWorldTemplate.ZoneType is not null && CurrentZoneStartPoint is null)
@@ -414,6 +418,21 @@ internal partial class World
             }
         else if (inputAction == InputAction.Press && mouseButton == MouseButton.Button2)
             CurrentWorldTemplate.Clear();
+
+        // dragging
+        if (inputAction is InputAction.Press && mouseButton is MouseButton.Button2)
+        {
+            dragStart = screenPosition;
+
+            gameWindow.Cursor = OpenTK.Windowing.Common.Input.MouseCursor.Hand;
+        }
+        else if (inputAction is InputAction.Release && mouseButton is MouseButton.Button2 && dragStart is not null)
+        {
+            RawOffset -= (screenPosition - dragStart.Value).ToNumericsVector2() / Zoom;
+            dragStart = null;
+
+            gameWindow.Cursor = OpenTK.Windowing.Common.Input.MouseCursor.Default;
+        }
 
         (MouseScreenPosition, MouseWorldPosition) = (screenPosition, worldLocation);
     }
@@ -490,7 +509,7 @@ internal partial class World
         RawWorldTime += DeltaWorldTime = TimeSpan.FromSeconds(deltaSec * worldTimeMultiplier * TimeSpeedUp);
         WorldTime = new(RawWorldTime);
 
-        Offset += deltaOffsetNextFrame * (float)deltaSec * deltaOffsetPerSecond;
+        RawOffset += deltaOffsetNextFrame * (float)deltaSec * deltaOffsetPerSecond;
     }
 
     [GeneratedRegex("Data[/\\\\]Biomes[/\\\\](.*)[/\\\\].*\\.png", RegexOptions.IgnoreCase)]

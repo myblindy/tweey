@@ -58,8 +58,8 @@ class Program : GameWindow
         world.GenerateMap(400, 400);
 
         var villager = world.SelectedEntity = world.AddVillagerEntity("Sana", new(200, 200));
-        //world.AddVillagerEntity("Momo", new(215, 220));
-        world.Offset = new(190, 190);
+        world.AddVillagerEntity("Momo", new(215, 220));
+        world.RawOffset = new(190, 190);
 
         EcsCoordinator.ConstructFarmSystem(() => new(world));
         EcsCoordinator.ConstructAISystem(() => new(world));
@@ -77,20 +77,20 @@ class Program : GameWindow
     {
         var position = MousePosition.ToVector2i();
         if (!EcsCoordinator.SendMouseEventMessageToRenderSystem(position, e.Action, e.Button, e.Modifiers))
-            world.MouseEvent(position, world.GetWorldLocationFromScreenPoint(position), e.Action, e.Button, e.Modifiers);
+            world.MouseEvent(this, position, world.GetWorldLocationFromScreenPoint(position), e.Action, e.Button, e.Modifiers);
     }
 
     protected override void OnMouseUp(MouseButtonEventArgs e)
     {
         var position = MousePosition.ToVector2i();
         if (!EcsCoordinator.SendMouseEventMessageToRenderSystem(position, e.Action, e.Button, e.Modifiers))
-            world.MouseEvent(position, world.GetWorldLocationFromScreenPoint(position), e.Action, e.Button, e.Modifiers);
+            world.MouseEvent(this, position, world.GetWorldLocationFromScreenPoint(position), e.Action, e.Button, e.Modifiers);
     }
 
     protected override void OnMouseMove(MouseMoveEventArgs e)
     {
         var position = MousePosition.ToVector2i();
-        world.MouseEvent(position, world.GetWorldLocationFromScreenPoint(position));
+        world.MouseEvent(this, position, world.GetWorldLocationFromScreenPoint(position));
     }
 
     protected override void OnKeyDown(KeyboardKeyEventArgs e) =>
