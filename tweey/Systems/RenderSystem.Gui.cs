@@ -31,7 +31,7 @@ partial class RenderSystem
                     },
                 }
             }, Anchor.BottomRight));
-
+        
         static string? getEntityDescription(Entity entity) =>
             entity.HasVillagerComponent() ? "Villager"
             : entity.HasResourceComponent() ? "Resource"
@@ -194,6 +194,36 @@ partial class RenderSystem
                         }
                     },
 
+                    // needs
+                    new StackView(StackType.Vertical)
+                    {
+                        IsVisible = () => world.SelectedEntity.HasValue && world.SelectedEntity.Value.HasVillagerComponent(),
+                        Children =
+                        {
+                            new StackView(StackType.Horizontal)
+                            {
+                                Children =
+                                {
+                                    new LabelView
+                                    {
+                                        Text = () => "Tired: ",
+                                        FontSize = () => smallFontSize,
+                                    },
+                                    new ProgressView
+                                    {
+                                        Maximum = () => world.SelectedEntity!.Value.GetVillagerComponent().Needs.TiredMax,
+                                        Value = () => world.SelectedEntity!.Value.GetVillagerComponent().Needs.Tired,
+                                        StringFormat = () => "{0:0}%",
+                                        FontSize = () => smallFontSize,
+                                        MinWidth = () => (int)WidthPercentage(6),
+                                        ForegroundColor = () => world.SelectedEntity!.Value.GetVillagerComponent().Needs.Tired / world.SelectedEntity!.Value.GetVillagerComponent().Needs.TiredMax > 0.2
+                                            ? Colors4.DarkGreen : Colors4.DarkRed
+                                    }
+                                }
+                            }
+                        }
+                    },
+
                     // bills
                     new StackView(StackType.Vertical)
                     {
@@ -288,7 +318,7 @@ partial class RenderSystem
 
         // orders
         gui.RootViewDescriptions.Add(new(
-            new StackView(StackType.Horizontal)
+            new StackView(StackType.Vertical)
             {
                 IsVisible = () => !world.SelectedEntity.HasValue,
                 BackgroundColor = panelBackgroundColor,

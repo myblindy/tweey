@@ -61,6 +61,7 @@ class Program : GameWindow
         world.AddVillagerEntity("Momo", new(215, 220));
         world.RawOffset = new(190, 190);
 
+        EcsCoordinator.ConstructNeedsUpdateSystem(() => new(world));
         EcsCoordinator.ConstructFarmSystem(() => new(world));
         EcsCoordinator.ConstructAISystem(() => new(world));
         EcsCoordinator.ConstructRenderSystem(() => new(world));

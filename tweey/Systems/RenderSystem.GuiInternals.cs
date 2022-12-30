@@ -302,9 +302,10 @@ partial class RenderSystem
 
             case ProgressView progressView:
                 if (progressView.StringFormat() is { } stringFormat && !string.IsNullOrWhiteSpace(stringFormat)
-                    && progressView.Maximum() is var maximum && progressView.Value() is var value)
+                    && progressView.Maximum() is var maximum && progressView.Value() is var value
+                    && progressView.FontSize() is var fontSize)
                 {
-                    size += fontRenderer.Measure(string.Format(stringFormat, value / maximum * 100), new FontDescription { Size = progressView.FontSize });
+                    size += fontRenderer.Measure(string.Format(stringFormat, value / maximum * 100), new FontDescription { Size = fontSize });
                     if (progressView.BorderColor.W != 0) size += new Vector2(2, 2);
                 }
                 break;
@@ -431,7 +432,8 @@ partial class RenderSystem
             case ProgressView progressView:
                 if (progressView.StringFormat() is { } stringFormat && !string.IsNullOrEmpty(stringFormat)
                     && progressView.Maximum() is { } maximum && progressView.Value() is { } value
-                    && progressView.ForegroundColor?.Invoke() is { } progressForegroundColor)
+                    && progressView.ForegroundColor?.Invoke() is { } progressForegroundColor
+                    && progressView.FontSize() is var fontSize)
                 {
                     var borderOffset = progressView.BorderColor.W > 0;
                     if (borderOffset)
@@ -441,7 +443,7 @@ partial class RenderSystem
                     if (progressView.BackgroundColor.W > 0)
                         ScreenFillQuad(RenderLayer.Gui, box, progressView.BackgroundColor, blankAtlasEntry, false);
                     ScreenFillQuad(RenderLayer.Gui, Box2.FromCornerSize(box.TopLeft, (float)(box.Size.X * value / maximum), box.Size.Y), progressForegroundColor, blankAtlasEntry, false);
-                    ScreenString(RenderLayer.Gui, string.Format(stringFormat, value / maximum * 100), new() { Size = progressView.FontSize },
+                    ScreenString(RenderLayer.Gui, string.Format(stringFormat, value / maximum * 100), new() { Size = fontSize },
                         new Box2(box.TopLeft + new Vector2(view.Margin.Left, view.Margin.Top), box.BottomRight - new Vector2(view.Margin.Right, view.Margin.Bottom)),
                         progressView.TextColor, Colors4.Transparent, progressView.HorizontalTextAlignment);
                 }

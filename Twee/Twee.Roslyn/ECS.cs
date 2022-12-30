@@ -591,7 +591,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                                     $"{p.FullTypeName} {p.Name} {(p.Default is null ? "" : $" = {p.Default}")}"))}})
                             {
                                 ref var component = ref Add{{c!.TypeRootName}}Component(entity);
-                                {{string.Join(Environment.NewLine, c.Parameters.Select(p => $"component.{p.Name} = {p.Name};"))}}
+                                component = new({{string.Join(", ", c.Parameters.Select(p => $"{p.Name}"))}});
 
                                 {{(rawArchetypes is null ? null : string.Join(Environment.NewLine, partitions.Where(p => archetypes.First(a => a.Name == p.UsedArchetypeName).Components.Contains(c)).Select(p => $$"""
                                     {{p.TypeRootName}}Partition!.UpdateEntity(entity);

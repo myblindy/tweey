@@ -7,7 +7,7 @@ public class ProgressView : View, IContentView
     public required Func<double> Maximum { get; set; }
     public required Func<double> Value { get; set; }
 
-    public float FontSize { get; set; } = 12;
+    public Func<float> FontSize { get; set; } = () => 12;
     public HorizontalAlignment HorizontalTextAlignment { get; set; } = HorizontalAlignment.Left;
     public required Func<string?> StringFormat { get; set; }
     public Vector4 TextColor { get; set; } = Colors4.White;

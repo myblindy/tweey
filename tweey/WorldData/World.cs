@@ -101,7 +101,8 @@ internal partial class World
             LightEmission: Colors4.White, LightRange: 12, LightAngleRadius: .1f);
         entity.AddHeadingComponent();
         entity.AddVillagerComponent(Configuration.Data.BaseCarryWeight, Configuration.Data.BasePickupSpeed, Configuration.Data.BaseMovementSpeed,
-            Configuration.Data.BaseWorkSpeed, Configuration.Data.BaseHarvestSpeed, Configuration.Data.BasePlantSpeed);
+            Configuration.Data.BaseWorkSpeed, Configuration.Data.BaseHarvestSpeed, Configuration.Data.BasePlantSpeed,
+            Configuration.Data.BaseTiredMax, Configuration.Data.BaseTiredDecayPerWorldSecond);
         entity.AddWorkerComponent();
         entity.AddInventoryComponent();
         entity.AddIdentityComponent(name);
@@ -223,6 +224,9 @@ internal partial class World
         entity.AddInventoryComponent();
         entity.AddWorkableComponent();
         entity.AddIdentityComponent(buildingTemplate.Name);
+
+        if (buildingTemplate.Type is BuildingType.Rest)
+            entity.AddRestableComponent();
 
         MarkAllPlantsForHarvest(locationComponent.Box);
 

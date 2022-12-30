@@ -17,6 +17,9 @@
   "baseHungerPercentage": 0.6,
   "baseHungerEmergencyPercentage": 0.8,
 
+  "baseTiredMax": 100,
+  "baseTiredDecayPerWorldSecond": 0.001,
+
   "zoneGrowColor": [ 0.2, 0.8, 0.2 ],
   "zoneHarvestColor": [ 0.8, 0.8, 0.2 ],
   "zoneStorageColor": [ 0.1, 0.1, 0.4 ],
