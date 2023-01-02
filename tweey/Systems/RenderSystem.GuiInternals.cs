@@ -199,6 +199,30 @@ partial class RenderSystem
         guiVAO.LayerVertices[(int)renderLayer].Add(new((br - offset) * zoom, color, blankAtlasEntry.TextureCoordinate1));
     }
 
+    bool isPickerVisible;
+    string? pickerTitle;
+    IEnumerable<string>? pickerValues;
+    Vector2i pickerOffset;
+    TaskCompletionSource<(string? value, int index)>? pickerCompletionSource;
+
+    async Task<(string? value, int index)> CreatePickerClicked(string title, IEnumerable<string> values)
+    {
+        if (isPickerVisible)
+            pickerCompletionSource?.SetResult((null, -1));
+
+        try
+        {
+            pickerCompletionSource = new();
+            pickerTitle = title;
+            pickerValues = values;
+            pickerOffset = world.MouseScreenPosition;
+            isPickerVisible = true;
+
+            return await pickerCompletionSource.Task;
+        }
+        finally { isPickerVisible = false; }
+    }
+
     View GetTemplatedView(View view) => view.ViewData.TemplatedView ?? view;
 
     bool MouseEvent(View view, Vector2i position, InputAction inputAction, MouseButton mouseButton, KeyModifiers keyModifiers)
@@ -231,7 +255,7 @@ partial class RenderSystem
     public bool MouseEventMessage(Vector2i position, InputAction inputAction, MouseButton mouseButton, KeyModifiers keyModifiers)
     {
         // use the old view boxes to calculate hit testing
-        foreach (var rootViewDescription in gui.RootViewDescriptions)
+        foreach (var rootViewDescription in gui.RootViewDescriptions.AsEnumerable().Reverse())
             if (MouseEvent(rootViewDescription.View, position, inputAction, mouseButton, keyModifiers))
                 return true;
 
@@ -272,14 +296,16 @@ partial class RenderSystem
     Vector2 MeasureView(View view)
     {
         if (view.IsVisible is not null && !view.IsVisible()) return new();
+        view = GetTemplatedView(view);
 
-        Vector2 size = new(view.Padding.Left + view.Padding.Right + view.Margin.Left + view.Margin.Right,
-            view.Padding.Top + view.Padding.Bottom + view.Margin.Top + view.Margin.Bottom);
+        var viewMargin = view.Margin?.Invoke() ?? new();
+        Vector2 size = new(view.Padding.Left + view.Padding.Right + viewMargin.Left + viewMargin.Right,
+            view.Padding.Top + view.Padding.Bottom + viewMargin.Top + viewMargin.Bottom);
         switch (view)
         {
             case LabelView labelView:
                 if (labelView.Text?.Invoke() is var text && !string.IsNullOrWhiteSpace(text))
-                    size += fontRenderer.Measure(text, new FontDescription { Size = labelView.FontSize() });
+                    size += fontRenderer.Measure(text, new FontDescription { Size = labelView.FontSize?.Invoke() ?? defaultFontSize });
                 break;
 
             case ImageView imageView:
@@ -294,6 +320,16 @@ partial class RenderSystem
                 if (buttonView.Child is not null)
                 {
                     var childSize = MeasureView(buttonView.Child);
+                    size += childSize;
+                }
+                size.X += 2 * ButtonBorderTextureWidth;
+                size.Y += 2 * ButtonBorderTextureWidth;
+                break;
+
+            case WindowView windowView:
+                if (windowView.Child is not null)
+                {
+                    var childSize = MeasureView(windowView.Child);
                     size += childSize;
                 }
                 size.X += 2 * ButtonBorderTextureWidth;
@@ -328,8 +364,8 @@ partial class RenderSystem
                 throw new NotImplementedException();
         }
 
-        view.ViewData.Box = Box2.FromCornerSize(new(), ConstrainSize(view, size));
-        view.ViewData.BaseBox = Box2.FromCornerSize(new(), size);
+        view.ViewData.Box = Box2.FromCornerSize(new(), ConstrainSize(view, size - new Vector2(viewMargin.Left + viewMargin.Right, viewMargin.Top + viewMargin.Bottom)));
+        view.ViewData.BaseBox = Box2.FromCornerSize(new(), size - new Vector2(viewMargin.Left + viewMargin.Right, viewMargin.Top + viewMargin.Bottom));
         return view.ViewData.Box.Size;
     }
 
@@ -339,8 +375,9 @@ partial class RenderSystem
         view = GetTemplatedView(view);
 
         var boxSize = view.ViewData.Box.Size;
+        var viewMargin = view.Margin?.Invoke() ?? new();
         var boxStart = offset + new Vector2(Math.Min(multiplier.X, 0), Math.Min(multiplier.Y, 0)) * boxSize
-            + new Vector2(view.Padding.Left + view.Margin.Left, view.Padding.Top + view.Margin.Top);
+            + new Vector2(view.Padding.Left + viewMargin.Left, view.Padding.Top + viewMargin.Top);
         view.ViewData.Box = Box2.FromCornerSize(boxStart, boxSize);
         view.ViewData.BaseBox = Box2.FromCornerSize(boxStart, view.ViewData.BaseBox.Size);
 
@@ -388,7 +425,7 @@ partial class RenderSystem
 
             case ISingleChildContainerView { Child: not null } singleChildContainerView:
                 {
-                    if (singleChildContainerView is ButtonView)
+                    if (singleChildContainerView is ButtonView or WindowView)
                         boxStart += new Vector2(ButtonBorderTextureWidth);
 
                     var extraSize = LayoutView(singleChildContainerView.Child, boxStart, new(1, 1));
@@ -414,6 +451,7 @@ partial class RenderSystem
         view = GetTemplatedView(view);
 
         var box = view.ViewData.Box;
+        var viewMargin = view.Margin?.Invoke() ?? new();
         if (view is not LabelView && view.BackgroundColor.W > 0)
             ScreenFillQuad(RenderLayer.Gui, box.WithExpand(view.Padding), view.BackgroundColor, blankAtlasEntry, false);
 
@@ -423,12 +461,14 @@ partial class RenderSystem
                 foreach (var child in containerView.Children)
                     RenderView(child);
                 break;
+
             case LabelView labelView:
                 if (labelView.Text?.Invoke() is { } text && !string.IsNullOrEmpty(text) && labelView.ForegroundColor.Invoke() is { } labelForegroundColor)
-                    ScreenString(RenderLayer.Gui, text, new() { Size = labelView.FontSize() },
-                        new Box2(box.TopLeft + new Vector2(view.Margin.Left, view.Margin.Top), box.BottomRight - new Vector2(view.Margin.Right, view.Margin.Bottom)),
+                    ScreenString(RenderLayer.Gui, text, new() { Size = labelView.FontSize?.Invoke() ?? defaultFontSize },
+                        new Box2(box.TopLeft + new Vector2(viewMargin.Left, viewMargin.Top), box.BottomRight - new Vector2(viewMargin.Right, viewMargin.Bottom)),
                         labelForegroundColor, labelView.BackgroundColor, labelView.HorizontalTextAlignment);
                 break;
+
             case ProgressView progressView:
                 if (progressView.StringFormat() is { } stringFormat && !string.IsNullOrEmpty(stringFormat)
                     && progressView.Maximum() is { } maximum && progressView.Value() is { } value
@@ -444,14 +484,16 @@ partial class RenderSystem
                         ScreenFillQuad(RenderLayer.Gui, box, progressView.BackgroundColor, blankAtlasEntry, false);
                     ScreenFillQuad(RenderLayer.Gui, Box2.FromCornerSize(box.TopLeft, (float)(box.Size.X * value / maximum), box.Size.Y), progressForegroundColor, blankAtlasEntry, false);
                     ScreenString(RenderLayer.Gui, string.Format(stringFormat, value / maximum * 100), new() { Size = fontSize },
-                        new Box2(box.TopLeft + new Vector2(view.Margin.Left, view.Margin.Top), box.BottomRight - new Vector2(view.Margin.Right, view.Margin.Bottom)),
+                        new Box2(box.TopLeft + new Vector2(viewMargin.Left, viewMargin.Top), box.BottomRight - new Vector2(viewMargin.Right, viewMargin.Bottom)),
                         progressView.TextColor, Colors4.Transparent, progressView.HorizontalTextAlignment);
                 }
                 break;
+
             case ImageView imageView:
                 if (imageView.Source?.Invoke() is { } src && !string.IsNullOrWhiteSpace(src) && imageView.ForegroundColor?.Invoke() is { } imageForegroundColor)
-                    ScreenFillQuad(RenderLayer.Gui, box.WithExpand(-view.Margin), imageForegroundColor, atlas[src], false);
+                    ScreenFillQuad(RenderLayer.Gui, box.WithExpand(-viewMargin), imageForegroundColor, atlas[src], false);
                 break;
+
             case ButtonView buttonView:
                 ScreenFillFrame(RenderLayer.Gui, box, "button", ButtonBorderTextureWidth,
                     (box.Contains(world.MouseScreenPosition) ? FrameType.Hover : FrameType.Normal)
@@ -459,6 +501,13 @@ partial class RenderSystem
 
                 if (buttonView.Child is not null)
                     RenderView(buttonView.Child);
+                break;
+
+            case WindowView windowView:
+                ScreenFillFrame(RenderLayer.Gui, box, "window", ButtonBorderTextureWidth);
+
+                if (windowView.Child is not null)
+                    RenderView(windowView.Child);
                 break;
         }
     }
