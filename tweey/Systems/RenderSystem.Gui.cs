@@ -178,12 +178,67 @@ partial class RenderSystem
                         }
                     },
 
+                    // mood & thoughts
+                    new StackView(StackType.Vertical)
+                    {
+                        IsVisible = () => world.SelectedEntity.HasValue && world.SelectedEntity.Value.HasVillagerComponent(),
+                        Children =
+                        {
+                            new StackView(StackType.Horizontal)
+                            {
+                                Children =
+                                {
+                                    new LabelView("Mood: ")
+                                    {
+                                        ForegroundColor = () => descriptionColor
+                                    },
+                                    new ProgressView
+                                    {
+                                        Maximum = () => 100,
+                                        Value = () => world.SelectedEntity!.Value.GetVillagerComponent().MoodPercentage,
+                                        StringFormat = () => "{0:0}%",
+                                        FontSize = () => smallFontSize,
+                                        MinWidth = () => (int)WidthPercentage(6),
+                                        ForegroundColor = () => world.SelectedEntity!.Value.GetVillagerComponent().MoodPercentage / 100 > 0.2
+                                            ? Colors4.DarkGreen : Colors4.DarkRed
+                                    },
+                                    new LabelView(world.SelectedEntity!.Value.GetVillagerComponent().MoodPercentageTarget == world.SelectedEntity!.Value.GetVillagerComponent().MoodPercentage ? ""
+                                        : $" (target: {world.SelectedEntity!.Value.GetVillagerComponent().MoodPercentageTarget}%)", () => smallFontSize)
+                                    {
+                                        ForegroundColor = () => descriptionColor
+                                    }
+                                }
+                            },
+                            new LabelView("Thoughts:"),
+                            new RepeaterView<(ThoughtTemplate thought, int stacks)>
+                            {
+                                Source = () => world.SelectedEntity!.Value.GetVillagerComponent().Thoughts.GroupBy(w=>w.Template).Select(w=>(w.Key, w.Count())),
+                                ContainerView = new StackView(StackType.Vertical),
+                                ItemView = (w, _) => new StackView(StackType.Horizontal)
+                                {
+                                    Children =
+                                    {
+                                        new LabelView($"{w.thought.Description}{(w.stacks>1 ? $" x{w.stacks}" : null)} ", () => smallFontSize)
+                                        {
+                                            ForegroundColor = () => descriptionColor
+                                        },
+                                        new LabelView(w.thought.MoodChange >= 0 ? $"+{w.thought.MoodChange}" : $"{w.thought.MoodChange}")
+                                        {
+                                            ForegroundColor = () => highlightColor
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+
                     // needs
                     new StackView(StackType.Vertical)
                     {
                         IsVisible = () => world.SelectedEntity.HasValue && world.SelectedEntity.Value.HasVillagerComponent(),
                         Children =
                         {
+                            new LabelView("Needs:"),
                             new StackView(StackType.Horizontal)
                             {
                                 Children =

@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema",
+  "title": "JSON Schema for thoughts",
+
+  "type": "object",
+
+  "properties": {
+    "description": {
+      "type": "string",
+      "description": "What to display when the thought hits."
+    },
+    "moodChange": {
+      "type": "integer",
+      "description": "How much the mood changes by as long as it's active."
+    },
+    "durationInWorldDays": {
+      "type": "number",
+      "minimum": 0,
+      "description": "How long to keep the thoughts active."
+    },
+    "stackLimit": {
+      "type": "integer",
+      "description": "How many of this thought can stack at a time.",
+      "minimum": 1,
+      "default": 1
+    }
+  },
+
+  "required": [ "description", "moodChange", "durationInWorldDays" ]
+}

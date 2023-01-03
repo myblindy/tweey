@@ -1,0 +1,7 @@
+{
+  "$schema": "./_schema.json",
+
+  "description": "Slept on the ground like an animal",
+  "moodChange": -4,
+  "durationInWorldDays": 1
+}

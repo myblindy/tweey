@@ -1,0 +1,7 @@
+{
+  "$schema": "./_schema.json",
+
+  "description": "Extremely low expectations",
+  "moodChange": 30,
+  "durationInWorldDays": 120
+}

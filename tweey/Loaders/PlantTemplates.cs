@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace Tweey.Loaders;
 
-internal class PlantTemplate : ITemplateFileName
+class PlantTemplate : ITemplateFileName
 {
     public required string Name { get; set; }
     public required int HarvestWorkTicks { get; set; }
@@ -26,13 +26,13 @@ internal class PlantTemplate : ITemplateFileName
     }
 }
 
-internal class PlantResouceTemplateIn
+class PlantResouceTemplateIn
 {
     public string Resource { get; set; } = null!;
     public int Quantity { get; set; }
 }
 
-internal class PlantTemplateIn
+class PlantTemplateIn
 {
     public string Name { get; set; } = null!;
     public int HarvestWorkTicks { get; set; }
@@ -42,7 +42,7 @@ internal class PlantTemplateIn
     public List<PlantResouceTemplateIn>? ContainingResources { get; set; }
 }
 
-internal partial class PlantTemplates : BaseTemplates<PlantTemplateIn, PlantTemplate>
+partial class PlantTemplates : BaseTemplates<PlantTemplateIn, PlantTemplate>
 {
     public PlantTemplates(ILoader loader, ResourceTemplates resourceTemplates)
         : base(loader, "Plants", x => x.FileName!, resourceTemplates)
