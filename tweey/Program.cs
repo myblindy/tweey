@@ -55,11 +55,11 @@ class Program : GameWindow
 
         FrameData.Init(EcsCoordinator.SystemsCount + 1);
         EcsCoordinator.ConstructPartitions(new(400, 400), world.Zoom);
-        world.GenerateMap(400, 400);
+        world.GenerateMap(400, 400, out var embarkmentLocation);
 
-        var villager = world.SelectedEntity = world.AddVillagerEntity("Sana", new(200, 200));
-        world.AddVillagerEntity("Momo", new(215, 220));
-        world.RawOffset = new(190, 190);
+        var villager = world.SelectedEntity = world.AddVillagerEntity("Sana", embarkmentLocation.ToNumericsVector2());
+        world.AddVillagerEntity("Momo", embarkmentLocation.ToNumericsVector2() + Vector2.One);
+        world.RawOffset = embarkmentLocation.ToNumericsVector2() - new Vector2(10, 6);
 
         EcsCoordinator.ConstructNeedsUpdateSystem(() => new(world));
         EcsCoordinator.ConstructFarmSystem(() => new(world));

@@ -17,8 +17,8 @@ class PlantAIHighLevelPlan : AIHighLevelPlan
 
     public override IEnumerable<AILowLevelPlan> GetLowLevelPlans()
     {
-        yield return new WalkLowLevelPlan(World, MainEntity, worldPositionOverride.ToNumericsVector2Center());
-        yield return new WaitLowLevelPlan(World, MainEntity, World.RawWorldTime
+        yield return new WalkAILowLevelPlan(World, MainEntity, worldPositionOverride.ToNumericsVector2Center());
+        yield return new WaitAILowLevelPlan(World, MainEntity, World.RawWorldTime
             + World.GetWorldTimeFromTicks(MainEntity.GetVillagerComponent().PlantSpeed));
         World.AddPlantEntity(plantTemplate, worldPositionOverride.ToNumericsVector2(), false, true);
         workableEntity.GetZoneComponent().WorkedTiles.Remove(worldPositionOverride);

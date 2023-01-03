@@ -14,14 +14,14 @@ class WorkAIHighLevelPlan : AIHighLevelPlan
 
     public override IEnumerable<AILowLevelPlan> GetLowLevelPlans()
     {
-        yield return new WalkLowLevelPlan(World, MainEntity, workableEntity);
+        yield return new WalkAILowLevelPlan(World, MainEntity, workableEntity);
 
         workableEntity.GetWorkableComponent().EntityWorking = true;
         if (workableEntity.HasBuildingComponent())
             if (workableEntity.GetBuildingComponent().IsBuilt)
             {
                 while (workableEntity.GetWorkableComponent().ActiveBillTicks-- > 0)
-                    yield return new WaitLowLevelPlan(World, MainEntity, World.RawWorldTime
+                    yield return new WaitAILowLevelPlan(World, MainEntity, World.RawWorldTime
                         + World.GetWorldTimeFromTicks(MainEntity.GetVillagerComponent().WorkSpeedMultiplier));
 
                 workableEntity.GetWorkableComponent().ClearWorkers();
@@ -34,14 +34,14 @@ class WorkAIHighLevelPlan : AIHighLevelPlan
             else
             {
                 while (workableEntity.GetBuildingComponent().BuildWorkTicks-- > 0)
-                    yield return new WaitLowLevelPlan(World, MainEntity, World.RawWorldTime
+                    yield return new WaitAILowLevelPlan(World, MainEntity, World.RawWorldTime
                         + World.GetWorldTimeFromTicks(MainEntity.GetVillagerComponent().WorkSpeedMultiplier));
                 workableEntity.GetWorkableComponent().ClearWorkers();
             }
         else if (workableEntity.HasPlantComponent())
         {
             while (workableEntity.GetPlantComponent().WorkTicks-- > 0)
-                yield return new WaitLowLevelPlan(World, MainEntity, World.RawWorldTime
+                yield return new WaitAILowLevelPlan(World, MainEntity, World.RawWorldTime
                     + World.GetWorldTimeFromTicks(MainEntity.GetVillagerComponent().HarvestSpeedMultiplier));
 
             World.AddResourceEntities(ResourceMarker.All, workableEntity.GetInventoryComponent().Inventory.Clone(), ResourceMarker.Unmarked,

@@ -134,6 +134,46 @@ partial class AISystem
         return (plans = selectedPlans) is not null;
     }
 
+    bool TryToRest(in IterationResult w, out AIHighLevelPlan[]? plans)
+    {
+        AIHighLevelPlan[]? selectedPlans = default;
+        var workerEntity = w.Entity;
+        var tiredRatio = w.VillagerComponent.Needs.Tired / w.VillagerComponent.Needs.TiredMax;
+
+        if (tiredRatio < 1 / 3f)
+        {
+
+            // try to find available beds
+            using var availableBeds = CollectionPool<(Entity entity, Vector2i location)>.Get();
+            EcsCoordinator.IterateBuildingArchetype((in EcsCoordinator.BuildingIterationResult bw) =>
+            {
+                if (bw.BuildingComponent.IsBuilt && bw.WorkableComponent.Entity == Entity.Invalid)
+                    availableBeds.Add((bw.Entity, bw.LocationComponent.Box.Center.ToVector2i()));
+            });
+
+            // pick the closest bed and rest
+            if (availableBeds.Count > 0)
+            {
+
+                var bed = availableBeds.OrderByDistanceFrom(w.LocationComponent.Box.Center, w => w.location.ToNumericsVector2Center(), w => w.entity).First();
+                bed.GetWorkableComponent().Entity = workerEntity;
+                selectedPlans = new AIHighLevelPlan[]
+                {
+                    new RestAIHighLevelPlan(world, workerEntity, bed)
+                };
+            }
+        }
+
+        // if no beds and it's an emergency, sleep on the floor
+        if (tiredRatio < .1f && selectedPlans is null)
+            selectedPlans = new AIHighLevelPlan[]
+            {
+                new RestAIHighLevelPlan(world, workerEntity, null)
+            };
+
+        return (plans = selectedPlans) is not null;
+    }
+
     bool TryToHaulToStorage(in IterationResult w, out AIHighLevelPlan[]? plans)
     {
         var workerEntity = w.Entity;
@@ -265,7 +305,7 @@ partial class AISystem
         {
             if (w.WorkerComponent.Plans is null)
             {
-                _ = TryToPlant(w, out var plans) || TryToBuild(w, out plans) || TryToHaulToBuilingSite(w, out plans) || TryToHarvest(w, out plans)
+                _ = TryToRest(w, out var plans) || TryToPlant(w, out plans) || TryToBuild(w, out plans) || TryToHaulToBuilingSite(w, out plans) || TryToHarvest(w, out plans)
                     || TryToWorkBills(w, out plans) || TryToHaulToStorage(w, out plans);
                 w.WorkerComponent.Plans = plans;
 

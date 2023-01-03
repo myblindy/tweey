@@ -1,11 +1,11 @@
 ﻿namespace Tweey.Support.AI.LowLevelPlans;
 
-class WanderLowLevelPlan : AILowLevelPlan
+class WanderAILowLevelPlan : AILowLevelPlan
 {
     private readonly Vector2 targetLocation;
     private readonly float speedMultiplier;
 
-    public WanderLowLevelPlan(World world, Entity entity, Vector2 targetLocation, float speedMultiplier = 1f)
+    public WanderAILowLevelPlan(World world, Entity entity, Vector2 targetLocation, float speedMultiplier = 1f)
         : base(world, entity)
     {
         this.targetLocation = targetLocation;

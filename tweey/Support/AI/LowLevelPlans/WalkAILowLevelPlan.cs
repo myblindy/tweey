@@ -2,23 +2,25 @@
 
 namespace Tweey.Support.AI.LowLevelPlans;
 
-class WalkLowLevelPlan : AILowLevelPlanWithTargetEntity
+class WalkAILowLevelPlan : AILowLevelPlanWithTargetEntity
 {
     readonly PathFindingResult pathFindingResult;
     int nextPathIndex = 0;
+    private readonly bool moveToCenter;
     private readonly float speedMultiplier;
 
-    public WalkLowLevelPlan(World world, Entity entity, Vector2 targetLocation, float speedMultiplier = 1f)
+    public WalkAILowLevelPlan(World world, Entity entity, Vector2 targetLocation, bool moveToCenter = false, float speedMultiplier = 1f)
         : base(world, entity, null)
     {
         pathFindingResult = PathFindingService.Calculate(world,
             MainEntity.GetLocationComponent().Box.Center.ToVector2i(), targetLocation.ToVector2i());
+        this.moveToCenter = moveToCenter;
         this.speedMultiplier = speedMultiplier;
 
         Debug.Assert(pathFindingResult.IsValid);
     }
 
-    public WalkLowLevelPlan(World world, Entity entity, Entity target, float speedMultiplier = 1f)
+    public WalkAILowLevelPlan(World world, Entity entity, Entity target, float speedMultiplier = 1f)
         : base(world, entity, target)
     {
         pathFindingResult = PathFindingService.Calculate(world,

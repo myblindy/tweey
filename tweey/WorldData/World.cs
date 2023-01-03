@@ -48,7 +48,7 @@ internal partial class World
     }
 
     [MemberNotNull(nameof(TerrainCells))]
-    public void GenerateMap(int width, int height)
+    public void GenerateMap(int width, int height, out Vector2i embarkmentLocation)
     {
         // generate the terrain
         var map = MapGeneration.Generate(width, height,
@@ -90,6 +90,18 @@ internal partial class World
                         break;
                     }
             }
+
+        const int embarkmentRadius = 5;
+
+        {
+            retry:
+            var (x, y) = (Random.Shared.Next(embarkmentRadius, width - embarkmentRadius), Random.Shared.Next(embarkmentRadius, height - embarkmentRadius));
+            for (var ty = y - embarkmentRadius; ty < y + embarkmentRadius; ty++)
+                for (var tx = x - embarkmentRadius; tx < x + embarkmentRadius; tx++)
+                    if (TerrainCells[x, y].Impassable)
+                        goto retry;
+            embarkmentLocation = new(x, y);
+        }
     }
 
     #region AddEntities
@@ -520,4 +532,7 @@ internal partial class World
     private static partial Regex ExtractBiomeNameFromPathRegex();
 }
 
-record struct TerrainCell(string? TileFileName, float GroundMovementModifier = 1, float AboveGroundMovementModifier = 1);
+record struct TerrainCell(string? TileFileName, float GroundMovementModifier = 1, float AboveGroundMovementModifier = 1)
+{
+    public bool Impassable => GroundMovementModifier == 0 || AboveGroundMovementModifier == 0;
+}

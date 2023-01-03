@@ -28,10 +28,10 @@ class DropResourcesToInventoriesAIHighLevelPlan : AIHighLevelPlan
 
         foreach (var targetEntity in targets.OrderByDistanceFrom(MainEntity.GetLocationComponent().Box.Center, w => w.location, w => w.entity))
         {
-            yield return new WalkLowLevelPlan(World, MainEntity, targetEntity);
-            yield return new WaitLowLevelPlan(World, MainEntity, World.RawWorldTime + World.GetWorldTimeFromTicks(
+            yield return new WalkAILowLevelPlan(World, MainEntity, targetEntity);
+            yield return new WaitAILowLevelPlan(World, MainEntity, World.RawWorldTime + World.GetWorldTimeFromTicks(
                 MainEntity.GetVillagerComponent().PickupSpeedMultiplier * MainEntity.GetInventoryComponent().Inventory.GetWeight(marker)));
-            yield return new MoveInventoryLowLevelPlan(World, MainEntity, marker, targetEntity, ResourceMarker.Unmarked, true);    // from the villager (marked) to the building (unmarked)
+            yield return new MoveInventoryAILowLevelPlan(World, MainEntity, marker, targetEntity, ResourceMarker.Unmarked, true);    // from the villager (marked) to the building (unmarked)
         }
     }
 }
