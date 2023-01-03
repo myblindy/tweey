@@ -16,6 +16,8 @@ class RestAIHighLevelPlan : AIHighLevelPlan
             yield return new WalkAILowLevelPlan(World, MainEntity, bedEntity.Value);
             bedEntity.Value.GetWorkableComponent().EntityWorking = true;
         }
+        else
+            MainEntity.GetVillagerComponent().AddThought(World, World.ThoughtTemplates[ThoughtTemplates.SleptOnGround]);
 
         yield return new RestAILowLevelPlan(World, MainEntity, bedEntity);
 

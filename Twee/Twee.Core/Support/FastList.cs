@@ -2,6 +2,7 @@
 using System;
 using System.Collections;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 
 namespace Twee.Core.Support;
 
@@ -101,6 +102,35 @@ public class FastList<T> : IList<T>, IReadOnlyList<T>
             while (en.MoveNext())
                 Insert(index++, en.Current);
         }
+    }
+
+    public int RemoveAll(Predicate<T> match)
+    {
+        int freeIndex = 0;   // the first free slot in items array
+
+        // Find the first item which needs to be removed.
+        while (freeIndex < count && !match(items[freeIndex])) freeIndex++;
+        if (freeIndex >= count) return 0;
+
+        int current = freeIndex + 1;
+        while (current < count)
+        {
+            // Find the first item which needs to be kept.
+            while (current < count && match(items[current])) current++;
+
+            if (current < count)
+            {
+                // copy item to the free slot.
+                items[freeIndex++] = items[current++];
+            }
+        }
+
+        if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
+            Array.Clear(items, freeIndex, count - freeIndex); // Clear the elements so that the gc can reclaim the references.
+
+        int result = count - freeIndex;
+        count = freeIndex;
+        return result;
     }
 
     public void RemoveRange(int index, int count)

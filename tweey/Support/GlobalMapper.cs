@@ -27,5 +27,7 @@ internal static class GlobalMapper
             .ForMember(x => x.Groups, src => src.Groups?.ToArray() ?? Array.Empty<string>());
         Mapper.CreateMap<PlantTemplateIn, PlantTemplate>()
             .ForMember(x => x.Inventory, (src, resources) => new ResourceBucket(src.ContainingResources!.Select(rq => new ResourceQuantity(((ResourceTemplates)resources!)[rq.Resource!], rq.Quantity))));
+        Mapper.CreateMap<ThoughtTemplateIn, ThoughtTemplate>()
+            .ForMember(x => x.DurationInWorldTime, src => TimeSpan.FromDays(src.DurationInWorldDays));
     }
 }

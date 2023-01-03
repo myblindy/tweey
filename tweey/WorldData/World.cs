@@ -7,6 +7,7 @@ internal partial class World
     public ResourceTemplates Resources { get; }
     public PlantTemplates PlantTemplates { get; }
     public BuildingTemplates BuildingTemplates { get; }
+    public ThoughtTemplates ThoughtTemplates { get; }
     public Configuration Configuration { get; }
     public Biomes Biomes { get; }
 
@@ -42,7 +43,7 @@ internal partial class World
 
     public World(ILoader loader)
     {
-        (Resources, Configuration) = (new(loader), new(loader));
+        (Resources, Configuration, ThoughtTemplates) = (new(loader), new(loader), new(loader));
         (BuildingTemplates, PlantTemplates) = (new(loader, Resources), new(loader, Resources));
         Biomes = new(loader, PlantTemplates);
     }
@@ -112,12 +113,14 @@ internal partial class World
         entity.AddRenderableComponent("Data/Misc/villager.png",
             LightEmission: Colors4.White, LightRange: 12, LightAngleRadius: .1f);
         entity.AddHeadingComponent();
-        entity.AddVillagerComponent(Configuration.Data.BaseCarryWeight, Configuration.Data.BasePickupSpeed, Configuration.Data.BaseMovementSpeed,
-            Configuration.Data.BaseWorkSpeed, Configuration.Data.BaseHarvestSpeed, Configuration.Data.BasePlantSpeed,
-            Configuration.Data.BaseTiredMax, Configuration.Data.BaseTiredDecayPerWorldSecond);
         entity.AddWorkerComponent();
         entity.AddInventoryComponent();
         entity.AddIdentityComponent(name);
+
+        var villagerComponent = entity.AddVillagerComponent(Configuration.Data.BaseCarryWeight, Configuration.Data.BasePickupSpeed, Configuration.Data.BaseMovementSpeed,
+            Configuration.Data.BaseWorkSpeed, Configuration.Data.BaseHarvestSpeed, Configuration.Data.BasePlantSpeed,
+            Configuration.Data.BaseTiredMax, Configuration.Data.BaseTiredDecayPerWorldSecond);
+        villagerComponent.AddThought(this, ThoughtTemplates[ThoughtTemplates.ExtremelyLowExpectations]);
 
         return entity;
     }
