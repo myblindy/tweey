@@ -20,12 +20,13 @@ class WalkAILowLevelPlan : AILowLevelPlanWithTargetEntity
         Debug.Assert(pathFindingResult.IsValid);
     }
 
-    public WalkAILowLevelPlan(World world, Entity entity, Entity target, float speedMultiplier = 1f)
+    public WalkAILowLevelPlan(World world, Entity entity, Entity target, bool moveToCenter = false, float speedMultiplier = 1f)
         : base(world, entity, target)
     {
         pathFindingResult = PathFindingService.Calculate(world,
             MainEntity.GetLocationComponent().Box.Center.ToVector2i(),
             target.GetLocationComponent().Box.Center.ToVector2i());
+        this.moveToCenter = moveToCenter;
         this.speedMultiplier = speedMultiplier;
 
         Debug.Assert(pathFindingResult.IsValid);
@@ -33,9 +34,15 @@ class WalkAILowLevelPlan : AILowLevelPlanWithTargetEntity
 
     public override bool Run()
     {
+        void snapToTarget(int delta)
+        {
+            if (nextPathIndex + delta < pathFindingResult.Positions!.Count)
+                MainEntity.GetLocationComponent().Box = Box2.FromCornerSize(pathFindingResult.Positions[nextPathIndex + delta].ToNumericsVector2(), Vector2.One);
+        }
+
         if (!pathFindingResult.IsComplete) return true;
         if (!pathFindingResult.IsValid) throw new InvalidOperationException();
-        if (nextPathIndex >= pathFindingResult.Positions!.Count - 1) return false;
+        if (nextPathIndex >= pathFindingResult.Positions!.Count - (moveToCenter ? 0 : 1)) { snapToTarget(0); return false; }
 
         ref var entityLocationComponent = ref MainEntity.GetLocationComponent();
         var currentPosition = entityLocationComponent.Box.Center;
@@ -44,8 +51,11 @@ class WalkAILowLevelPlan : AILowLevelPlanWithTargetEntity
         var targetPosition = pathFindingResult.Positions[nextPathIndex].ToNumericsVector2Center();
         var vectorDifference = targetPosition - currentPosition;
         if (vectorDifference.LengthSquared() < .15f)
-            if (++nextPathIndex >= pathFindingResult.Positions.Count - 1)
+            if (++nextPathIndex >= pathFindingResult.Positions.Count - (moveToCenter ? 0 : 1))
+            {
+                snapToTarget(-1);
                 return false;
+            }
             else
                 goto retry;
 

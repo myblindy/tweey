@@ -99,7 +99,7 @@ internal partial class World
             var (x, y) = (Random.Shared.Next(embarkmentRadius, width - embarkmentRadius), Random.Shared.Next(embarkmentRadius, height - embarkmentRadius));
             for (var ty = y - embarkmentRadius; ty < y + embarkmentRadius; ty++)
                 for (var tx = x - embarkmentRadius; tx < x + embarkmentRadius; tx++)
-                    if (TerrainCells[x, y].Impassable)
+                    if (TerrainCells[tx, ty].Impassable)
                         goto retry;
             embarkmentLocation = new(x, y);
         }

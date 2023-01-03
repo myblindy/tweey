@@ -50,14 +50,17 @@ public sealed class ECSSourceGen : IIncrementalGenerator
     class EcsSystemClass : EcsClass
     {
         public string? UsedArchetypeName { get; }
+        public ImmutableArray<(string FullTypeName, string Name, string? Default)> ConstructorParameters { get; }
         public ImmutableArray<(string FullReturnTypeName, string Name, string RootName, ImmutableArray<(string FullTypeName, string Name)> Parameters)> Messages { get; }
 
         public EcsSystemClass(string name, string? usedArchetypeName,
+            IEnumerable<(string FullTypeName, string Name, string? Default)> parameters,
             IEnumerable<(string FullReturnTypeName, string Name, IEnumerable<(string FullTypeName, string Name)> Parameters)> messages)
             : base(name)
         {
             UsedArchetypeName = usedArchetypeName;
 
+            ConstructorParameters = ImmutableArray.CreateRange(parameters);
             Messages = ImmutableArray.CreateRange(messages.Select(m => (m.FullReturnTypeName, m.Name, GetTypeRootName(m.Name), ImmutableArray.CreateRange(m.Parameters))));
         }
     }
@@ -86,8 +89,6 @@ public sealed class ECSSourceGen : IIncrementalGenerator
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // System.Diagnostics.Debugger.Launch();
-
         IncrementalValuesProvider<TEcsClass> getDeclarations<TEcsClass>(string fullAttributeTypeName, Func<string, SemanticModel, TypeDeclarationSyntax, TEcsClass> generator)
             where TEcsClass : EcsClass =>
                 context.SyntaxProvider
@@ -96,8 +97,6 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             && ((TypeDeclarationSyntax)node).AttributeLists.Count > 0,
                         (ctx, _) =>
                         {
-                            // Debugger.Launch();
-
                             var structDeclarationSyntax = (TypeDeclarationSyntax)ctx.Node;
 
                             if (ctx.SemanticModel.GetDeclaredSymbol(structDeclarationSyntax) is { } structDeclarationSymbol)
@@ -114,16 +113,16 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                     .Where(static m => m is not null)
                     .Select(static (m, _) => m!);
 
+        static string fixDefaultValue(object? s) => s switch
+        {
+            true => "true",
+            false => "false",
+            null => "default",
+            _ => s.ToString()
+        };
+
         var componentDeclarations = getDeclarations(ComponentAttributeFullName, static (structName, semanticModel, sds) =>
         {
-            static string fixDefaultValue(object? s) => s switch
-            {
-                true => "true",
-                false => "false",
-                null => "default",
-                _ => s.ToString()
-            };
-
             var constructorParameters = new List<(string FullTypeName, string Name, string? Default)>();
             if (semanticModel.GetDeclaredSymbol(sds) is { } classSymbol)
                 if (classSymbol.Constructors.OrderByDescending(w => w.Parameters.Length).FirstOrDefault()?.Parameters is { } parameterSymbols)
@@ -152,7 +151,9 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                     }
 
             var messages = new List<(string FullReturnTypeName, string Name, IEnumerable<(string FullTypeName, string Name)> Parameters)>();
+            var constructorParameters = new List<(string FullTypeName, string Name, string? Default)>();
             if (semanticModel.GetDeclaredSymbol(tds) is { } classSymbol)
+            {
                 foreach (var memberSymbol in classSymbol.GetMembers().OfType<IMethodSymbol>())
                     foreach (var attribute in memberSymbol.GetAttributes())
                         if (attribute.AttributeClass?.ToDisplayString() is MessageAttributeFullName)
@@ -162,7 +163,13 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             break;
                         }
 
-            return new EcsSystemClass(className, usedArchetypeName, messages);
+                if (classSymbol.Constructors.OrderByDescending(w => w.Parameters.Length).FirstOrDefault()?.Parameters is { } parameterSymbols)
+                    foreach (var parameterSymbol in parameterSymbols)
+                        constructorParameters.Add((parameterSymbol.Type.ToDisplayString(), parameterSymbol.Name,
+                            parameterSymbol.HasExplicitDefaultValue ? fixDefaultValue(parameterSymbol.ExplicitDefaultValue) : null));
+            }
+
+            return new EcsSystemClass(className, usedArchetypeName, constructorParameters, messages);
         });
 
         var archetypeDeclarations = getDeclarations(ArchetypeAttributeFullName, static (className, semanticModel, tds) =>
@@ -635,11 +642,15 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                     {{string.Join(Environment.NewLine, systems.Select(s => $$"""
                         static {{s!.FullName}}? {{s!.TypeRootName}}System;
 
-                        public static void Construct{{s!.TypeRootName}}System(Func<{{s!.FullName}}> generator)
+                        public static void Construct{{s!.TypeRootName}}System(
+                            {{string.Join(", ", s.ConstructorParameters.Select(w => $"{w.FullTypeName} {w.Name} {(w.Default is null ? "" : $" = {w.Default}")}"))}}
+                            )
                         {
                             if(Is{{s!.TypeRootName}}SystemConstructed) return;
 
-                            {{s!.TypeRootName}}System = generator();
+                            {{s!.TypeRootName}}System = new(
+                                {{string.Join(", ", s.ConstructorParameters.Select(w => w.Name))}}    
+                                );
                             constructedSystems.Add((() => {{s!.TypeRootName}}System.Run(), "{{s!.TypeRootName}}System"));
                         }
 
