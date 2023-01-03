@@ -10,7 +10,7 @@ internal partial class World
     public Configuration Configuration { get; }
     public Biomes Biomes { get; }
 
-    public string[,]? TerrainTileNames { get; private set; }
+    public TerrainCell[,]? TerrainCells { get; private set; }
 
     internal Entity? SelectedEntity { get; set; }
     public CurrentWorldTemplate CurrentWorldTemplate { get; } = new();
@@ -31,7 +31,9 @@ internal partial class World
     /// </summary>
     public Vector2 MouseWorldPosition { get; private set; }
 
-    public Vector2 Offset { get; set; }
+    public Vector2 RawOffset { get; set; }
+    public Vector2 Offset =>
+        RawOffset - (dragStart is null ? Vector2.Zero : (MouseScreenPosition - dragStart.Value).ToNumericsVector2() / Zoom);
     public float Zoom { get; set; } = 35;
 
     Vector2 deltaOffsetNextFrame;
@@ -45,8 +47,8 @@ internal partial class World
         Biomes = new(loader, PlantTemplates);
     }
 
-    [MemberNotNull(nameof(TerrainTileNames))]
-    public void GenerateMap(int width, int height)
+    [MemberNotNull(nameof(TerrainCells))]
+    public void GenerateMap(int width, int height, out Vector2i embarkmentLocation)
     {
         // generate the terrain
         var map = MapGeneration.Generate(width, height,
@@ -72,12 +74,13 @@ internal partial class World
             .GroupBy(w => w.Groups[1].Value)
             .ToDictionary(w => w.Key, w => w.Select(ww => ww.Groups[0].Value).ToList());
 
-        TerrainTileNames = new string[width, height];
+        TerrainCells = new TerrainCell[width, height];
         for (var y = 0; y < height; y++)
             for (var x = 0; x < width; x++)
             {
                 var biome = Biomes[map[x, y].BiomeIndex];
-                TerrainTileNames[x, y] = biomeTiles[biome.TileName].RandomSubset(1).First();
+                ref var tile = ref TerrainCells[x, y];
+                tile = new(biomeTiles[biome.TileName].RandomSubset(1).First(), (float)biome.MovementModifier);
 
                 // plant a tree?
                 foreach (var (template, chance) in biome.Plants)
@@ -87,6 +90,18 @@ internal partial class World
                         break;
                     }
             }
+
+        const int embarkmentRadius = 5;
+
+        {
+            retry:
+            var (x, y) = (Random.Shared.Next(embarkmentRadius, width - embarkmentRadius), Random.Shared.Next(embarkmentRadius, height - embarkmentRadius));
+            for (var ty = y - embarkmentRadius; ty < y + embarkmentRadius; ty++)
+                for (var tx = x - embarkmentRadius; tx < x + embarkmentRadius; tx++)
+                    if (TerrainCells[x, y].Impassable)
+                        goto retry;
+            embarkmentLocation = new(x, y);
+        }
     }
 
     #region AddEntities
@@ -98,7 +113,8 @@ internal partial class World
             LightEmission: Colors4.White, LightRange: 12, LightAngleRadius: .1f);
         entity.AddHeadingComponent();
         entity.AddVillagerComponent(Configuration.Data.BaseCarryWeight, Configuration.Data.BasePickupSpeed, Configuration.Data.BaseMovementSpeed,
-            Configuration.Data.BaseWorkSpeed, Configuration.Data.BaseHarvestSpeed, Configuration.Data.BasePlantSpeed);
+            Configuration.Data.BaseWorkSpeed, Configuration.Data.BaseHarvestSpeed, Configuration.Data.BasePlantSpeed,
+            Configuration.Data.BaseTiredMax, Configuration.Data.BaseTiredDecayPerWorldSecond);
         entity.AddWorkerComponent();
         entity.AddInventoryComponent();
         entity.AddIdentityComponent(name);
@@ -111,14 +127,18 @@ internal partial class World
         var entity = EcsCoordinator.CreateEntity();
         entity.AddLocationComponent(Box2.FromCornerSize(location, new(1, 1)));
         entity.AddRenderableComponent($"Data/Plants/{plantTemplate.FileName}.png",
-            OcclusionCircle: true, OcclusionScale: plantTemplate.OccludeLight ? .3f : 0f);
+            OcclusionCircle: true, OcclusionScale: plantTemplate.IsOccludingLight ? .3f : 0f);
         entity.AddWorkableComponent();
         entity.AddPlantComponent(plantTemplate, plantTemplate.HarvestWorkTicks, isMature ? CustomDateTime.Invalid : WorldTime);
         entity.AddIdentityComponent(plantTemplate.Name);
         entity.AddInventoryComponent().Inventory
-            .Add(ResourceMarker.All, plantTemplate.Inventory, ResourceMarker.Default);
+            .Add(ResourceMarker.All, plantTemplate.Inventory, ResourceMarker.Unmarked);
         if (isFarmed)
             entity.AddPlantIsFarmedComponent();
+
+        if (plantTemplate.IsTree)
+            TerrainCells![(int)Math.Round(location.X), (int)Math.Round(location.Y)].AboveGroundMovementModifier =
+                (float)Configuration.Data.TreeMovementModifier;
 
         return entity;
     }
@@ -217,6 +237,9 @@ internal partial class World
         entity.AddWorkableComponent();
         entity.AddIdentityComponent(buildingTemplate.Name);
 
+        if (buildingTemplate.Type is BuildingType.Rest)
+            entity.AddRestableComponent();
+
         MarkAllPlantsForHarvest(locationComponent.Box);
 
         return entity;
@@ -255,6 +278,12 @@ internal partial class World
     internal bool DeleteEntity(Entity entity)
     {
         if (SelectedEntity == entity) SelectedEntity = null;
+        if (entity.HasPlantComponent() && entity.GetPlantComponent().Template.IsTree
+            && entity.GetLocationComponent().Box.TopLeft.ToVector2i() is { } pos)
+        {
+            TerrainCells![pos.X, pos.Y].AboveGroundMovementModifier = 1;
+        }
+
         return entity.Delete();
     }
 
@@ -290,13 +319,31 @@ internal partial class World
         return okay;
     }
 
-    public Dictionary<Resource, int> GetStoredResources(ResourceMarker marker)
+    public bool IsBoxFreeOfBlockingTerrain(Box2 box)
     {
-        var result = new Dictionary<Resource, int>();
+        if (TerrainCells is not null)
+        {
+            var (ye, xe) = ((int)MathF.Round(box.Bottom), (int)MathF.Round(box.Right));
+            for (int y = (int)box.Top; y <= ye; ++y)
+                for (int x = (int)box.Left; x <= xe; ++x)
+                {
+                    ref var cell = ref TerrainCells[x, y];
+                    if (cell.AboveGroundMovementModifier == 0 || cell.GroundMovementModifier == 0)
+                        return false;
+                }
+        }
+
+        return true;
+    }
+
+    public static PooledDictionary<Resource, int> GetAllResources(ResourceMarker marker, bool onlyStored)
+    {
+        var result = DictionaryPool<Resource, int>.Get();
+        Func<Entity, bool> conditionTest = onlyStored ? entity => entity.HasPlacedResourceIsStoredComponent() : _ => true;
 
         EcsCoordinator.IteratePlacedResourceArchetype((in EcsCoordinator.PlacedResourceIterationResult rw) =>
         {
-            if (rw.Entity.HasPlacedResourceIsStoredComponent())
+            if (conditionTest(rw.Entity))
                 foreach (var rq in rw.InventoryComponent.Inventory.GetResourceQuantities(marker))
                     if (result.TryGetValue(rq.Resource, out var qty))
                         result[rq.Resource] = qty + rq.Quantity;
@@ -310,7 +357,9 @@ internal partial class World
     public Vector2 GetWorldLocationFromScreenPoint(Vector2i screenPoint) =>
         new(screenPoint.X / Zoom + Offset.X, screenPoint.Y / Zoom + Offset.Y);
 
-    public void MouseEvent(Vector2i screenPosition, Vector2 worldLocation, InputAction? inputAction = null, MouseButton? mouseButton = null, KeyModifiers? keyModifiers = null)
+    Vector2i? dragStart;
+
+    public void MouseEvent(GameWindow gameWindow, Vector2i screenPosition, Vector2 worldLocation, InputAction? inputAction = null, MouseButton? mouseButton = null, KeyModifiers? keyModifiers = null)
     {
         if (inputAction == InputAction.Press && mouseButton == MouseButton.Button1)
             if (CurrentWorldTemplate.ZoneType is not null && CurrentZoneStartPoint is null)
@@ -324,7 +373,7 @@ internal partial class World
 
                 if (CurrentWorldTemplate.ZoneType is ZoneType.MarkHarvest)
                     MarkAllPlantsForHarvest(box);
-                else if (IsBoxFreeOfBuildings(box))
+                else if (IsBoxFreeOfBuildings(box) && IsBoxFreeOfBlockingTerrain(box))
                 {
                     MarkAllPlantsForHarvest(box);
                     if (CurrentWorldTemplate.ZoneType is ZoneType.Grow)
@@ -338,10 +387,11 @@ internal partial class World
             }
             else if (CurrentWorldTemplate.BuildingTemplate is not null)
             {
-                if (IsBoxFreeOfBuildings(Box2.FromCornerSize(worldLocation.ToVector2i(), CurrentWorldTemplate.BuildingTemplate.Width, CurrentWorldTemplate.BuildingTemplate.Height)))
+                var box = Box2.FromCornerSize(worldLocation.ToVector2i(), CurrentWorldTemplate.BuildingTemplate.Width, CurrentWorldTemplate.BuildingTemplate.Height);
+                if (IsBoxFreeOfBuildings(box) && IsBoxFreeOfBlockingTerrain(box))
                 {
                     var building = AddBuildingEntity(CurrentWorldTemplate.BuildingTemplate, worldLocation.Floor(), false);
-                    if (keyModifiers?.HasFlag(KeyModifiers.Shift) != true)
+                    if (keyModifiers?.HasFlagsFast(KeyModifiers.Shift) != true)
                         CurrentWorldTemplate.Clear();
                 }
             }
@@ -385,6 +435,21 @@ internal partial class World
         else if (inputAction == InputAction.Press && mouseButton == MouseButton.Button2)
             CurrentWorldTemplate.Clear();
 
+        // dragging
+        if (inputAction is InputAction.Press && mouseButton is MouseButton.Button2)
+        {
+            dragStart = screenPosition;
+
+            gameWindow.Cursor = OpenTK.Windowing.Common.Input.MouseCursor.Hand;
+        }
+        else if (inputAction is InputAction.Release && mouseButton is MouseButton.Button2 && dragStart is not null)
+        {
+            RawOffset -= (screenPosition - dragStart.Value).ToNumericsVector2() / Zoom;
+            dragStart = null;
+
+            gameWindow.Cursor = OpenTK.Windowing.Common.Input.MouseCursor.Default;
+        }
+
         (MouseScreenPosition, MouseWorldPosition) = (screenPosition, worldLocation);
     }
 
@@ -418,6 +483,7 @@ internal partial class World
             Save("quick");
     }
 
+    #region Saving
     static readonly string SavesFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "My Games", "Tweey");
     const string SavesExtension = "sav";
 
@@ -442,6 +508,7 @@ internal partial class World
         using var compressStream = new GZipStream(file, CompressionLevel.SmallestSize, true);
         JsonSerializer.Serialize(compressStream, saveData, Loader.BuildJsonOptions());
     }
+    #endregion
 
     public TimeSpan TotalRealTime { get; private set; }
     const double worldTimeMultiplier = 96 * 6;
@@ -458,9 +525,14 @@ internal partial class World
         RawWorldTime += DeltaWorldTime = TimeSpan.FromSeconds(deltaSec * worldTimeMultiplier * TimeSpeedUp);
         WorldTime = new(RawWorldTime);
 
-        Offset += deltaOffsetNextFrame * (float)deltaSec * deltaOffsetPerSecond;
+        RawOffset += deltaOffsetNextFrame * (float)deltaSec * deltaOffsetPerSecond;
     }
 
     [GeneratedRegex("Data[/\\\\]Biomes[/\\\\](.*)[/\\\\].*\\.png", RegexOptions.IgnoreCase)]
     private static partial Regex ExtractBiomeNameFromPathRegex();
+}
+
+record struct TerrainCell(string? TileFileName, float GroundMovementModifier = 1, float AboveGroundMovementModifier = 1)
+{
+    public bool Impassable => GroundMovementModifier == 0 || AboveGroundMovementModifier == 0;
 }

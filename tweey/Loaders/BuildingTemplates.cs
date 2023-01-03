@@ -1,6 +1,6 @@
 ﻿namespace Tweey.Loaders;
 
-internal enum BuildingType { Production, Storage }
+internal enum BuildingType { Production, Rest }
 
 internal class BuildingProductionLineTemplate
 {
@@ -23,6 +23,7 @@ internal class BuildingTemplate : ITemplateFileName
     public int Width { get; set; }
     public int Height { get; set; }
     public BuildingType Type { get; set; }
+    public bool WorkInside { get; set; }
     public string FileName { get; set; } = null!;
     public int BuildWorkTicks { get; set; }
     public ResourceBucket BuildCost { get; set; } = null!;
@@ -57,8 +58,9 @@ internal class BuildingTemplateIn
 {
     public string? Name { get; set; }
     public BuildingType Type { get; set; }
-    public int Width { get; set; }
-    public int Height { get; set; }
+    public bool WorkInside { get; set; }
+    public int Width { get; set; } = 1;
+    public int Height { get; set; } = 1;
     public BuildingCostTemplateIn? BuildCost { get; set; }
     public int MaxWorkersAmount { get; set; }
     public List<BuildingProductionLineTemplateIn>? ProductionLines { get; set; }

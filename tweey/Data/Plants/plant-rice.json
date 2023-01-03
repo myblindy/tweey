@@ -9,5 +9,5 @@
   ],
   "harvestWorkTicks": 10,
   "daysFromSpawnToFullGrowth": 3,
-  "occludeLight":  false
+  "isOccludingLight":  false
 }

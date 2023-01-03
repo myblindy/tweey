@@ -37,9 +37,10 @@ partial class RenderSystem
     FrameBuffer lightMapOcclusionFrameBuffer = null!;
     readonly StreamingVertexArrayObject<LightMapOcclusionFBVertex> lightMapOcclusionVAO = new();
     readonly ShaderProgram lightMapOcclusionShaderProgram;
+    const int lightMapOcclusionTextureDivisor = 2;
     readonly Texture2D lightMapOcclusionCircleTexture;
 
-    const int lightsUboBindingPoint = 2;
+    const int lightsUboBindingPoint = 3;
     Texture2D lightMapTexture = null!;
     FrameBuffer lightMapFrameBuffer = null!;
 
@@ -103,7 +104,7 @@ partial class RenderSystem
 
         lightMapOcclusionFrameBuffer?.Dispose();
         lightMapOcclusionTexture?.Dispose();
-        lightMapOcclusionTexture = new(width, height, SizedInternalFormat.R8);
+        lightMapOcclusionTexture = new(width / lightMapOcclusionTextureDivisor, height / lightMapOcclusionTextureDivisor, SizedInternalFormat.R8);
         lightMapOcclusionFrameBuffer = new(new[] { lightMapOcclusionTexture });
     }
 
@@ -119,13 +120,14 @@ partial class RenderSystem
             var rx = box.Size.X / 2 * scale;
             var ry = box.Size.Y / 2 * scale;
 
-            lightMapOcclusionVAO.LayerVertices[0].Add(new((center + new Vector2(-rx, ry)) * zoom, circle ? new(0, 0) : uvHalf));
-            lightMapOcclusionVAO.LayerVertices[0].Add(new((center + new Vector2(rx, -ry)) * zoom, circle ? new(1, 1) : uvHalf));
-            lightMapOcclusionVAO.LayerVertices[0].Add(new((center + new Vector2(rx, ry)) * zoom, circle ? new(1, 0) : uvHalf));
+            var vertices = lightMapOcclusionVAO.LayerVertices[0];
+            vertices.Add(new((center + new Vector2(-rx, ry)) * zoom, circle ? new(0, 0) : uvHalf));
+            vertices.Add(new((center + new Vector2(rx, -ry)) * zoom, circle ? new(1, 1) : uvHalf));
+            vertices.Add(new((center + new Vector2(rx, ry)) * zoom, circle ? new(1, 0) : uvHalf));
 
-            lightMapOcclusionVAO.LayerVertices[0].Add(new((center + new Vector2(-rx, -ry)) * zoom, circle ? new(0, 1) : uvHalf));
-            lightMapOcclusionVAO.LayerVertices[0].Add(new((center + new Vector2(rx, -ry)) * zoom, circle ? new(1, 1) : uvHalf));
-            lightMapOcclusionVAO.LayerVertices[0].Add(new((center + new Vector2(-rx, ry)) * zoom, circle ? new(0, 0) : uvHalf));
+            vertices.Add(new((center + new Vector2(-rx, -ry)) * zoom, circle ? new(0, 1) : uvHalf));
+            vertices.Add(new((center + new Vector2(rx, -ry)) * zoom, circle ? new(1, 1) : uvHalf));
+            vertices.Add(new((center + new Vector2(-rx, ry)) * zoom, circle ? new(0, 0) : uvHalf));
         }
 
         IterateRenderPartitionByLocationComponents(worldViewBox, (in IterationResult w) =>
@@ -139,6 +141,7 @@ partial class RenderSystem
         lightMapOcclusionVAO.UploadNewData(Range.All);
 
         lightMapOcclusionFrameBuffer.Bind(FramebufferTarget.Framebuffer);
+        GraphicsEngine.Viewport(0, 0, (int)windowUbo.Data.WindowSize.X / lightMapOcclusionTextureDivisor, (int)windowUbo.Data.WindowSize.Y / lightMapOcclusionTextureDivisor);
         GraphicsEngine.Clear();
         lightMapOcclusionShaderProgram.Use();
         lightMapOcclusionCircleTexture.Bind(0);
@@ -151,6 +154,7 @@ partial class RenderSystem
 
         // setup the re-callable engine to render the light maps
         lightMapFrameBuffer.Bind(FramebufferTarget.Framebuffer);
+        GraphicsEngine.Viewport(0, 0, (int)windowUbo.Data.WindowSize.X, (int)windowUbo.Data.WindowSize.Y);
         GraphicsEngine.Clear();
         lightMapFBShaderProgram.Use();
         lightMapOcclusionTexture.Bind(0);
@@ -189,7 +193,7 @@ partial class RenderSystem
             if (!useTorches && w.Entity.HasVillagerComponent()) return;
             if (w.Entity.HasBuildingComponent() && !w.Entity.GetBuildingComponent().IsBuilt) return;
 
-            addLight((w.LocationComponent.Box.Center + new Vector2(.5f) - world.Offset) * world.Zoom, w.RenderableComponent.LightRange * world.Zoom,
+            addLight((w.LocationComponent.Box.Center - world.Offset) * world.Zoom, w.RenderableComponent.LightRange * world.Zoom,
                 w.RenderableComponent.LightEmission.GetXYZ(), w.RenderableComponent.LightFullCircle ? LightMapFBUbo.Light.FullAngle :
                     getAngleMinMaxFromHeading(w.Entity.GetHeadingComponent().Heading, w.RenderableComponent.LightAngleRadius));
         });
@@ -275,14 +279,14 @@ partial class RenderSystem
         // render the background (tri0)
         var normalizedGrassOffset = world.Offset.ToVector2i().ToNumericsVector2();
 
-        if (world.TerrainTileNames is { })
+        if (world.TerrainCells is { })
             for (int y = -1; y < windowUbo.Data.WindowSize.Y / world.Zoom + 1; ++y)
                 for (int x = -1; x < windowUbo.Data.WindowSize.X / world.Zoom + 1; ++x)
                     if ((int)(x + normalizedGrassOffset.X) is { } xIdx && (int)(y + normalizedGrassOffset.Y) is { } yIdx
-                        && xIdx >= 0 && yIdx >= 0 && xIdx < world.TerrainTileNames.GetLength(0) && yIdx < world.TerrainTileNames.GetLength(1))
+                        && xIdx >= 0 && yIdx >= 0 && xIdx < world.TerrainCells.GetLength(0) && yIdx < world.TerrainCells.GetLength(1))
                     {
                         ScreenFillQuad(RenderLayer.Ground, Box2.FromCornerSize(new Vector2(x, y) + normalizedGrassOffset, 1, 1), Colors4.White,
-                            atlas[world.TerrainTileNames[(int)(x + normalizedGrassOffset.X), (int)(y + normalizedGrassOffset.Y)]]);
+                            atlas[world.TerrainCells[(int)(x + normalizedGrassOffset.X), (int)(y + normalizedGrassOffset.Y)].TileFileName!]);
                     }
 
         // store the actual entities' vertices(tri0)
@@ -305,7 +309,7 @@ partial class RenderSystem
             }
             else if (w.RenderableComponent.AtlasEntryName is { } atlasEntryName)
             {
-                if (w.Entity.HasInventoryComponent() && w.Entity.HasResourceComponent() && w.Entity.GetInventoryComponent().Inventory.IsEmpty(ResourceMarker.Default))
+                if (w.Entity.HasInventoryComponent() && w.Entity.HasResourceComponent() && w.Entity.GetInventoryComponent().Inventory.IsEmpty(ResourceMarker.Unmarked))
                     return;
                 ScreenFillQuad(w.Entity.HasVillagerComponent() ? RenderLayer.Pawn : RenderLayer.BelowPawns, w.LocationComponent.Box, atlas[atlasEntryName]);
             }
@@ -323,15 +327,19 @@ partial class RenderSystem
         if (world.ShowDetails)
             EcsCoordinator.IterateWorkerArchetype((in EcsCoordinator.WorkerIterationResult w) =>
             {
-                if (w.WorkerComponent.CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity aiLowLevelPlanWithTargetEntity)
+                if (w.WorkerComponent.CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity aiLowLevelPlanWithTargetEntity
+                    && aiLowLevelPlanWithTargetEntity.TargetEntity is { } targetEntity)
+                {
                     ScreenLine(RenderLayer.Gui, w.LocationComponent.Box,
-                        aiLowLevelPlanWithTargetEntity.TargetEntity.GetLocationComponent().Box, 1.5f, Colors4.Yellow);
+                        aiLowLevelPlanWithTargetEntity.TargetEntity!.Value.GetLocationComponent().Box, 1.5f, Colors4.Yellow);
+                }
             });
         else if (world.SelectedEntity.HasValue && world.SelectedEntity.Value.HasWorkerComponent()
-            && world.SelectedEntity.Value.GetWorkerComponent().CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity { } aiLowLevelPlanWithTargetEntity)
+            && world.SelectedEntity.Value.GetWorkerComponent().CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity { } aiLowLevelPlanWithTargetEntity
+            && aiLowLevelPlanWithTargetEntity.TargetEntity is { } targetEntity)
         {
             ScreenLine(RenderLayer.Gui, world.SelectedEntity.Value.GetLocationComponent().Box,
-                aiLowLevelPlanWithTargetEntity.TargetEntity.GetLocationComponent().Box, 1.5f, Colors4.Yellow);
+                targetEntity.GetLocationComponent().Box, 1.5f, Colors4.Yellow);
         }
 
         // selection box (lines)
@@ -354,14 +362,15 @@ partial class RenderSystem
         if (world.CurrentWorldTemplate.BuildingTemplate is not null)
         {
             var box = Box2.FromCornerSize(world.MouseWorldPosition.ToVector2i(), world.CurrentWorldTemplate.BuildingTemplate.Width, world.CurrentWorldTemplate.BuildingTemplate.Height);
-            ScreenFillQuad(RenderLayer.BelowPawns, box, World.IsBoxFreeOfBuildings(box) ? Colors4.Lime : Colors4.Red, atlas[world.CurrentWorldTemplate.BuildingTemplate.ImageFileName]);
+            ScreenFillQuad(RenderLayer.BelowPawns, box, World.IsBoxFreeOfBuildings(box) && world.IsBoxFreeOfBlockingTerrain(box) ? Colors4.Lime : Colors4.Red,
+                atlas[world.CurrentWorldTemplate.BuildingTemplate.ImageFileName]);
         }
 
         // zone template
         if (world.CurrentWorldTemplate.ZoneType is not null && world.CurrentZoneStartPoint is not null
             && Box2.FromCornerSize(world.CurrentZoneStartPoint.Value, (world.MouseWorldPosition - world.CurrentZoneStartPoint.Value.ToNumericsVector2() + Vector2.One).ToVector2i()) is { } zoneBox)
         {
-            RenderZone(zoneBox, world.CurrentWorldTemplate.ZoneType.Value, !World.IsBoxFreeOfBuildings(zoneBox), true, true);
+            RenderZone(zoneBox, world.CurrentWorldTemplate.ZoneType.Value, !World.IsBoxFreeOfBuildings(zoneBox) || !world.IsBoxFreeOfBlockingTerrain(zoneBox), true, true);
         }
 
         // render gui (tri2)

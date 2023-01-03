@@ -1,10 +1,10 @@
 ﻿namespace Tweey.Support.AI.LowLevelPlans;
 
-class WaitLowLevelPlan : AILowLevelPlan
+class WaitAILowLevelPlan : AILowLevelPlan
 {
     private readonly TimeSpan targetWorldTime;
 
-    public WaitLowLevelPlan(World world, Entity entity, TimeSpan worldTime)
+    public WaitAILowLevelPlan(World world, Entity entity, TimeSpan worldTime)
         : base(world, entity)
     {
         targetWorldTime = worldTime;

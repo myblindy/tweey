@@ -19,7 +19,7 @@ partial class AISystem
 
         EcsCoordinator.IterateBuildingArchetype((in EcsCoordinator.BuildingIterationResult bw) =>
         {
-            if (!bw.BuildingComponent.IsBuilt && !bw.InventoryComponent.Inventory.Contains(ResourceMarker.All, bw.BuildingComponent.Template.BuildCost, ResourceMarker.Default))
+            if (!bw.BuildingComponent.IsBuilt && !bw.InventoryComponent.Inventory.Contains(ResourceMarker.All, bw.BuildingComponent.Template.BuildCost, ResourceMarker.Unmarked))
             {
                 var neededResources = bw.BuildingComponent.Template.BuildCost.WithRemove(bw.InventoryComponent.Inventory);
                 var buildingInventory = bw.InventoryComponent.Inventory;
@@ -37,7 +37,7 @@ partial class AISystem
                     var planMarker = ResourceMarker.Create();
                     ResourceBucket.MarkResources(planMarker,
                         foundResources.OrderByDistanceFrom(entityLocation, w => w.location, w => w.entity).Select(e => e.GetInventoryComponent().Inventory),
-                        ResourceMarker.Default, villagerAvailableWeight, bw.BuildingComponent.Template.BuildCost, rq => buildingInventory.Add(rq, planMarker), out _);
+                        ResourceMarker.Unmarked, villagerAvailableWeight, bw.BuildingComponent.Template.BuildCost, rq => buildingInventory.Add(rq, planMarker), out _);
 
                     selectedPlans = new AIHighLevelPlan[]
                     {
@@ -62,7 +62,7 @@ partial class AISystem
         EcsCoordinator.IterateBuildingArchetype((in EcsCoordinator.BuildingIterationResult bw) =>
         {
             if (!bw.BuildingComponent.IsBuilt && bw.WorkableComponent.Entity == Entity.Invalid
-                && bw.InventoryComponent.Inventory.Contains(ResourceMarker.Default, bw.BuildingComponent.Template.BuildCost, ResourceMarker.All)
+                && bw.InventoryComponent.Inventory.Contains(ResourceMarker.Unmarked, bw.BuildingComponent.Template.BuildCost, ResourceMarker.All)
                 && World.IsBoxFreeOfPlants(bw.LocationComponent.Box))
             {
                 bw.WorkableComponent.Entity = workerEntity;
@@ -134,6 +134,46 @@ partial class AISystem
         return (plans = selectedPlans) is not null;
     }
 
+    bool TryToRest(in IterationResult w, out AIHighLevelPlan[]? plans)
+    {
+        AIHighLevelPlan[]? selectedPlans = default;
+        var workerEntity = w.Entity;
+        var tiredRatio = w.VillagerComponent.Needs.Tired / w.VillagerComponent.Needs.TiredMax;
+
+        if (tiredRatio < 1 / 3f)
+        {
+
+            // try to find available beds
+            using var availableBeds = CollectionPool<(Entity entity, Vector2i location)>.Get();
+            EcsCoordinator.IterateBuildingArchetype((in EcsCoordinator.BuildingIterationResult bw) =>
+            {
+                if (bw.BuildingComponent.IsBuilt && bw.WorkableComponent.Entity == Entity.Invalid)
+                    availableBeds.Add((bw.Entity, bw.LocationComponent.Box.Center.ToVector2i()));
+            });
+
+            // pick the closest bed and rest
+            if (availableBeds.Count > 0)
+            {
+
+                var bed = availableBeds.OrderByDistanceFrom(w.LocationComponent.Box.Center, w => w.location.ToNumericsVector2Center(), w => w.entity).First();
+                bed.GetWorkableComponent().Entity = workerEntity;
+                selectedPlans = new AIHighLevelPlan[]
+                {
+                    new RestAIHighLevelPlan(world, workerEntity, bed)
+                };
+            }
+        }
+
+        // if no beds and it's an emergency, sleep on the floor
+        if (tiredRatio < .1f && selectedPlans is null)
+            selectedPlans = new AIHighLevelPlan[]
+            {
+                new RestAIHighLevelPlan(world, workerEntity, null)
+            };
+
+        return (plans = selectedPlans) is not null;
+    }
+
     bool TryToHaulToStorage(in IterationResult w, out AIHighLevelPlan[]? plans)
     {
         var workerEntity = w.Entity;
@@ -146,7 +186,7 @@ partial class AISystem
 
         EcsCoordinator.IteratePlacedResourceArchetype((in EcsCoordinator.PlacedResourceIterationResult rw) =>
         {
-            if (!rw.InventoryComponent.Inventory.IsEmpty(ResourceMarker.Default))
+            if (!rw.InventoryComponent.Inventory.IsEmpty(ResourceMarker.Unmarked))
                 if (!rw.Entity.HasPlacedResourceIsStoredComponent())
                     foundFreeResources.Add((rw.Entity, rw.InventoryComponent.Inventory, rw.LocationComponent.Box.TopLeft.ToVector2i()));
                 else
@@ -170,7 +210,7 @@ partial class AISystem
                 planMarker ??= ResourceMarker.Create();
                 ResourceBucket.MarkResources(world, planMarker.Value,
                     foundFreeResources.OrderByDistanceFrom(workerEntityLocation, w => w.location.ToNumericsVector2Center(), w => w.entity).Select(e => e.GetInventoryComponent().Inventory),
-                    ResourceMarker.Default, workerAvailableWeight, foundZones.Select(w => w.box), foundStoredResources,
+                    ResourceMarker.Unmarked, workerAvailableWeight, foundZones.Select(w => w.box), foundStoredResources,
                     (srcRQ, dstEntity, dstRB, dstLoc) =>
                     {
                         if (dstEntity is not null && dstRB is not null)
@@ -220,9 +260,9 @@ partial class AISystem
         foundPlacedResources.Sort((a, b) => (int)((a.location.ToNumericsVector2Center() - workerEntityLocation).LengthSquared()
             - (b.location.ToNumericsVector2Center() - workerEntityLocation).LengthSquared()));
 
-        var storedResources = world.GetStoredResources(ResourceMarker.Default);
-        int getStoredResourceAmount(Resource res) =>
-            storedResources!.TryGetValue(res, out var val) ? val : 0;
+        using var allResources = World.GetAllResources(ResourceMarker.Unmarked, false);
+        int getAvailableResourceAmount(Resource res) =>
+            allResources.TryGetValue(res, out var val) ? val : 0;
 
         if (foundWorkables.Count > 0)
         {
@@ -234,9 +274,9 @@ partial class AISystem
                     if (((bill.AmountType is BillAmountType.FixedValue && bill.Amount > 0)
                             || (bill.AmountType is BillAmountType.UntilInStock
                                 && bill.ProductionLine.Outputs.GetResourceQuantities(ResourceMarker.All).First() is { } reqRq
-                                && getStoredResourceAmount(reqRq.Resource) < bill.Amount))
+                                && getAvailableResourceAmount(reqRq.Resource) < bill.Amount))
                         && ResourceBucket.TryToMarkResources(() => marker = ResourceMarker.Create(), foundPlacedResources.Select(r => r.entity.GetInventoryComponent().Inventory),
-                            ResourceMarker.Default, workerAvailableWeight, bill.ProductionLine.PossibleInputs, out _))
+                            ResourceMarker.Unmarked, workerAvailableWeight, bill.ProductionLine.PossibleInputs, out _))
                     {
                         workableComponent.Entity = workerEntity;
                         workableComponent.ActiveBill = bill;
@@ -265,7 +305,7 @@ partial class AISystem
         {
             if (w.WorkerComponent.Plans is null)
             {
-                _ = TryToPlant(w, out var plans) || TryToBuild(w, out plans) || TryToHaulToBuilingSite(w, out plans) || TryToHarvest(w, out plans)
+                _ = TryToRest(w, out var plans) || TryToPlant(w, out plans) || TryToBuild(w, out plans) || TryToHaulToBuilingSite(w, out plans) || TryToHarvest(w, out plans)
                     || TryToWorkBills(w, out plans) || TryToHaulToStorage(w, out plans);
                 w.WorkerComponent.Plans = plans;
 

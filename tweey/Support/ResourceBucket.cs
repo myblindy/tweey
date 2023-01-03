@@ -6,7 +6,7 @@ internal class ResourceBucket
     public ResourceBucket(IEnumerable<ResourceQuantity> rqs)
     {
         foreach (var rq in rqs)
-            Add(new(rq.Resource, rq.Quantity), ResourceMarker.Default);
+            Add(new(rq.Resource, rq.Quantity), ResourceMarker.Unmarked);
     }
     public ResourceBucket(ResourceQuantity rq, ResourceMarker marker) =>
         Add(new(rq.Resource, rq.Quantity), marker);
@@ -16,7 +16,7 @@ internal class ResourceBucket
     public void Add(ResourceQuantity rq, ResourceMarker marker)
     {
         if (marker == ResourceMarker.All)
-            marker = ResourceMarker.Default;
+            marker = ResourceMarker.Unmarked;
 
         foreach (var dstRq in GetResourceQuantities(marker))
             if (dstRq.Resource == rq.Resource)
@@ -88,7 +88,7 @@ internal class ResourceBucket
         Func<ResourceQuantity, Entity?, ResourceBucket?, Vector2i?, (ResourceBucket newRB, Entity newEntity)>? selectedFeedbackAction, out double usedWeight)
     {
         usedWeight = 0;
-        var storedResources = _storedResources.ToList();
+        using var storedResources = _storedResources.ToPooledCollection();
 
         // first try to stack it on existing stacks
         fullRetry:
@@ -99,7 +99,7 @@ internal class ResourceBucket
                 foreach (var srcRQ in srcRB.GetResourceQuantities(sourceMarker))
                     if (!srcRQ.IsEmpty)
                     {
-                        foreach (ref var storedResource in CollectionsMarshal.AsSpan(storedResources))
+                        foreach (ref var storedResource in storedResources.AsSpanUnsafe())
                             foreach (var dstRQ in storedResource.rb.GetResourceQuantities(ResourceMarker.All))
                                 if (dstRQ.Resource == srcRQ.Resource && dstRQ.Weight < world.Configuration.Data.GroundStackMaximumWeight)
                                 {
@@ -156,7 +156,7 @@ internal class ResourceBucket
     {
         usedWeight = 0;
         var actions = new List<Action>();
-        var requiredResourceGroups = _requiredResourceGroups.ToList();
+        using var requiredResourceGroups = _requiredResourceGroups.ToPooledCollection();
         ResourceMarker marker = default;
 
         foreach (var reqRQ in requiredResourceGroups)
@@ -239,7 +239,7 @@ internal class ResourceBucket
             foreach (var (newRQ, _) in newRB.resources)
                 if (newRQ.Resource == rq.Resource)
                 {
-                    var qtyUsed = Math.Max(newRQ.Quantity, qty);
+                    var qtyUsed = Math.Min(newRQ.Quantity, qty);
                     qty -= qtyUsed;
                     newRQ.Quantity -= qtyUsed;
                 }
@@ -251,7 +251,7 @@ internal class ResourceBucket
     public ResourceBucket WithRemove(ResourceMarker keepMarker, ResourceBucket other, ResourceMarker otherMarker, ResourceMarker destMarker)
     {
         if (destMarker == ResourceMarker.All)
-            destMarker = ResourceMarker.Default;
+            destMarker = ResourceMarker.Unmarked;
 
         var newRB = new ResourceBucket(GetResourceQuantities(keepMarker));
 
@@ -297,5 +297,5 @@ internal class ResourceBucket
         resources.RemoveAll(w => w.marker == marker);
 
     public override string ToString() =>
-        string.Join(", ", resources.Select(w => $"{w.rq}{(w.marker == ResourceMarker.Default ? "" : $" [{w.marker}]")}"));
+        string.Join(", ", resources.Select(w => $"{w.rq}{(w.marker == ResourceMarker.Unmarked ? "" : $" [{w.marker}]")}"));
 }

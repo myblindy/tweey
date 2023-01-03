@@ -2,25 +2,25 @@
 
 namespace Tweey.Support;
 
-public class Needs
+class Needs
 {
-            public required double HungerMax { get; set; }
-        public double Hunger { get; set; }
-        public double HungerPercentage => Hunger / HungerMax;
-        public required double HungerPerSecond { get; set; }
+            public required double TiredMax { get; set; }
+        public double Tired { get; set; }
+        public double TiredPercentage => Tired / TiredMax;
+        public required double TiredDecayPerWorldSecond { get; set; }
     
-    public void UpdateWithChanges(NeedsChange change)
+    public void UpdateWithChanges(in NeedsChange change)
     {
-                    Hunger = Math.Clamp(Hunger + change.Hunger, 0, HungerMax);
+                    Tired = Math.Clamp(Tired + change.Tired, 0, TiredMax);
             }
 
-    public void Update(double deltaSec)
+    public void Decay(double deltaWorldSec)
     {
-                    Hunger = Math.Clamp(Hunger + HungerPerSecond * deltaSec, 0, HungerMax);
+                    Tired = Math.Clamp(Tired - TiredDecayPerWorldSecond * deltaWorldSec, 0, TiredMax);
             }
 }
 
-public class NeedsChange
+readonly struct NeedsChange
 {
-            public double Hunger { get; set; }
+            public double Tired { get; init; }
     }

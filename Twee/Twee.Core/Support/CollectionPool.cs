@@ -26,4 +26,8 @@ public class PooledCollection<T> : Collection<T>, IDisposable
     public void Dispose() => CollectionPool<T>.Return(this);
 
     public void Sort(Comparison<T> comparison) => ((List<T>)Items).Sort(comparison);
+
+    public void AddRange(IEnumerable<T> source) => ((List<T>)Items).AddRange(source);
+
+    public Span<T> AsSpanUnsafe() => CollectionsMarshal.AsSpan((List<T>)Items);
 }

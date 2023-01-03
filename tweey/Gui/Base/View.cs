@@ -18,7 +18,7 @@ public abstract class View
     public Func<bool>? IsVisible { get; set; }
     public bool InheritParentSize { get; set; }
     public Thickness Padding { get; set; }
-    public Thickness Margin { get; set; }
+    public Func<Thickness> Margin { get; set; } = () => new();
     public Func<int>? MinWidth { get; set; }
     public Func<int>? MinHeight { get; set; }
     public Vector4 BackgroundColor { get; set; } = Colors4.Transparent;

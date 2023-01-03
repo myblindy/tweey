@@ -9,13 +9,25 @@
       "type": "string",
       "description": "The name of the building."
     },
+    "type": {
+      "type": "string",
+      "enum": [ "production", "rest" ],
+      "default": "production"
+    },
+    "workInside": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether or not to path to the center of the building to work. If false, pathing next to it is enough."
+    },
     "width": {
       "type": "integer",
-      "minimum": 1
+      "minimum": 1,
+      "default": 1
     },
     "height": {
       "type": "integer",
-      "minimum": 1
+      "minimum": 1,
+      "default": 1
     },
     "productionLines": {
       "type": "array",

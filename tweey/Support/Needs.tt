@@ -5,37 +5,37 @@
 <#@ import namespace="System.Collections.Generic" #>
 <#@ output extension=".cs" #>
 
-<# var needs = new[] { "Hunger" }; #>
+<# var needs = new[] { "Tired" }; #>
 
 namespace Tweey.Support;
 
-public class Needs
+class Needs
 {
     <# foreach(var need in needs) { #>
         public required double <#= need #>Max { get; set; }
         public double <#= need #> { get; set; }
         public double <#= need #>Percentage => <#= need #> / <#= need #>Max;
-        public required double <#= need #>PerSecond { get; set; }
+        public required double <#= need #>DecayPerWorldSecond { get; set; }
     <# } #>
 
-    public void UpdateWithChanges(NeedsChange change)
+    public void UpdateWithChanges(in NeedsChange change)
     {
         <# foreach(var need in needs) { #>
             <#= need #> = Math.Clamp(<#= need #> + change.<#= need #>, 0, <#= need #>Max);
         <# } #>
     }
 
-    public void Update(double deltaSec)
+    public void Decay(double deltaWorldSec)
     {
         <# foreach(var need in needs) { #>
-            <#= need #> = Math.Clamp(<#= need #> + <#= need #>PerSecond * deltaSec, 0, <#= need #>Max);
+            <#= need #> = Math.Clamp(<#= need #> - <#= need #>DecayPerWorldSecond * deltaWorldSec, 0, <#= need #>Max);
         <# } #>
     }
 }
 
-public class NeedsChange
+readonly struct NeedsChange
 {
     <# foreach(var need in needs) { #>
-        public double <#= need #> { get; set; }
+        public double <#= need #> { get; init; }
     <# } #>
 }

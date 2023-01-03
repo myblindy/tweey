@@ -10,20 +10,20 @@ partial class RenderSystem
         var descriptionColor = new Vector4(.8f, .8f, .8f, 1);
         var highlightColor = Colors4.Aqua;
 
+        // time gui
         gui.RootViewDescriptions.Add(new(
             new StackView(StackType.Vertical)
             {
                 BackgroundColor = panelBackgroundColor,
                 Children =
                 {
-                    new LabelView { Text = () => $"Time: {world.WorldTime}" },
+                    new LabelView(() => $"Time: {world.WorldTime}") { FontSize = () => smallFontSize },
                     new RepeaterView<double>
                     {
                         Source = () => new double[] { 0, 1, 2, 4, 8, 16 },
                         ContainerView = new StackView(StackType.Horizontal),
-                        ItemView = s => new ButtonView
+                        ItemView = (s, _) => new ButtonView(() => $"{s}x", () => smallFontSize)
                         {
-                            Child = new LabelView { Text = () => $"{s}x" },
                             IsChecked = () => world.TimeSpeedUp == s,
                             Clicked = () => world.TimeSpeedUp = s,
                         }
@@ -51,12 +51,10 @@ partial class RenderSystem
             {
                 Children =
                 {
-                    new LabelView
+                    new LabelView(() => quantity().ToString())
                     {
-                        Text = () => quantity().ToString(),
-                        FontSize = () => defaultFontSize,
                         MinWidth = () => 50,
-                        Margin = new(10,0,10,0),
+                        Margin = () => new(10, 0),
                         HorizontalTextAlignment = HorizontalAlignment.Right,
                         ForegroundColor = () => highlightColor
                     },
@@ -65,10 +63,8 @@ partial class RenderSystem
                         Source = () => labor ? "Data/Resources/labor.png" : resource!.ImageFileName,
                         InheritParentSize = true
                     },
-                    new LabelView
+                    new LabelView(() => $" {(labor ? "Work" : resource!.Name)}{(marker is null || marker() == ResourceMarker.Unmarked ? null : $" [{marker()}]")}")
                     {
-                        Text = () => $" {(labor ? "Work" : resource!.Name)}{(marker is null || marker() == ResourceMarker.Default ? null : $" [{marker()}]")}",
-                        FontSize = () => defaultFontSize,
                         ForegroundColor = () => descriptionColor
                     }
                 }
@@ -87,9 +83,8 @@ partial class RenderSystem
                     {
                         Children =
                         {
-                            new LabelView
+                            new LabelView(() => getEntityDescription(world.SelectedEntity!.Value))
                             {
-                                Text = () => getEntityDescription(world.SelectedEntity!.Value),
                                 FontSize = () => largeFontSize,
                                 ForegroundColor = () => descriptionColor
                             },
@@ -99,15 +94,13 @@ partial class RenderSystem
                                 Source = () => getEntityImage(world.SelectedEntity!.Value),
                                 InheritParentSize = true,
                             },
-                            new LabelView
+                            new LabelView(() => getEntityName(world.SelectedEntity!.Value))
                             {
-                                Text = () => getEntityName(world.SelectedEntity!.Value),
                                 FontSize = () => largeFontSize,
                                 ForegroundColor = () => highlightColor
                             },
-                            new LabelView
+                            new LabelView(() => $" ID {world.SelectedEntity!.Value}")
                             {
-                                Text = () => $" ID {world.SelectedEntity!.Value}",
                                 FontSize = () => smallFontSize,
                             },
                         }
@@ -120,23 +113,19 @@ partial class RenderSystem
                             && !world.SelectedEntity!.Value.GetBuildingComponent().IsBuilt,
                         Children =
                         {
-                            new LabelView
+                            new LabelView("Required:")
                             {
                                 Padding = new(25, 15, 0, 0),
-                                FontSize = () => defaultFontSize,
-                                Text = () => "Required:"
                             },
                             new RepeaterView<ResourceQuantity>
                             {
                                 Source = () => world.SelectedEntity!.Value.GetBuildingComponent().Template.BuildCost
-                                    .WithRemove(ResourceMarker.All, world.SelectedEntity!.Value.GetInventoryComponent().Inventory, ResourceMarker.Default, ResourceMarker.Default)
+                                    .WithRemove(ResourceMarker.All, world.SelectedEntity!.Value.GetInventoryComponent().Inventory, ResourceMarker.Unmarked, ResourceMarker.Unmarked)
                                     .GetResourceQuantities(ResourceMarker.All),
                                 ContainerView = new StackView(StackType.Vertical),
-                                ItemView = rq => getResourceRowView(false, rq.Resource, () => rq.Quantity),
-                                EmptyView = new LabelView
+                                ItemView = (rq, _) => getResourceRowView(false, rq.Resource, () => rq.Quantity),
+                                EmptyView = new LabelView("No resources")
                                 {
-                                    Text = () => "No resources",
-                                    FontSize = () => defaultFontSize,
                                     ForegroundColor = () => descriptionColor
                                 }
                             },
@@ -172,24 +161,46 @@ partial class RenderSystem
                         IsVisible = () => world.SelectedEntity!.Value.HasResourceComponent(),
                         Children =
                         {
-                            new LabelView
+                            new LabelView("Inventory:")
                             {
                                 Padding = new(25, 15, 0, 0),
-                                FontSize = () => defaultFontSize,
-                                Text = () => "Inventory:"
                             },
                             new RepeaterView<(ResourceQuantity rq, ResourceMarker marker)>
                             {
                                 Source = () => world.SelectedEntity!.Value.GetInventoryComponent().Inventory.GetResourceQuantitiesWithMarkers(ResourceMarker.All),
                                 ContainerView = new StackView(StackType.Vertical),
-                                ItemView = rqm => getResourceRowView(false, rqm.rq.Resource, () => rqm.rq.Quantity, () => rqm.marker),
-                                EmptyView = new LabelView
+                                ItemView = (rqm, _) => getResourceRowView(false, rqm.rq.Resource,() => rqm.rq.Quantity,() => rqm.marker),
+                                EmptyView = new LabelView("Nothing")
                                 {
-                                    Text = () => "Nothing",
-                                    FontSize = () => defaultFontSize,
                                     ForegroundColor = () => descriptionColor
                                 }
                             },
+                        }
+                    },
+
+                    // needs
+                    new StackView(StackType.Vertical)
+                    {
+                        IsVisible = () => world.SelectedEntity.HasValue && world.SelectedEntity.Value.HasVillagerComponent(),
+                        Children =
+                        {
+                            new StackView(StackType.Horizontal)
+                            {
+                                Children =
+                                {
+                                    new LabelView("Tired: ") { FontSize = () => smallFontSize },
+                                    new ProgressView
+                                    {
+                                        Maximum = () => world.SelectedEntity!.Value.GetVillagerComponent().Needs.TiredMax,
+                                        Value = () => world.SelectedEntity!.Value.GetVillagerComponent().Needs.Tired,
+                                        StringFormat = () => "{0:0}%",
+                                        FontSize = () => smallFontSize,
+                                        MinWidth = () => (int)WidthPercentage(6),
+                                        ForegroundColor = () => world.SelectedEntity!.Value.GetVillagerComponent().Needs.Tired / world.SelectedEntity!.Value.GetVillagerComponent().Needs.TiredMax > 0.2
+                                            ? Colors4.DarkGreen : Colors4.DarkRed
+                                    }
+                                }
+                            }
                         }
                     },
 
@@ -206,76 +217,48 @@ partial class RenderSystem
                             {
                                 Children =
                                 {
-                                    new LabelView
-                                    {
-                                        Text = () => "Bills: "
-                                    },
-                                    new ButtonView
+                                    new LabelView("Bills: "),
+                                    new ButtonView("Add")
                                     {
                                         Clicked = () => world.SelectedEntity!.Value.GetWorkableComponent().Bills.Add(new()
                                         {
                                             ProductionLine = world.SelectedEntity.Value.GetBuildingComponent().Template.ProductionLines[0],
                                             AmountType = BillAmountType.FixedValue,
                                             Amount = 10,
-                                        }),
-                                        Child = new LabelView { Text = () => "Add" }
+                                        })
                                     }
                                 }
                             },
                             new RepeaterView<Bill>
                             {
                                 Source = () => world.SelectedEntity!.Value.GetWorkableComponent().Bills,
-                                ItemView = b => new StackView(StackType.Horizontal)
+                                ItemView = (b, _) => new StackView(StackType.Horizontal)
                                 {
                                     Children =
                                     {
-                                        new ButtonView
-                                        {
-                                            Child = new LabelView
+                                        new ButtonView("Del"),
+                                        new ButtonView(() => b.ProductionLine.Name),
+                                        new ButtonView(() => b.AmountType switch
                                             {
-                                                Text = () => "Del",
-                                            }
-                                        },
-                                        new ButtonView
-                                        {
-                                            Child = new LabelView
-                                            {
-                                                Text = () => b.ProductionLine.Name,
-                                            }
-                                        },
-                                        new ButtonView
-                                        {
-                                            Clicked = () => b.AmountType = b.AmountType switch
-                                            {
-                                                BillAmountType.FixedValue => BillAmountType.UntilInStock,
-                                                BillAmountType.UntilInStock => BillAmountType.FixedValue,
+                                                BillAmountType.FixedValue => $" {b.Amount} times.",
+                                                BillAmountType.UntilInStock => $" until you have {b.Amount} in stock.",
                                                 _ => throw new NotImplementedException()
-                                            },
-                                            Child = new LabelView
+                                            })
+                                        {
+                                            Clicked = async () =>
                                             {
-                                                Text = () => b.AmountType switch
-                                                {
-                                                    BillAmountType.UntilInStock => $" until you have {b.Amount} in stock.",
-                                                    BillAmountType.FixedValue => $" {b.Amount} times.",
-                                                    _ => throw new NotImplementedException()
-                                                }
+                                                var (_, idx) = await CreatePickerClicked("Bill Type", new[]{ "Fixed Value", "Until in Stock" });
+                                                if(idx >= 0)
+                                                    b.AmountType = (BillAmountType)idx;
                                             }
                                         },
-                                        new ButtonView
+                                        new ButtonView("-")
                                         {
                                             Clicked = () => --b.Amount,
-                                            Child = new LabelView
-                                            {
-                                                Text = () => "-",
-                                            }
                                         },
-                                        new ButtonView
+                                        new ButtonView("+")
                                         {
                                             Clicked = () => ++b.Amount,
-                                            Child = new LabelView
-                                            {
-                                                Text = () => "+",
-                                            }
                                         },
                                     }
                                 }
@@ -287,7 +270,7 @@ partial class RenderSystem
 
         // orders
         gui.RootViewDescriptions.Add(new(
-            new StackView(StackType.Horizontal)
+            new StackView(StackType.Vertical)
             {
                 IsVisible = () => !world.SelectedEntity.HasValue,
                 BackgroundColor = panelBackgroundColor,
@@ -297,14 +280,13 @@ partial class RenderSystem
                     {
                         Children =
                         {
-                            new LabelView { Text = () => "Orders:" },
+                            new LabelView("Orders:"),
                             new StackView(StackType.Horizontal)
                             {
                                 Children =
                                 {
-                                    new ButtonView
+                                    new ButtonView("Harvest")
                                     {
-                                        Child = new LabelView { Text = () => "Harvest" },
                                         IsChecked = () => world.CurrentWorldTemplate.ZoneType == ZoneType.MarkHarvest,
                                         Clicked = () => (world.CurrentWorldTemplate.ZoneType, world.CurrentZoneStartPoint) =
                                             (ZoneType.MarkHarvest, null),
@@ -317,21 +299,19 @@ partial class RenderSystem
                     {
                         Children =
                         {
-                            new LabelView { Text = () => "Zones:" },
+                            new LabelView("Zones:"),
                             new StackView(StackType.Horizontal)
                             {
                                 Children =
                                 {
-                                    new ButtonView
+                                    new ButtonView("Grow")
                                     {
-                                        Child = new LabelView { Text = () => "Grow" },
                                         IsChecked = () => world.CurrentWorldTemplate.ZoneType == ZoneType.Grow,
                                         Clicked = () => (world.CurrentWorldTemplate.ZoneType, world.CurrentZoneStartPoint) =
                                             (ZoneType.Grow, null),
                                     },
-                                    new ButtonView
+                                    new ButtonView("Storage")
                                     {
-                                        Child = new LabelView { Text = () => "Storage" },
                                         IsChecked = () => world.CurrentWorldTemplate.ZoneType == ZoneType.Storage,
                                         Clicked = () => (world.CurrentWorldTemplate.ZoneType, world.CurrentZoneStartPoint) =
                                             (ZoneType.Storage, null),
@@ -344,14 +324,13 @@ partial class RenderSystem
                     {
                         Children =
                         {
-                            new LabelView { Text = () => "Buildings:" },
+                            new LabelView("Buildings:"),
                             new RepeaterView<BuildingTemplate>
                             {
                                 Source = () => world.BuildingTemplates,
                                 ContainerView = new StackView(StackType.Horizontal),
-                                ItemView = bt => new ButtonView
+                                ItemView = (bt, _) => new ButtonView(() => bt.Name)
                                 {
-                                    Child = new LabelView { Text = () => bt.Name },
                                     IsChecked = () => world.CurrentWorldTemplate.BuildingTemplate == bt,
                                     Clicked = () => world.CurrentWorldTemplate.BuildingTemplate= bt,
                                 }
@@ -361,27 +340,44 @@ partial class RenderSystem
                 }
             }, Anchor.BottomLeft));
 
+        // resources
+        gui.RootViewDescriptions.Add(new(
+            new StackView(StackType.Vertical)
+            {
+                BackgroundColor = panelBackgroundColor,
+                Children =
+                {
+                    new LabelView("Resources in stock:"),
+                    new RepeaterView<ResourceQuantity>
+                    {
+                        Source = () => World.GetAllResources(ResourceMarker.Unmarked, true).Select(w => new ResourceQuantity(w.Key, w.Value)),
+                        ContainerView = new StackView(StackType.Vertical),
+                        ItemView = (rq, _) => getResourceRowView(false, rq.Resource,() => rq.Quantity),
+                        EmptyView = new LabelView("None") { ForegroundColor = () => descriptionColor }
+                    }
+                }
+            }, Anchor.TopRight));
+
+        // timing info
         gui.RootViewDescriptions.Add(new(
             new StackView(StackType.Vertical)
             {
                 Children =
                 {
-                    new LabelView
+                    new LabelView($$"""
+                        FPS: {{Math.Round(FrameData.Rate, 0, MidpointRounding.ToPositiveInfinity):0}}, Update: {{FrameData.UpdateTimePercentage * 100:0.00}}%, Render: {{FrameData.RenderTimePercentage * 100:0.00}}%
+                        Draw calls: {{FrameData.DrawCallCount}}, Triangles: {{FrameData.TriangleCount}}, Lines: {{FrameData.LineCount}}
+                        {{string.Join(Environment.NewLine, EcsCoordinator.SystemTimingInformation.Select((kvp, idx) => $"{kvp.Key}: {FrameData.GetCustomTimePercentage(idx) * 100:0.00}%"))}}
+                        SwapBuffer: {{FrameData.GetCustomTimePercentage(EcsCoordinator.SystemsCount) * 100:0.00}}%
+                        """)
                     {
-                        Text = () => $$"""
-                            FPS: {{Math.Round(FrameData.Rate, 0, MidpointRounding.ToPositiveInfinity):0}}, Update: {{FrameData.UpdateTimePercentage * 100:0.00}}%, Render: {{FrameData.RenderTimePercentage * 100:0.00}}%
-                            Draw calls: {{FrameData.DrawCallCount}}, Triangles: {{FrameData.TriangleCount}}, Lines: {{FrameData.LineCount}}
-                            {{string.Join(Environment.NewLine, EcsCoordinator.SystemTimingInformation.Select((kvp, idx)=> $"{kvp.Key}: {FrameData.GetCustomTimePercentage(idx) * 100:0.00}%"))}}
-                            SwapBuffer: {{FrameData.GetCustomTimePercentage(EcsCoordinator.SystemsCount) * 100:0.00}}%
-                            """,
                         FontSize = () => smallFontSize,
                         Padding = new(2),
                         ForegroundColor = () => Colors4.White,
-                        BackgroundColor = new(0,0,0,.4f)
+                        BackgroundColor = panelBackgroundColor
                     },
-                    new LabelView
+                    new LabelView("PAUSED")
                     {
-                        Text = () => "PAUSED",
                         IsVisible = () => world.TimeSpeedUp == 0,
                         FontSize = () => smallFontSize,
                         Padding = new(2, 0),
@@ -389,5 +385,23 @@ partial class RenderSystem
                     },
                 }
             }));
+
+        // picker, has to be last
+        gui.RootViewDescriptions.Add(new(
+            new WindowView
+            {
+                IsVisible = () => isPickerVisible,
+                Title = () => pickerTitle,
+                Margin = () => new(pickerOffset.X, 0, 0, (int)(-pickerOffset.Y + HeightPercentage(100))),
+                Child = new RepeaterView<string>
+                {
+                    Source = () => pickerValues,
+                    ContainerView = new StackView(StackType.Vertical),
+                    ItemView = (item, idx) => new ButtonView(() => item)
+                    {
+                        Clicked = () => pickerCompletionSource!.SetResult((item, idx)),
+                    }
+                }
+            }, Anchor.BottomLeft));
     }
 }

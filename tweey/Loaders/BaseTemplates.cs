@@ -7,7 +7,7 @@ public interface ITemplateFileName
 
 public abstract class BaseTemplates<TIn, TVal> : IEnumerable<TVal> where TVal : ITemplateFileName
 {
-    readonly ImmutableDictionary<string, TVal> resources;
+    readonly ImmutableSortedDictionary<string, TVal> resources;
 
     protected BaseTemplates(ILoader loader, string subFolder, Func<TVal, string> keySelector, object? mapperParameter = null)
     {
@@ -22,7 +22,7 @@ public abstract class BaseTemplates<TIn, TVal> : IEnumerable<TVal> where TVal : 
                 result.FileName = Path.GetFileNameWithoutExtension(fileName);
                 return result;
             })
-            .ToImmutableDictionary(keySelector, StringComparer.CurrentCultureIgnoreCase);
+            .ToImmutableSortedDictionary(keySelector, w => w, StringComparer.CurrentCultureIgnoreCase);
     }
 
     public TVal this[string key] => resources[key];

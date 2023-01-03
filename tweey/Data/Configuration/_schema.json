@@ -77,8 +77,20 @@
       "maximum": 1,
       "description": "Hunger threshold at which the villager drops all it's doing and seeks out food immediately."
     },
+    "baseTiredMax": {
+      "type": "number",
+      "minimum": 0
+    },
+    "baseTiredDecayPerWorldSecond": {
+      "type": "number",
+      "minimum": 0
+    },
     "midDayColor": { "$ref": "../BaseSchemas/color.json#/definitions/color" },
-    "midNightColor": { "$ref": "../BaseSchemas/color.json#/definitions/color" }
+    "midNightColor": { "$ref": "../BaseSchemas/color.json#/definitions/color" },
+    "treeMovementModifier": {
+      "type": "number",
+      "minimum": 0
+    }
   },
 
   "required": [
@@ -93,6 +105,9 @@
     "baseHungerEmergencyPercentage",
     "zoneGrowColor",
     "zoneErrorColor",
-    "zoneHarvestColor"
+    "zoneHarvestColor",
+    "treeMovementModifier",
+    "baseTiredDecayPerWorldSecond",
+    "baseTiredMax"
   ]
 }

@@ -55,12 +55,13 @@ class Program : GameWindow
 
         FrameData.Init(EcsCoordinator.SystemsCount + 1);
         EcsCoordinator.ConstructPartitions(new(400, 400), world.Zoom);
-        world.GenerateMap(400, 400);
+        world.GenerateMap(400, 400, out var embarkmentLocation);
 
-        var villager = world.SelectedEntity = world.AddVillagerEntity("Sana", new(200, 200));
-        world.AddVillagerEntity("Momo", new(215, 220));
-        world.Offset = new(190, 190);
+        var villager = world.SelectedEntity = world.AddVillagerEntity("Sana", embarkmentLocation.ToNumericsVector2());
+        world.AddVillagerEntity("Momo", embarkmentLocation.ToNumericsVector2() + Vector2.One);
+        world.RawOffset = embarkmentLocation.ToNumericsVector2() - new Vector2(10, 6);
 
+        EcsCoordinator.ConstructNeedsUpdateSystem(() => new(world));
         EcsCoordinator.ConstructFarmSystem(() => new(world));
         EcsCoordinator.ConstructAISystem(() => new(world));
         EcsCoordinator.ConstructRenderSystem(() => new(world));
@@ -77,20 +78,20 @@ class Program : GameWindow
     {
         var position = MousePosition.ToVector2i();
         if (!EcsCoordinator.SendMouseEventMessageToRenderSystem(position, e.Action, e.Button, e.Modifiers))
-            world.MouseEvent(position, world.GetWorldLocationFromScreenPoint(position), e.Action, e.Button, e.Modifiers);
+            world.MouseEvent(this, position, world.GetWorldLocationFromScreenPoint(position), e.Action, e.Button, e.Modifiers);
     }
 
     protected override void OnMouseUp(MouseButtonEventArgs e)
     {
         var position = MousePosition.ToVector2i();
         if (!EcsCoordinator.SendMouseEventMessageToRenderSystem(position, e.Action, e.Button, e.Modifiers))
-            world.MouseEvent(position, world.GetWorldLocationFromScreenPoint(position), e.Action, e.Button, e.Modifiers);
+            world.MouseEvent(this, position, world.GetWorldLocationFromScreenPoint(position), e.Action, e.Button, e.Modifiers);
     }
 
     protected override void OnMouseMove(MouseMoveEventArgs e)
     {
         var position = MousePosition.ToVector2i();
-        world.MouseEvent(position, world.GetWorldLocationFromScreenPoint(position));
+        world.MouseEvent(this, position, world.GetWorldLocationFromScreenPoint(position));
     }
 
     protected override void OnKeyDown(KeyboardKeyEventArgs e) =>

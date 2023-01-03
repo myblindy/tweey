@@ -24,11 +24,11 @@ class GatherResourcesAIHighLevelPlan : AIHighLevelPlan
 
         foreach (var targetEntity in targets.OrderByDistanceFrom(MainEntity.GetLocationComponent().Box.Center, w => w.location, w => w.entity))
         {
-            yield return new WalkToEntityLowLevelPlan(World, MainEntity, targetEntity);
-            yield return new WaitLowLevelPlan(World, MainEntity, World.RawWorldTime + World.GetWorldTimeFromTicks(
+            yield return new WalkAILowLevelPlan(World, MainEntity, targetEntity);
+            yield return new WaitAILowLevelPlan(World, MainEntity, World.RawWorldTime + World.GetWorldTimeFromTicks(
                 MainEntity.GetVillagerComponent().PickupSpeedMultiplier * World.Configuration.Data.BasePickupSpeed
                     * targetEntity.GetInventoryComponent().Inventory.GetWeight(marker)));
-            yield return new MoveInventoryLowLevelPlan(World, targetEntity, marker, MainEntity, marker);       // from the resource (marked) to the villager (marked)
+            yield return new MoveInventoryAILowLevelPlan(World, targetEntity, marker, MainEntity, marker);       // from the resource (marked) to the villager (marked)
 
             if (targetEntity.HasResourceComponent() && targetEntity.GetInventoryComponent().Inventory.IsEmpty(ResourceMarker.All))
                 targetEntity.Delete();
