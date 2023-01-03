@@ -115,17 +115,14 @@ partial class AISystem
 
         EcsCoordinator.IteratePlantArchetype((in EcsCoordinator.PlantIterationResult pw) =>
         {
-            if (pw.Entity.HasMarkForHarvestComponent())
+            if (pw.Entity.HasMarkForHarvestComponent() && pw.WorkableComponent.Entity == Entity.Invalid)
             {
-                if (pw.WorkableComponent.Entity == Entity.Invalid)
+                pw.WorkableComponent.Entity = workerEntity;
+                selectedPlans = new AIHighLevelPlan[]
                 {
-                    pw.WorkableComponent.Entity = workerEntity;
-                    selectedPlans = new AIHighLevelPlan[]
-                    {
-                        new WorkAIHighLevelPlan(world, workerEntity, pw.Entity)
-                    };
-                    return false;
-                }
+                    new WorkAIHighLevelPlan(world, workerEntity, pw.Entity)
+                };
+                return false;
             }
 
             return true;
