@@ -239,7 +239,7 @@ internal class ResourceBucket
             foreach (var (newRQ, _) in newRB.resources)
                 if (newRQ.Resource == rq.Resource)
                 {
-                    var qtyUsed = Math.Max(newRQ.Quantity, qty);
+                    var qtyUsed = Math.Min(newRQ.Quantity, qty);
                     qty -= qtyUsed;
                     newRQ.Quantity -= qtyUsed;
                 }
