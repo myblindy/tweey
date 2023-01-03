@@ -13,7 +13,7 @@ class RestAIHighLevelPlan : AIHighLevelPlan
     {
         if (bedEntity.HasValue)
         {
-            yield return new WalkAILowLevelPlan(World, MainEntity, bedEntity.Value);
+            yield return new WalkAILowLevelPlan(World, MainEntity, bedEntity.Value, true);
             bedEntity.Value.GetWorkableComponent().EntityWorking = true;
         }
         else
