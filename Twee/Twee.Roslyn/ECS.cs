@@ -39,11 +39,13 @@ public sealed class ECSSourceGen : IIncrementalGenerator
     class EcsComponentClass : EcsClass
     {
         public ImmutableArray<(string FullTypeName, string Name, string? Default)> Parameters { get; }
+        public bool Empty { get; }
 
-        public EcsComponentClass(string name, IEnumerable<(string FullTypeName, string Name, string? Default)> parameters)
+        public EcsComponentClass(string name, IEnumerable<(string FullTypeName, string Name, string? Default)> parameters, bool empty)
             : base(name)
         {
             Parameters = ImmutableArray.CreateRange(parameters);
+            Empty = empty;
         }
     }
 
@@ -124,13 +126,18 @@ public sealed class ECSSourceGen : IIncrementalGenerator
         var componentDeclarations = getDeclarations(ComponentAttributeFullName, static (structName, semanticModel, sds) =>
         {
             var constructorParameters = new List<(string FullTypeName, string Name, string? Default)>();
+            bool empty = true;
+
             if (semanticModel.GetDeclaredSymbol(sds) is { } classSymbol)
+            {
                 if (classSymbol.Constructors.OrderByDescending(w => w.Parameters.Length).FirstOrDefault()?.Parameters is { } parameterSymbols)
                     foreach (var parameterSymbol in parameterSymbols)
                         constructorParameters.Add((parameterSymbol.Type.ToDisplayString(), parameterSymbol.Name,
                             parameterSymbol.HasExplicitDefaultValue ? fixDefaultValue(parameterSymbol.ExplicitDefaultValue) : null));
 
-            return new EcsComponentClass(structName, constructorParameters);
+                empty = constructorParameters.Count == 0 && classSymbol.GetMembers().Count(w => w.Kind is not SymbolKind.Method) == 0;
+            }
+            return new EcsComponentClass(structName, constructorParameters, empty);
         });
 
         var systemDeclarations = getDeclarations(SystemAttributeFullName, static (className, semanticModel, tds) =>
@@ -314,19 +321,16 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             entityPartitions = new HashSet<Entity>[Width * Height];
                         }
 
-                        public partial Vector2 GetWorldLocation({{string.Join(", ", archetypes.First(a => a.Name == p.UsedArchetypeName).Components.Select(c => $$"""
-                            in {{c!.FullName}} {{c!.TypeRootName}}Component
-                            """))}});
+                        public partial Vector2 GetWorldLocation({{string.Join(", ", archetypes.First(a => a.Name == p.UsedArchetypeName).Components.Select(c =>
+                            c.Empty ? $"bool has{c!.TypeRootName}Component" : $"in {c!.FullName} {c!.TypeRootName}Component"))}});
 
-                        int GetArrayLocation({{string.Join(", ", archetypes.First(a => a.Name == p.UsedArchetypeName).Components.Select(c => $$"""
-                            in {{c!.FullName}} {{c!.TypeRootName}}Component
-                            """))}})
+                        int GetArrayLocation({{string.Join(", ", archetypes.First(a => a.Name == p.UsedArchetypeName).Components.Select(c =>
+                            c.Empty ? $"bool has{c!.TypeRootName}Component" : $"in {c!.FullName} {c!.TypeRootName}Component"))}})
                         {
                             var worldSize = WorldSize - Vector2i.One;
                             var worldLocation = GetWorldLocation(
-                                {{string.Join(", ", archetypes.First(a => a.Name == p.UsedArchetypeName).Components.Select(c => $$"""
-                                    {{c!.TypeRootName}}Component
-                                    """))}});
+                                {{string.Join(", ", archetypes.First(a => a.Name == p.UsedArchetypeName).Components.Select(c =>
+                                    c.Empty ? $"has{c!.TypeRootName}Component" : $"in {c!.TypeRootName}Component"))}});
                             var x = (int)((LocationComponent.Box.Center.X / worldSize.X) * (Width - 1));
                             var y = (int)((LocationComponent.Box.Center.Y / worldSize.Y) * (Height - 1));
                             return y * Width + x;
@@ -342,9 +346,13 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                                 """))}})
                             {
                                 var oldPosition = entityPositions[entity];
-                                var newPosition = GetArrayLocation({{string.Join(", ", archetypes.First(a => a.Name == p.UsedArchetypeName).Components.Select(c => $$"""
-                                    in entity.Get{{c!.TypeRootName}}Component()
-                                    """))}});
+                                var newPosition = GetArrayLocation({{string.Join(", ", archetypes.First(a => a.Name == p.UsedArchetypeName).Components.Select(c =>
+                                    c.Empty ? $$"""
+                                        entity.Has{{c!.TypeRootName}}Component()
+                                        """
+                                        : $$"""
+                                        in entity.Get{{c!.TypeRootName}}Component()
+                                        """))}});
 
                                 if(oldPosition != newPosition)
                                 {
@@ -392,17 +400,15 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         readonly ref struct IterationResult
                         {
                             public readonly Entity Entity;
-                            {{string.Join(Environment.NewLine, archetypes.First(at => at.Name == s.UsedArchetypeName).Components.Select(c => $$"""
-                                public readonly ref {{c!.FullName}} {{c!.TypeRootName}}Component;
-                                """))}}
+                            {{string.Join(Environment.NewLine, archetypes.First(at => at.Name == s.UsedArchetypeName).Components.Select(c =>
+                                c.Empty ? $"public readonly bool Has{c!.TypeRootName}Component;" : $"public readonly ref {c!.FullName} {c!.TypeRootName}Component;"))}}
 
                             public IterationResult(Entity entity {{string.Concat(archetypes.First(at => at.Name == s.UsedArchetypeName).Components.Select(c =>
-                                $", ref {c!.FullName} {c!.TypeRootName}Component"))}})
+                                c.Empty ? $", bool has{c!.TypeRootName}Component" : $", ref {c!.FullName} {c!.TypeRootName}Component"))}})
                             {
                                 Entity = entity;
-                                {{string.Join(Environment.NewLine, archetypes.First(at => at.Name == s.UsedArchetypeName).Components.Select(c => $$"""
-                                    this.{{c!.TypeRootName}}Component = ref {{c!.TypeRootName}}Component;
-                                    """))}}
+                                {{string.Join(Environment.NewLine, archetypes.First(at => at.Name == s.UsedArchetypeName).Components.Select(c =>
+                                    c.Empty ? $"Has{c!.TypeRootName}Component = has{c!.TypeRootName}Component;" : $"this.{c!.TypeRootName}Component = ref {c!.TypeRootName}Component;"))}}
                             }
                         }
                         delegate void IterateComponentsProcessDelegate(in IterationResult iterationResult);
@@ -411,7 +417,8 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         {
                             foreach(var entity in EcsCoordinator.{{s.UsedArchetypeName}}Entities)
                                 process(new(entity
-                                    {{string.Concat(archetypes.First(at => at.Name == s.UsedArchetypeName).Components.Select(c => $", ref EcsCoordinator.Get{c!.TypeRootName}Component(entity)"))}}
+                                    {{string.Concat(archetypes.First(at => at.Name == s.UsedArchetypeName).Components.Select(c =>
+                                        c.Empty ? $", entity.Has{c!.TypeRootName}Component()" : $", ref entity.Get{c!.TypeRootName}Component()"))}}
                                 ));
                         }
 
@@ -442,7 +449,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                     static EcsMapping entityComponentMapping = new({{components.Length}});
                     
                     // components
-                    {{string.Join(Environment.NewLine, components.Select(c => $$"""
+                    {{string.Join(Environment.NewLine, components.Where(c => !c.Empty).Select(c => $$"""
                         static readonly FastList<{{c!.FullName}}> {{c!.TypeName}}s = new();
                         static readonly SortedSet<int> extraAvailable{{c!.TypeName}}IDs = new();
                         """))}}
@@ -476,17 +483,15 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         internal readonly ref struct {{at.Name}}IterationResult
                         {
                             public readonly Entity Entity;
-                            {{string.Join(Environment.NewLine, archetypes.First(at2 => at2.Name == at.Name).Components.Select(c => $$"""
-                                public readonly ref {{c!.FullName}} {{c!.TypeRootName}}Component;
-                                """))}}
+                            {{string.Join(Environment.NewLine, archetypes.First(at2 => at2.Name == at.Name).Components.Select(
+                                c => c.Empty ? $"public readonly bool Has{c!.TypeRootName}Component;" : $"public readonly ref {c!.FullName} {c!.TypeRootName}Component;"))}}
 
-                            public {{at.Name}}IterationResult(Entity entity {{string.Concat(archetypes.First(at2 => at2.Name == at.Name).Components.Select(c =>
-                                $", ref {c!.FullName} {c!.TypeRootName}Component"))}})
+                            public {{at.Name}}IterationResult(Entity entity {{string.Concat(archetypes.First(at2 => at2.Name == at.Name).Components.Select(
+                                c => c.Empty ? $", bool has{c!.TypeRootName}Component" : $", ref {c!.FullName} {c!.TypeRootName}Component"))}})
                             {
                                 Entity = entity;
-                                {{string.Join(Environment.NewLine, archetypes.First(at2 => at2.Name == at.Name).Components.Select(c => $$"""
-                                    this.{{c!.TypeRootName}}Component = ref {{c!.TypeRootName}}Component;
-                                    """))}}
+                                {{string.Join(Environment.NewLine, archetypes.First(at2 => at2.Name == at.Name).Components.Select(c =>
+                                    c.Empty ? $"Has{c!.TypeRootName}Component = has{c!.TypeRootName}Component;" : $"this.{c!.TypeRootName}Component = ref {c!.TypeRootName}Component;"))}}
                             }
                         }
 
@@ -495,7 +500,8 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         {
                             foreach(var entity in {{at.Name}}Entities)
                                 if(!process(new(entity
-                                    {{string.Concat(archetypes.First(at2 => at2.Name == at.Name).Components.Select(c => $", ref EcsCoordinator.Get{c!.TypeRootName}Component(entity)"))}}
+                                    {{string.Concat(archetypes.First(at2 => at2.Name == at.Name).Components.Select(c =>
+                                        c.Empty ? $", entity.Has{c!.TypeRootName}Component()" : $", ref entity.Get{c!.TypeRootName}Component()"))}}
                                 )))
                                 {
                                     break;
@@ -507,7 +513,8 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         {
                             foreach(var entity in {{at.Name}}Entities)
                                 process(new(entity
-                                    {{string.Concat(archetypes.First(at2 => at2.Name == at.Name).Components.Select(c => $", ref EcsCoordinator.Get{c!.TypeRootName}Component(entity)"))}}
+                                    {{string.Concat(archetypes.First(at2 => at2.Name == at.Name).Components.Select(c =>
+                                        c.Empty ? $", entity.Has{c!.TypeRootName}Component()" : $", ref entity.Get{c!.TypeRootName}Component()"))}}
                                 ));
                         }
                         """)))}}
@@ -560,23 +567,28 @@ public sealed class ECSSourceGen : IIncrementalGenerator
 
                     // component functions
                     {{string.Join(Environment.NewLine, components.Select(c => $$"""
-                        public static ref {{c!.FullName}} Add{{c!.TypeRootName}}Component(Entity entity)
+                        public static {{(c.Empty ? "void" : $"ref {c!.FullName}")}} Add{{c!.TypeRootName}}Component(Entity entity)
                         {
-                            int componentId;
-                            if (extraAvailable{{c!.TypeName}}IDs.Count > 0)
-                            {
-                                componentId = extraAvailable{{c!.TypeName}}IDs.Min;
-                                extraAvailable{{c!.TypeName}}IDs.Remove(componentId);
-                                {{c!.TypeName}}s[(int)componentId] = new();
-                                entityComponentMapping[entity, {{findIndex(components, w => w == c)}}] = componentId;
+                            {{(c.Empty ? $$"""
                                 entityComponents[entity] |= EcsComponents.{{c!.TypeRootName}};
-                            }
-                            else
-                            {
-                                entityComponentMapping[entity, {{findIndex(components, w => w == c)}}] = componentId = {{c!.TypeName}}s.Count;
-                                entityComponents[entity] |= EcsComponents.{{c!.TypeRootName}};
-                                {{c!.TypeName}}s.Add(new());
-                            }
+                                """
+                                : $$"""
+                                int componentId;
+                                if (extraAvailable{{c!.TypeName}}IDs.Count > 0)
+                                {
+                                    componentId = extraAvailable{{c!.TypeName}}IDs.Min;
+                                    extraAvailable{{c!.TypeName}}IDs.Remove(componentId);
+                                    {{c!.TypeName}}s[(int)componentId] = new();
+                                    entityComponentMapping[entity, {{findIndex(components, w => w == c)}}] = componentId;
+                                    entityComponents[entity] |= EcsComponents.{{c!.TypeRootName}};
+                                }
+                                else
+                                {
+                                    entityComponentMapping[entity, {{findIndex(components, w => w == c)}}] = componentId = {{c!.TypeName}}s.Count;
+                                    entityComponents[entity] |= EcsComponents.{{c!.TypeRootName}};
+                                    {{c!.TypeName}}s.Add(new());
+                                }
+                                """)}}
 
                             {{(rawArchetypes is null ? null : string.Join(Environment.NewLine, rawArchetypes.Archetypes.Select(at =>
                                 !at.Components.Contains(c.TypeRootName) ? null : $$"""
@@ -589,22 +601,27 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                                     }
                                     """)))}}
 
-                            return ref {{c!.TypeName}}s.AsSpanUnsafe()[componentId]; 
+                            {{(c.Empty ? null : $"return ref {c!.TypeName}s.AsSpanUnsafe()[componentId];")}} 
                         }
 
                         {{(c.Parameters.Length == 0 ? "" : $$"""
-                            public static ref {{c!.FullName}} Add{{c!.TypeRootName}}Component(Entity entity,
+                            public static {{(c.Empty ? "void" : $"ref {c!.FullName}")}} Add{{c!.TypeRootName}}Component(Entity entity,
                                 {{string.Join(", ", c.Parameters.Select(p =>
                                     $"{p.FullTypeName} {p.Name} {(p.Default is null ? "" : $" = {p.Default}")}"))}})
                             {
-                                ref var component = ref Add{{c!.TypeRootName}}Component(entity);
-                                component = new({{string.Join(", ", c.Parameters.Select(p => $"{p.Name}"))}});
+                                {{(c.Empty ? $$"""
+                                    Add{{c!.TypeRootName}}Component(entity);
+                                    """
+                                    : $$"""
+                                    ref var component = ref Add{{c!.TypeRootName}}Component(entity);
+                                    component = new({{string.Join(", ", c.Parameters.Select(p => $"{p.Name}"))}});
+                                    """)}}
 
                                 {{(rawArchetypes is null ? null : string.Join(Environment.NewLine, partitions.Where(p => archetypes.First(a => a.Name == p.UsedArchetypeName).Components.Contains(c)).Select(p => $$"""
                                     {{p.TypeRootName}}Partition!.UpdateEntity(entity);
                                     """)))}}
 
-                                return ref component;
+                                return {{(c.Empty ? null : "ref component")}};
                             }
                             """)}}
 
@@ -612,13 +629,15 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         public static bool Has{{c!.TypeRootName}}Component(Entity entity) =>
                             (entityComponents[entity] & EcsComponents.{{c!.TypeRootName}}) == EcsComponents.{{c!.TypeRootName}};
 
-                        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                        public static ref {{c!.FullName}} Get{{c!.TypeRootName}}Component(Entity entity)
-                        {
-                            if(entityComponentMapping[entity, {{findIndex(components, w => w == c)}}] is { } idx && idx >= 0)
-                                return ref {{c!.TypeName}}s.AsSpanUnsafe()[idx];
-                            return ref Unsafe.NullRef<{{c!.FullName}}>();
-                        }
+                        {{(c.Empty ? null : $$"""
+                            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                            public static  ref {{c!.FullName}} Get{{c!.TypeRootName}}Component(Entity entity)
+                            {
+                                if(entityComponentMapping[entity, {{findIndex(components, w => w == c)}}] is { } idx && idx >= 0)
+                                    return ref {{c!.TypeName}}s.AsSpanUnsafe()[idx];
+                                return ref Unsafe.NullRef<{{c!.FullName}}>();
+                            }
+                            """)}}
                         
                         public static void Remove{{c!.TypeRootName}}Component(Entity entity) 
                         {
@@ -681,7 +700,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
 
                         foreach(var entity in Entities)
                         {
-                            {{string.Join(Environment.NewLine, components.Select(c => $$"""
+                            {{string.Join(Environment.NewLine, components.Where(c => !c.Empty).Select(c => $$"""
                                 if(Has{{c!.TypeRootName}}Component(entity))
                                     dump.{{c!.TypeRootName}}s.Add((entity, Get{{c!.TypeRootName}}Component(entity)));
                                 """))}}
@@ -709,8 +728,8 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                      // component functions
                     {{string.Join(Environment.NewLine, components.Select(c => $$"""
                         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                        public static ref {{c!.FullName}} Add{{c!.TypeRootName}}Component(this Entity entity) => 
-                            ref EcsCoordinator.Add{{c!.TypeRootName}}Component(entity);
+                        public static {{(c.Empty ? "void" : $"ref {c!.FullName}")}} Add{{c!.TypeRootName}}Component(this Entity entity) => 
+                            {{(c.Empty ? null : "ref")}} EcsCoordinator.Add{{c!.TypeRootName}}Component(entity);
 
                         {{(c.Parameters.Length == 0 ? "" : $$"""
                             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -725,10 +744,12 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                         public static bool Has{{c!.TypeRootName}}Component(this Entity entity) =>
                             EcsCoordinator.Has{{c!.TypeRootName}}Component(entity);
 
-                        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                        public static ref {{c!.FullName}} Get{{c!.TypeRootName}}Component(this Entity entity) =>
-                            ref EcsCoordinator.Get{{c!.TypeRootName}}Component(entity);
-                        
+                        {{(c.Empty ? null : $$"""
+                            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                            public static ref {{c!.FullName}} Get{{c!.TypeRootName}}Component(this Entity entity) =>
+                                ref EcsCoordinator.Get{{c!.TypeRootName}}Component(entity);
+                            """)}}
+
                         public static void Remove{{c!.TypeRootName}}Component(this Entity entity) =>
                             EcsCoordinator.Remove{{c!.TypeRootName}}Component(entity);
                         """))}}
