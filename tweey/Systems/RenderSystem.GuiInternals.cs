@@ -41,14 +41,14 @@ partial class RenderSystem
         var offset = asWorldCoords ? world.Offset : default;
         var br = box.BottomRight + Vector2.One;
 
-        var vertices = guiVAO.LayerVertices[(int)renderLayer];
-        vertices.Add(new((box.TopLeft - offset) * zoom, color, uv0));
-        vertices.Add(new((br - offset) * zoom, color, uv1));
-        vertices.Add(new(new((br.X - offset.X) * zoom, (box.Top - offset.Y) * zoom), color, uv2));
+        var layerVertices = guiVAO.LayerVertices[(int)renderLayer];
+        layerVertices.Add(new((box.TopLeft - offset) * zoom, color, uv0));
+        layerVertices.Add(new((br - offset) * zoom, color, uv1));
+        layerVertices.Add(new(new((br.X - offset.X) * zoom, (box.Top - offset.Y) * zoom), color, uv2));
 
-        vertices.Add(new(new((box.Left - offset.X) * zoom, (br.Y - offset.Y) * zoom), color, uv3));
-        vertices.Add(new((br - offset) * zoom, color, uv1));
-        vertices.Add(new((box.TopLeft - offset) * zoom, color, uv0));
+        layerVertices.Add(new(new((box.Left - offset.X) * zoom, (br.Y - offset.Y) * zoom), color, uv3));
+        layerVertices.Add(new((br - offset) * zoom, color, uv1));
+        layerVertices.Add(new((box.TopLeft - offset) * zoom, color, uv0));
     }
 
     void ScreenStrokeQuad(RenderLayer renderLayer, in Box2 box, float strokeWidth, in Vector4 color, in AtlasEntry entry)
@@ -135,12 +135,45 @@ partial class RenderSystem
             _ => throw new NotImplementedException()
         }, fgColor, bgColor, horizontalAlignment);
 
+    #region ScreenString performance helpers
+    class ScreenStringMeasureHelperType
+    {
+        public RenderLayer RenderLayer { get; set; }
+        public Vector4 BgColor { get; set; }
+        public AtlasEntry AtlasEntry { get; set; } = null!;
+        public Action<Box2> Action { get; }
+
+        public ScreenStringMeasureHelperType(RenderSystem renderSystem) =>
+            Action = box => renderSystem.ScreenFillQuad(RenderLayer, box, BgColor, AtlasEntry, false);
+    }
+    readonly ScreenStringMeasureHelperType ScreenStringMeasureHelper;
+
+    class ScreenStringWriteHelperType
+    {
+        public RenderLayer RenderLayer { get; set; }
+        public Vector4 FgColor { get; set; }
+        public Action<Box2, AtlasEntry> Action { get; }
+
+        public ScreenStringWriteHelperType(RenderSystem renderSystem) =>
+            Action = (box, atlasEntry) => renderSystem.ScreenFillQuad(RenderLayer, box, FgColor, atlasEntry, false);
+    }
+    readonly ScreenStringWriteHelperType ScreenStringWriteHelper;
+    #endregion
+
     void ScreenString(RenderLayer renderLayer, string? s, FontDescription fontDescription, Vector2 location, Vector4 fgColor, Vector4 bgColor, HorizontalAlignment horizontalAlignment = HorizontalAlignment.Left)
     {
         if (s is { })
+        {
+            if (bgColor.W > 0)
+                (ScreenStringMeasureHelper.RenderLayer, ScreenStringMeasureHelper.BgColor, ScreenStringMeasureHelper.AtlasEntry) =
+                    (renderLayer, bgColor, blankAtlasEntry);
+
+            (ScreenStringWriteHelper.RenderLayer, ScreenStringWriteHelper.FgColor) = (renderLayer, fgColor);
+
             fontRenderer.Render(s, fontDescription, location.ToVector2i(),
-                bgColor.W > 0 ? box => ScreenFillQuad(renderLayer, box, bgColor, blankAtlasEntry, false) : static _ => { },
-                (box, atlasEntry) => ScreenFillQuad(renderLayer, box, fgColor, atlasEntry, false), horizontalAlignment);
+                bgColor.W > 0 ? ScreenStringMeasureHelper.Action : static _ => { },
+                ScreenStringWriteHelper.Action, horizontalAlignment);
+        }
     }
 
     void ScreenLine(RenderLayer renderLayer, in Box2 b0, in Box2 b1, float thickness = 1f, bool asWorldCoords = true) =>
@@ -169,13 +202,14 @@ partial class RenderSystem
         var p2p = p1 - normal;
         var p3p = p1 + normal;
 
-        guiVAO.LayerVertices[(int)renderLayer].Add(new(p0p, color, uv0));
-        guiVAO.LayerVertices[(int)renderLayer].Add(new(p1p, color, uv1));
-        guiVAO.LayerVertices[(int)renderLayer].Add(new(p2p, color, uv2));
+        var layerVertices = guiVAO.LayerVertices[(int)renderLayer];
+        layerVertices.Add(new(p0p, color, uv0));
+        layerVertices.Add(new(p1p, color, uv1));
+        layerVertices.Add(new(p2p, color, uv2));
 
-        guiVAO.LayerVertices[(int)renderLayer].Add(new(p3p, color, uv3));
-        guiVAO.LayerVertices[(int)renderLayer].Add(new(p2p, color, uv1));
-        guiVAO.LayerVertices[(int)renderLayer].Add(new(p0p, color, uv0));
+        layerVertices.Add(new(p3p, color, uv3));
+        layerVertices.Add(new(p2p, color, uv1));
+        layerVertices.Add(new(p0p, color, uv0));
     }
 
     void ScreenLineQuad(RenderLayer renderLayer, in Box2 box, bool asWorldCoords = true) =>
@@ -189,14 +223,15 @@ partial class RenderSystem
         var offset = asWorldCoords ? world.Offset : default;
         var br = box.BottomRight + Vector2.One;
 
-        guiVAO.LayerVertices[(int)renderLayer].Add(new((box.TopLeft - offset) * zoom, color, blankAtlasEntry.TextureCoordinate0));
-        guiVAO.LayerVertices[(int)renderLayer].Add(new(new((box.Right + 1 - offset.X) * zoom, (box.Top - offset.Y) * zoom), color, new(blankAtlasEntry.TextureCoordinate1.X, blankAtlasEntry.TextureCoordinate0.Y, blankAtlasEntry.TextureCoordinate0.Z)));
-        guiVAO.LayerVertices[(int)renderLayer].Add(new(new((box.Left - offset.X) * zoom, (box.Bottom + 1 - offset.Y) * zoom), color, new(blankAtlasEntry.TextureCoordinate0.X, blankAtlasEntry.TextureCoordinate1.Y, blankAtlasEntry.TextureCoordinate0.Z)));
-        guiVAO.LayerVertices[(int)renderLayer].Add(new((br - offset) * zoom, color, blankAtlasEntry.TextureCoordinate1));
-        guiVAO.LayerVertices[(int)renderLayer].Add(new((box.TopLeft - offset) * zoom, color, blankAtlasEntry.TextureCoordinate0));
-        guiVAO.LayerVertices[(int)renderLayer].Add(new(new((box.Left - offset.X) * zoom, (box.Bottom + 1 - offset.Y) * zoom), color, new(blankAtlasEntry.TextureCoordinate0.X, blankAtlasEntry.TextureCoordinate1.Y, blankAtlasEntry.TextureCoordinate0.Z)));
-        guiVAO.LayerVertices[(int)renderLayer].Add(new(new((box.Right + 1 - offset.X) * zoom, (box.Top - offset.Y) * zoom), color, new(blankAtlasEntry.TextureCoordinate1.X, blankAtlasEntry.TextureCoordinate0.Y, blankAtlasEntry.TextureCoordinate0.Z)));
-        guiVAO.LayerVertices[(int)renderLayer].Add(new((br - offset) * zoom, color, blankAtlasEntry.TextureCoordinate1));
+        var layerVertices = guiVAO.LayerVertices[(int)renderLayer];
+        layerVertices.Add(new((box.TopLeft - offset) * zoom, color, blankAtlasEntry.TextureCoordinate0));
+        layerVertices.Add(new(new((box.Right + 1 - offset.X) * zoom, (box.Top - offset.Y) * zoom), color, new(blankAtlasEntry.TextureCoordinate1.X, blankAtlasEntry.TextureCoordinate0.Y, blankAtlasEntry.TextureCoordinate0.Z)));
+        layerVertices.Add(new(new((box.Left - offset.X) * zoom, (box.Bottom + 1 - offset.Y) * zoom), color, new(blankAtlasEntry.TextureCoordinate0.X, blankAtlasEntry.TextureCoordinate1.Y, blankAtlasEntry.TextureCoordinate0.Z)));
+        layerVertices.Add(new((br - offset) * zoom, color, blankAtlasEntry.TextureCoordinate1));
+        layerVertices.Add(new((box.TopLeft - offset) * zoom, color, blankAtlasEntry.TextureCoordinate0));
+        layerVertices.Add(new(new((box.Left - offset.X) * zoom, (box.Bottom + 1 - offset.Y) * zoom), color, new(blankAtlasEntry.TextureCoordinate0.X, blankAtlasEntry.TextureCoordinate1.Y, blankAtlasEntry.TextureCoordinate0.Z)));
+        layerVertices.Add(new(new((box.Right + 1 - offset.X) * zoom, (box.Top - offset.Y) * zoom), color, new(blankAtlasEntry.TextureCoordinate1.X, blankAtlasEntry.TextureCoordinate0.Y, blankAtlasEntry.TextureCoordinate0.Z)));
+        layerVertices.Add(new((br - offset) * zoom, color, blankAtlasEntry.TextureCoordinate1));
     }
 
     bool isPickerVisible;
