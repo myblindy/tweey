@@ -68,50 +68,53 @@ public class FontRenderer : IDisposable
     private (AtlasEntry entry, Vector2i pixelSize) GetFullAtlasEntry(char ch, FontDescription fontDescription)
     {
         if (!fontAtlasEntries.TryGetValue((fontDescription, ch), out var fullAtlasEntry))
-        {
-            // get the font
-            if (!fonts.TryGetValue(fontDescription, out var font))
-            {
-                var (fontfamily, fontStyle) = GetFontFamily(fontDescription);
-                fonts[fontDescription] = font = new(fontfamily, fontDescription.Size, GraphicsUnit.Pixel);
-            }
-
-            // measure the character
-            var s = ch.ToString();
-
-            Box2 chBox;
-            using (var g = Graphics.FromImage(tempImage))
-            {
-                g.PageUnit = GraphicsUnit.Pixel;
-                SizeF chSize;
-
-                if (s is " ")
-                {
-                    // gdi+ can't measure spaces, so I'm going to use a work around
-                    var tmpSize = g.MeasureString("a a", font, 0, stringFormat);
-                    chSize = g.MeasureString("a", font, 0, stringFormat);
-                    chSize = new(tmpSize.Width - chSize.Width * 2, chSize.Height);
-
-                }
-                else
-                    chSize = g.MeasureString(s, font, 0, stringFormat);
-                chBox = Box2.FromCornerSize(new Vector2(), new(chSize.Width, chSize.Height + 3));
-            }
-
-            // draw the character
-            var chSizei = new Vector2i((int)MathF.Ceiling(chBox.Size.X), (int)MathF.Ceiling(chBox.Size.Y));
-            EnsureTempImage(chSizei.X, chSizei.Y);
-            fontAtlasEntries[(fontDescription, ch)] = fullAtlasEntry = (backingTextureAtlas.AddFromImage(tempImage, chSizei.X, chSizei.Y, atlasPosition =>
-            {
-                using var g = Graphics.FromImage(tempImage);
-                g.Clear(Color.Transparent);
-                g.TextRenderingHint = fontDescription.Size <= 13 ? TextRenderingHint.SingleBitPerPixelGridFit : TextRenderingHint.ClearTypeGridFit;
-                g.PageUnit = GraphicsUnit.Pixel;
-                g.DrawString(s, font, Brushes.White, chBox.Left, chBox.Top, stringFormat);
-            }), chBox.Size.ToVector2i());
-        }
+            fullAtlasEntry = CreateFullAtlasEntry(ch, fontDescription);
 
         return fullAtlasEntry;
+    }
+
+    private (AtlasEntry entry, Vector2i pixelSize) CreateFullAtlasEntry(char ch, FontDescription fontDescription)
+    {
+        // get the font
+        if (!fonts.TryGetValue(fontDescription, out var font))
+        {
+            var (fontfamily, fontStyle) = GetFontFamily(fontDescription);
+            fonts[fontDescription] = font = new(fontfamily, fontDescription.Size, GraphicsUnit.Pixel);
+        }
+
+        // measure the character
+        var s = ch.ToString();
+
+        Box2 chBox;
+        using (var g = Graphics.FromImage(tempImage))
+        {
+            g.PageUnit = GraphicsUnit.Pixel;
+            SizeF chSize;
+
+            if (s is " ")
+            {
+                // gdi+ can't measure spaces, so I'm going to use a work around
+                var tmpSize = g.MeasureString("a a", font, 0, stringFormat);
+                chSize = g.MeasureString("a", font, 0, stringFormat);
+                chSize = new(tmpSize.Width - chSize.Width * 2, chSize.Height);
+
+            }
+            else
+                chSize = g.MeasureString(s, font, 0, stringFormat);
+            chBox = Box2.FromCornerSize(new Vector2(), new(chSize.Width, chSize.Height + 3));
+        }
+
+        // draw the character
+        var chSizei = new Vector2i((int)MathF.Ceiling(chBox.Size.X), (int)MathF.Ceiling(chBox.Size.Y));
+        EnsureTempImage(chSizei.X, chSizei.Y);
+        return fontAtlasEntries[(fontDescription, ch)] = (backingTextureAtlas.AddFromImage(tempImage, chSizei.X, chSizei.Y, atlasPosition =>
+        {
+            using var g = Graphics.FromImage(tempImage);
+            g.Clear(Color.Transparent);
+            g.TextRenderingHint = fontDescription.Size <= 13 ? TextRenderingHint.SingleBitPerPixelGridFit : TextRenderingHint.ClearTypeGridFit;
+            g.PageUnit = GraphicsUnit.Pixel;
+            g.DrawString(s, font, Brushes.White, chBox.Left, chBox.Top, stringFormat);
+        }), chBox.Size.ToVector2i());
     }
 
     public Vector2 Measure(ReadOnlySpan<char> s, FontDescription fontDescription)

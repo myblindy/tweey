@@ -46,6 +46,9 @@ partial class RenderSystem
 
     public RenderSystem(World world)
     {
+        ScreenStringMeasureHelper = new(this);
+        ScreenStringWriteHelper = new(this);
+
         guiShaderProgram = new(shaderPrograms, DiskLoader.Instance.VFS, "gui");
         guiLightMapShaderProgram = new(shaderPrograms, DiskLoader.Instance.VFS, "gui-lightmap");
 
