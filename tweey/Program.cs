@@ -61,6 +61,8 @@ class Program : GameWindow
         world.AddVillagerEntity("Momo", embarkmentLocation.ToNumericsVector2() + Vector2.One);
         world.RawOffset = embarkmentLocation.ToNumericsVector2() - new Vector2(10, 6);
 
+        EcsCoordinator.ConstructThoughtWhenInRangeSystem(world);
+        EcsCoordinator.ConstructExpirationSystem(world);
         EcsCoordinator.ConstructNeedsUpdateSystem(world);
         EcsCoordinator.ConstructMoodUpdateSystem(world);
         EcsCoordinator.ConstructFarmSystem(world);

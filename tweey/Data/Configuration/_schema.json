@@ -85,6 +85,22 @@
       "type": "number",
       "minimum": 0
     },
+    "basePoopMax": {
+      "type": "number",
+      "minimum": 0
+    },
+    "basePoopDecayPerWorldSecond": {
+      "type": "number",
+      "minimum": 0
+    },
+    "basePoopDurationInWorldSeconds": {
+      "type": "number",
+      "minimum": 0
+    },
+    "basePoopExpiryInWorldDays": {
+      "type": "number",
+      "minimum": 0
+    },
     "midDayColor": { "$ref": "../BaseSchemas/color.json#/definitions/color" },
     "midNightColor": { "$ref": "../BaseSchemas/color.json#/definitions/color" },
     "treeMovementModifier": {
@@ -108,6 +124,10 @@
     "zoneHarvestColor",
     "treeMovementModifier",
     "baseTiredDecayPerWorldSecond",
-    "baseTiredMax"
+    "baseTiredMax",
+    "basePoopDecayPerWorldSecond",
+    "basePoopMax",
+    "basePoopDurationInWorldSeconds",
+    "basePoopExpiryInWorldDays"
   ]
 }

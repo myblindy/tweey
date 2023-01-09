@@ -2,7 +2,8 @@
 
 readonly struct CustomDateTime : IAdditionOperators<CustomDateTime, CustomDateTime, TimeSpan>, ISubtractionOperators<CustomDateTime, CustomDateTime, TimeSpan>,
     IAdditionOperators<CustomDateTime, TimeSpan, CustomDateTime>, ISubtractionOperators<CustomDateTime, TimeSpan, CustomDateTime>,
-    IComparisonOperators<CustomDateTime, CustomDateTime, bool>, IEquatable<CustomDateTime>
+    IComparisonOperators<CustomDateTime, CustomDateTime, bool>,
+    IEquatable<CustomDateTime>, IComparable<CustomDateTime>
 {
     readonly TimeSpan timeSpan;
 
@@ -38,6 +39,8 @@ readonly struct CustomDateTime : IAdditionOperators<CustomDateTime, CustomDateTi
         }
     }
 
+    public TimeSpan TimeSpan => timeSpan;
+
     public override string ToString()
     {
         GetComponents(out var year, out var month, out var day, out var hour, out var minute, out _);
@@ -47,6 +50,8 @@ readonly struct CustomDateTime : IAdditionOperators<CustomDateTime, CustomDateTi
     public override bool Equals(object? obj) => obj is CustomDateTime time && Equals(time);
     public bool Equals(CustomDateTime other) => timeSpan.Equals(other.timeSpan);
     public override int GetHashCode() => HashCode.Combine(timeSpan);
+
+    public int CompareTo(CustomDateTime other) => timeSpan.CompareTo(other.timeSpan);
 
     public static TimeSpan operator +(CustomDateTime left, CustomDateTime right) =>
         left.timeSpan + right.timeSpan;

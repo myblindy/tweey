@@ -17,8 +17,11 @@ struct VillagerComponent
     public double MoodPercentageTarget => Thoughts.Sum(w => w.Template.MoodChange);
     public double MoodPercentage { get; set; } = 50;
 
+    public bool IsPooping { get; set; }
+
     public VillagerComponent(double MaxCarryWeight, double PickupSpeedMultiplier, double MovementRateMultiplier,
-        double WorkSpeedMultiplier, double HarvestSpeedMultiplier, double PlantSpeed, double TiredMax, double TiredDecayPerWorldSecond)
+        double WorkSpeedMultiplier, double HarvestSpeedMultiplier, double PlantSpeed, double TiredMax, double TiredDecayPerWorldSecond,
+        double PoopMax, double PoopDecayPerWorldSecond)
     {
         this.MaxCarryWeight = MaxCarryWeight;
         this.PickupSpeedMultiplier = PickupSpeedMultiplier;
@@ -30,14 +33,17 @@ struct VillagerComponent
         {
             Tired = TiredMax,
             TiredMax = TiredMax,
-            TiredDecayPerWorldSecond = TiredDecayPerWorldSecond
+            TiredDecayPerWorldSecond = TiredDecayPerWorldSecond,
+            Poop = PoopMax,
+            PoopMax = PoopMax,
+            PoopDecayPerWorldSecond = PoopDecayPerWorldSecond
         };
     }
 
     public void AddThought(World world, ThoughtTemplate thought)
     {
         var existingCount = Thoughts.Count(w => w.Template == thought);
-        if (existingCount < thought.MaxStacks)
+        if (existingCount < thought.StackLimit)
             Thoughts.Add(new(thought, world.WorldTime + thought.DurationInWorldTime));
         else
         {

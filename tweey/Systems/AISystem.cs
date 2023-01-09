@@ -139,12 +139,11 @@ partial class AISystem
 
         if (tiredRatio < 1 / 3f)
         {
-
             // try to find available beds
             using var availableBeds = CollectionPool<(Entity entity, Vector2i location)>.Get();
             EcsCoordinator.IterateBuildingArchetype((in EcsCoordinator.BuildingIterationResult bw) =>
             {
-                if (bw.BuildingComponent.IsBuilt && bw.WorkableComponent.Entity == Entity.Invalid)
+                if (bw.BuildingComponent.IsBuilt && bw.BuildingComponent().Type is BuildingType.Rest && bw.WorkableComponent.Entity == Entity.Invalid)
                     availableBeds.Add((bw.Entity, bw.LocationComponent.Box.Center.ToVector2i()));
             });
 
@@ -293,6 +292,58 @@ partial class AISystem
         return (plans = selectedPlans) is not null;
     }
 
+    bool TryToPoop(in IterationResult w, out AIHighLevelPlan[]? plans)
+    {
+        var workerEntity = w.Entity;
+        var workerEntityLocation = w.LocationComponent.Box.Center;
+        AIHighLevelPlan[]? selectedPlans = default;
+
+        using var availableToilets = CollectionPool<(Entity entity, Vector2i location)>.Get();
+        var availableToiletsSearched = false;
+
+        bool searchForAvailableToilets()
+        {
+            if (availableToiletsSearched) return availableToilets.Count > 0;
+            EcsCoordinator.IterateBuildingArchetype((in EcsCoordinator.BuildingIterationResult bw) =>
+            {
+                if (bw.BuildingComponent.IsBuilt && bw.BuildingComponent.Template.Type is BuildingType.Toilet && bw.WorkableComponent.Entity == Entity.Invalid)
+                    availableToilets!.Add((bw.Entity, bw.LocationComponent.Box.Center.ToVector2i()));
+            });
+            availableToiletsSearched = true;
+            return availableToilets.Count > 0;
+        }
+
+        EcsCoordinator.IterateVillagerArchetype((in EcsCoordinator.VillagerIterationResult vw) =>
+        {
+            if (vw.VillagerComponent.Needs.PoopPercentage < 1.0 / 3)
+            {
+                if (searchForAvailableToilets())
+                {
+                    // plan to use the closest one
+                    var selectedToilet = availableToilets.OrderByDistanceFrom(workerEntityLocation, static w => w.location.ToNumericsVector2Center(), static w => w.entity).First();
+
+                    selectedToilet.GetWorkableComponent().Entity = workerEntity;
+                    selectedPlans = new AIHighLevelPlan[]
+                    {
+                        new PoopAIHighLevelPlan(world, workerEntity, selectedToilet)
+                    };
+                }
+            }
+
+            if (selectedPlans is null && !vw.VillagerComponent.IsPooping && vw.VillagerComponent.Needs.PoopPercentage <= 0)
+            {
+                // uh oh, poop on the ground
+                vw.VillagerComponent.IsPooping = true;
+                selectedPlans = new AIHighLevelPlan[]
+                {
+                    new PoopAIHighLevelPlan(world, workerEntity, Entity.Invalid)
+                };
+            }
+        });
+
+        return (plans = selectedPlans) is not null;
+    }
+
     readonly List<PlanRunner?> planRunners = new();
     readonly Dictionary<Entity, Vector2> wanderCenterLocations = new();
 
@@ -302,8 +353,9 @@ partial class AISystem
         {
             if (w.WorkerComponent.Plans is null)
             {
-                _ = TryToRest(w, out var plans) || TryToPlant(w, out plans) || TryToBuild(w, out plans) || TryToHaulToBuilingSite(w, out plans) || TryToHarvest(w, out plans)
-                    || TryToWorkBills(w, out plans) || TryToHaulToStorage(w, out plans);
+                _ = TryToRest(w, out var plans) || TryToPoop(w, out plans) || TryToPlant(w, out plans) || TryToBuild(w, out plans)
+                    || TryToHaulToBuilingSite(w, out plans) || TryToHarvest(w, out plans) || TryToWorkBills(w, out plans)
+                    || TryToHaulToStorage(w, out plans);
                 w.WorkerComponent.Plans = plans;
 
                 if (w.WorkerComponent.Plans is not null && w.WorkerComponent.Plans is not [WanderAIHighLevelPlan])

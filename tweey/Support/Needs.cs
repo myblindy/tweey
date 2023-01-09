@@ -8,19 +8,26 @@ class Needs
         public double Tired { get; set; }
         public double TiredPercentage => Tired / TiredMax;
         public required double TiredDecayPerWorldSecond { get; set; }
+            public required double PoopMax { get; set; }
+        public double Poop { get; set; }
+        public double PoopPercentage => Poop / PoopMax;
+        public required double PoopDecayPerWorldSecond { get; set; }
     
     public void UpdateWithChanges(in NeedsChange change)
     {
                     Tired = Math.Clamp(Tired + change.Tired, 0, TiredMax);
+                    Poop = Math.Clamp(Poop + change.Poop, 0, PoopMax);
             }
 
     public void Decay(double deltaWorldSec)
     {
                     Tired = Math.Clamp(Tired - TiredDecayPerWorldSecond * deltaWorldSec, 0, TiredMax);
+                    Poop = Math.Clamp(Poop - PoopDecayPerWorldSecond * deltaWorldSec, 0, PoopMax);
             }
 }
 
 readonly struct NeedsChange
 {
             public double Tired { get; init; }
+            public double Poop { get; init; }
     }

@@ -1,0 +1,12 @@
+{
+  "$schema": "./_schema.json",
+  "name": "Poop Hole",
+  "type": "toilet",
+  "workInside": true,
+  "buildCost": {
+    "workTicks": 10,
+    "resources": []
+  },
+  "width": 1,
+  "height": 1
+}

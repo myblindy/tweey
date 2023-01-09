@@ -19,6 +19,10 @@
 
   "baseTiredMax": 100,
   "baseTiredDecayPerWorldSecond": 0.001,
+  "basePoopMax": 100,
+  "basePoopDecayPerWorldSecond": 0.0006,
+  "basePoopDurationInWorldSeconds": 240,
+  "basePoopExpiryInWorldDays": 2,
 
   "zoneGrowColor": [ 0.2, 0.8, 0.2 ],
   "zoneHarvestColor": [ 0.8, 0.8, 0.2 ],
