@@ -10,5 +10,11 @@ class WaitAILowLevelPlan : AILowLevelPlan
         targetWorldTime = worldTime;
     }
 
+    public WaitAILowLevelPlan(World world, Entity entity, CustomDateTime worldTime)
+        : base(world, entity)
+    {
+        targetWorldTime = worldTime.TimeSpan;
+    }
+
     public override bool Run() => World.RawWorldTime < targetWorldTime;
 }

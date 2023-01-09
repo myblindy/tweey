@@ -1,4 +1,6 @@
-﻿namespace Tweey.Systems;
+﻿using Tweey.Gui.Base;
+
+namespace Tweey.Systems;
 
 partial class RenderSystem
 {
@@ -37,7 +39,7 @@ partial class RenderSystem
             : entity.HasBuildingComponent() ? !entity.GetBuildingComponent().IsBuilt ? "Building Site" : "Building"
             : entity.HasPlantComponent() ? "Plant"
             : entity.HasZoneComponent() ? "Zone"
-            : throw new NotImplementedException();
+            : null;
 
         string? getEntityImage(Entity entity) =>
             entity.HasPlantComponent() && entity.GetPlantComponent() is { } plantComponent ? plantComponent.Template.GetImageFileName(plantComponent.GetGrowth(world))
@@ -45,6 +47,24 @@ partial class RenderSystem
 
         static string? getEntityName(Entity entity) =>
             entity.HasIdentityComponent() ? entity.GetIdentityComponent().Name : entity.HasZoneComponent() ? entity.GetZoneComponent().Type.ToString() : null;
+
+        View getNeedsView(string name, Func<double> valueGen, Func<double> valueMaxGen) =>
+            new StackView(StackType.Horizontal)
+            {
+                Children =
+                {
+                    new LabelView($"{name}: ") { FontSize = () => smallFontSize },
+                    new ProgressView
+                    {
+                        Maximum = valueMaxGen,
+                        Value = valueGen,
+                        StringFormat = () => "{0:0}%",
+                        FontSize = () => smallFontSize,
+                        MinWidth = () => (int)WidthPercentage(6),
+                        ForegroundColor = () => valueGen() / valueMaxGen() > 0.2 ? Colors4.DarkGreen : Colors4.DarkRed
+                    }
+                }
+            };
 
         View getResourceRowView(bool labor, Resource? resource, Func<double> quantity, Func<ResourceMarker>? marker = null) =>
             new StackView(StackType.Horizontal)
@@ -222,7 +242,7 @@ partial class RenderSystem
                                         {
                                             ForegroundColor = () => descriptionColor
                                         },
-                                        new LabelView(w.thought.MoodChange >= 0 ? $"+{w.thought.MoodChange}" : $"{w.thought.MoodChange}")
+                                        new LabelView(w.thought.MoodChange >= 0 ? $"+{w.thought.MoodChange}" : $"{w.thought.MoodChange}", () => smallFontSize)
                                         {
                                             ForegroundColor = () => highlightColor
                                         }
@@ -239,21 +259,14 @@ partial class RenderSystem
                         Children =
                         {
                             new LabelView("Needs:"),
-                            new StackView(StackType.Horizontal)
+                            new StackView(StackType.Vertical)
                             {
                                 Children =
                                 {
-                                    new LabelView("Tired: ") { FontSize = () => smallFontSize },
-                                    new ProgressView
-                                    {
-                                        Maximum = () => world.SelectedEntity!.Value.GetVillagerComponent().Needs.TiredMax,
-                                        Value = () => world.SelectedEntity!.Value.GetVillagerComponent().Needs.Tired,
-                                        StringFormat = () => "{0:0}%",
-                                        FontSize = () => smallFontSize,
-                                        MinWidth = () => (int)WidthPercentage(6),
-                                        ForegroundColor = () => world.SelectedEntity!.Value.GetVillagerComponent().Needs.Tired / world.SelectedEntity!.Value.GetVillagerComponent().Needs.TiredMax > 0.2
-                                            ? Colors4.DarkGreen : Colors4.DarkRed
-                                    }
+                                    getNeedsView("Tired", () => world.SelectedEntity!.Value.GetVillagerComponent().Needs.Tired,
+                                        () => world.SelectedEntity!.Value.GetVillagerComponent().Needs.TiredMax),
+                                    getNeedsView("Poop", () => world.SelectedEntity!.Value.GetVillagerComponent().Needs.Poop,
+                                        () => world.SelectedEntity!.Value.GetVillagerComponent().Needs.PoopMax),
                                 }
                             }
                         }
@@ -419,7 +432,7 @@ partial class RenderSystem
             {
                 Children =
                 {
-                    new LabelView($$"""
+                    new LabelView(() => $$"""
                         FPS: {{Math.Round(FrameData.Rate, 0, MidpointRounding.ToPositiveInfinity):0}}, Update: {{FrameData.UpdateTimePercentage * 100:0.00}}%, Render: {{FrameData.RenderTimePercentage * 100:0.00}}%
                         Draw calls: {{FrameData.DrawCallCount}}, Triangles: {{FrameData.TriangleCount}}, Lines: {{FrameData.LineCount}}
                         {{string.Join(Environment.NewLine, EcsCoordinator.SystemTimingInformation.Select((kvp, idx) => $"{kvp.Key}: {FrameData.GetCustomTimePercentage(idx) * 100:0.00}%"))}}

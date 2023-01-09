@@ -106,7 +106,7 @@ internal partial class World
     }
 
     #region AddEntities
-    internal Entity AddVillagerEntity(string name, Vector2 location)
+    public Entity AddVillagerEntity(string name, Vector2 location)
     {
         var entity = EcsCoordinator.CreateEntity();
         entity.AddLocationComponent(Box2.FromCornerSize(location, new(1, 1)));
@@ -119,8 +119,21 @@ internal partial class World
 
         var villagerComponent = entity.AddVillagerComponent(Configuration.Data.BaseCarryWeight, Configuration.Data.BasePickupSpeed, Configuration.Data.BaseMovementSpeed,
             Configuration.Data.BaseWorkSpeed, Configuration.Data.BaseHarvestSpeed, Configuration.Data.BasePlantSpeed,
-            Configuration.Data.BaseTiredMax, Configuration.Data.BaseTiredDecayPerWorldSecond);
+            Configuration.Data.BaseTiredMax, Configuration.Data.BaseTiredDecayPerWorldSecond, Configuration.Data.BasePoopMax, Configuration.Data.BasePoopDecayPerWorldSecond);
         villagerComponent.AddThought(this, ThoughtTemplates[ThoughtTemplates.ExtremelyLowExpectations]);
+
+        return entity;
+    }
+
+    public Entity AddPoopEntity(Vector2 location, CustomDateTime expirationDate)
+    {
+        var entity = EcsCoordinator.CreateEntity();
+        entity.AddLocationComponent(Box2.FromCornerSize(location, new(1, 1)));
+        entity.AddRenderableComponent("Data/Misc/poop.png");
+        entity.AddPoopComponent();
+        entity.AddIdentityComponent("Poop");
+        entity.AddExpirationComponent(expirationDate);
+        entity.AddThoughtWhenInRangeComponent(ThoughtTemplates[ThoughtTemplates.PoopSeen], TimeSpan.FromDays(1.0 / 6), 20);
 
         return entity;
     }

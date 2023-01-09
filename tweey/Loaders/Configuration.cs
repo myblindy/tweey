@@ -11,13 +11,17 @@ class ConfigurationData
     public double BaseHarvestSpeed { get; set; }
     public double BasePlantSpeed { get; set; }
     public double BaseHungerMax { get; set; }
-    public double BaseHungerPerRealTimeSecond { get; set; }
-    public double TicksPerDay { get; set; }
     public double BaseEatSpeed { get; set; }
     public double BaseHungerPercentage { get; set; }
     public double BaseHungerEmergencyPercentage { get; set; }
+
     public double BaseTiredMax { get; set; }
     public double BaseTiredDecayPerWorldSecond { get; set; }
+    public double BasePoopMax { get; set; }
+    public double BasePoopDecayPerWorldSecond { get; set; }
+    public double BasePoopDurationInWorldSeconds { get; set; }
+    public double BasePoopExpiryInWorldDays { get; set; }
+
     public Vector3 ZoneGrowColor { get; set; }
     public Vector3 ZoneHarvestColor { get; set; }
     public Vector3 ZoneStorageColor { get; set; }

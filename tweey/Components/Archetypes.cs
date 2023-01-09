@@ -29,6 +29,13 @@ static class Archetypes
 
     public const EcsComponents Workable =
         EcsComponents.Workable | EcsComponents.Location;
+
+    public const EcsComponents Poop =
+        EcsComponents.Poop | EcsComponents.Location;
+
+    public const EcsComponents Expiration = EcsComponents.Expiration;
+
+    public const EcsComponents ThoughtWhenInRange = EcsComponents.ThoughtWhenInRange | EcsComponents.Location;
 }
 
 [EcsPartition(Archetypes.Render)]

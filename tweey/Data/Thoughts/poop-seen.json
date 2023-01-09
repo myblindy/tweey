@@ -1,0 +1,8 @@
+{
+  "$schema": "./_schema.json",
+
+  "description": "Saw poop",
+  "moodChange": -2,
+  "durationInWorldDays": 1,
+  "stackLimit": 5
+}
