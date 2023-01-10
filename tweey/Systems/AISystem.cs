@@ -356,11 +356,14 @@ partial class AISystem
 
         public void Run()
         {
-            using var continuationsCopy = continuations.ToPooledCollection();
-            continuations.Clear();
+            if (continuations.Count > 0)
+            {
+                using var continuationsCopy = continuations.ToPooledCollection();
+                continuations.Clear();
 
-            foreach (var continuation in continuationsCopy)
-                continuation();
+                foreach (var continuation in continuationsCopy)
+                    continuation();
+            }
         }
 
         public void UnsafeOnCompleted(Action continuation) => OnCompleted(continuation);
@@ -407,8 +410,6 @@ partial class AISystem
                     planRunners[w.Entity] = null;
                     w.WorkerComponent.Plans = null;
                 }
-
-                w.Entity.UpdateRenderPartitions();
             }
             else
             {
@@ -424,5 +425,7 @@ partial class AISystem
         });
 
         frameAwaiter.Run();
+
+        IterateComponents((in IterationResult w) => w.Entity.UpdateRenderPartitions());
     }
 }

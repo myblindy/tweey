@@ -135,7 +135,7 @@ partial class RenderSystem
 
         IterateRenderPartitionByLocationComponents(worldViewBox, (in IterationResult w) =>
         {
-            if (w.Entity.HasBuildingComponent() && !w.Entity.GetBuildingComponent().IsBuilt) return;
+            if (w.Entity.HasBuildingComponent() && (!w.Entity.GetBuildingComponent().IsBuilt || w.Entity.GetBuildingComponent().Template.WorkInside)) return;
 
             if (w.RenderableComponent.OcclusionScale > 0)
                 markOcclusionBox(w.LocationComponent.Box, w.RenderableComponent.OcclusionCircle, w.RenderableComponent.OcclusionScale);

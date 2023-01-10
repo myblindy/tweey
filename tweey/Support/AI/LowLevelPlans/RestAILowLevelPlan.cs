@@ -14,7 +14,7 @@ class RestAILowLevelPlan : AILowLevelPlan
         var needs = MainEntity.GetVillagerComponent().Needs;
         var bedMultiplier = bedEntity != Entity.Invalid ? 1 : 0.4;
 
-        while (needs.Tired != needs.TiredMax)
+        while (needs.TiredPercentage < .95)
         {
             needs.Tired = Math.Clamp(needs.Tired + World.DeltaWorldTime.TotalSeconds * 0.005 * bedMultiplier, 0, needs.TiredMax);
             await frameAwaiter;

@@ -18,7 +18,7 @@ class WaitAILowLevelPlan : AILowLevelPlan
 
     public override async Task RunAsync(IFrameAwaiter frameAwaiter)
     {
-        while (World.RawWorldTime > targetWorldTime)
+        while (World.RawWorldTime < targetWorldTime)
             await frameAwaiter;
     }
 }

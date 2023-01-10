@@ -52,11 +52,17 @@ class WalkAILowLevelPlan : AILowLevelPlan
             return;
         }
 
-        var currentPosition = MainEntity.GetLocationComponent().Box.Center;
-
+        bool first = true;
         while (true)
         {
+            if (first)
+                first = false;
+            else
+                await frameAwaiter;
+
+            var currentPosition = MainEntity.GetLocationComponent().Box.Center;
             var targetPosition = pathFindingResult.Positions[nextPathIndex].ToNumericsVector2Center();
+
             var vectorDifference = targetPosition - currentPosition;
             if (vectorDifference.LengthSquared() < .15f)
                 if (++nextPathIndex >= pathFindingResult.Positions.Count - (moveToCenter ? 0 : 1))
@@ -65,12 +71,13 @@ class WalkAILowLevelPlan : AILowLevelPlan
                     break;
                 }
 
-            var currentTile = World.TerrainCells![(int)Math.Round(currentPosition.X), (int)Math.Round(currentPosition.Y)];
-            MainEntity.GetLocationComponent().Box = MainEntity.GetLocationComponent().Box.WithOffset(Vector2.Normalize(vectorDifference)
-                * (float)(MainEntity.GetVillagerComponent().MovementRateMultiplier * World.DeltaWorldTime.TotalSeconds * speedMultiplier
-                    * MathF.Max(0.5f, MathF.Min(currentTile.GroundMovementModifier, currentTile.AboveGroundMovementModifier))));
-
-            await frameAwaiter;
+            if (vectorDifference != default)
+            {
+                var currentTile = World.TerrainCells![(int)Math.Round(currentPosition.X), (int)Math.Round(currentPosition.Y)];
+                MainEntity.GetLocationComponent().Box = MainEntity.GetLocationComponent().Box.WithOffset(Vector2.Normalize(vectorDifference)
+                    * (float)(MainEntity.GetVillagerComponent().MovementRateMultiplier * World.DeltaWorldTime.TotalSeconds * speedMultiplier
+                        * MathF.Max(0.5f, MathF.Min(currentTile.GroundMovementModifier, currentTile.AboveGroundMovementModifier))));
+            }
         }
     }
 }

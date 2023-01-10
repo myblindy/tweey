@@ -2,9 +2,11 @@
 
 public readonly struct Entity : IEquatable<Entity>
 {
-    public required int ID { get; init; }
+    public int ID { get; }
 
-    public static Entity Invalid = new() { ID = -1 };
+    public Entity(int id) => ID = id;
+
+    public static Entity Invalid { get; } = new(-1);
 
     public override bool Equals(object? obj) => obj is Entity entity && Equals(entity);
     public bool Equals(Entity other) => ID == other.ID;
