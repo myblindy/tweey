@@ -12,7 +12,7 @@ class GatherResourcesAIHighLevelPlan : AIHighLevelPlan
         this.resourceEntityTest = resourceEntityTest;
     }
 
-    public override IEnumerable<AILowLevelPlan> GetLowLevelPlans()
+    public override async Task RunAsync(IFrameAwaiter frameAwaiter)
     {
         using var targets = CollectionPool<(Entity entity, Vector2 location)>.Get();
 
@@ -24,11 +24,11 @@ class GatherResourcesAIHighLevelPlan : AIHighLevelPlan
 
         foreach (var targetEntity in targets.OrderByDistanceFrom(MainEntity.GetLocationComponent().Box.Center, w => w.location, w => w.entity))
         {
-            yield return new WalkAILowLevelPlan(World, MainEntity, targetEntity);
-            yield return new WaitAILowLevelPlan(World, MainEntity, World.RawWorldTime + World.GetWorldTimeFromTicks(
+            await new WalkAILowLevelPlan(World, MainEntity, targetEntity).RunAsync(frameAwaiter);
+            await new WaitAILowLevelPlan(World, MainEntity, targetEntity, World.RawWorldTime + World.GetWorldTimeFromTicks(
                 MainEntity.GetVillagerComponent().PickupSpeedMultiplier * World.Configuration.Data.BasePickupSpeed
-                    * targetEntity.GetInventoryComponent().Inventory.GetWeight(marker)));
-            yield return new MoveInventoryAILowLevelPlan(World, targetEntity, marker, MainEntity, marker);       // from the resource (marked) to the villager (marked)
+                    * targetEntity.GetInventoryComponent().Inventory.GetWeight(marker))).RunAsync(frameAwaiter);
+            await new MoveInventoryAILowLevelPlan(World, targetEntity, marker, MainEntity, marker).RunAsync(frameAwaiter);       // from the resource (marked) to the villager (marked)
 
             if (targetEntity.HasResourceComponent() && targetEntity.GetInventoryComponent().Inventory.IsEmpty(ResourceMarker.All))
                 targetEntity.Delete();
