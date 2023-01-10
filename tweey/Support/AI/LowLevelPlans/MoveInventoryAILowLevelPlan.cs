@@ -1,6 +1,6 @@
 ﻿namespace Tweey.Support.AI.LowLevelPlans;
 
-class MoveInventoryAILowLevelPlan : AILowLevelPlanWithTargetEntity
+class MoveInventoryAILowLevelPlan : AILowLevelPlan
 {
     private readonly ResourceMarker sourceMarker, targetMarker;
     private readonly bool clearDestination;
@@ -13,12 +13,13 @@ class MoveInventoryAILowLevelPlan : AILowLevelPlanWithTargetEntity
         this.sourceMarker = sourceMarker;
     }
 
-    public override bool Run()
+    public override Task RunAsync(IFrameAwaiter frameAwaiter)
     {
-        var targetRB = TargetEntity!.Value.GetInventoryComponent().Inventory;
+        var targetRB = TargetEntity.GetInventoryComponent().Inventory;
         if (clearDestination)
             targetRB.Remove(sourceMarker);
         MainEntity.GetInventoryComponent().Inventory.MoveTo(sourceMarker, targetRB, targetMarker);
-        return false;
+
+        return Task.CompletedTask;
     }
 }

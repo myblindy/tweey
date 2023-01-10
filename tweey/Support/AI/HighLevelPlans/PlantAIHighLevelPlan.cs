@@ -15,11 +15,12 @@ class PlantAIHighLevelPlan : AIHighLevelPlan
         this.plantTemplate = plantTemplate;
     }
 
-    public override IEnumerable<AILowLevelPlan> GetLowLevelPlans()
+    public override async Task RunAsync(IFrameAwaiter frameAwaiter)
     {
-        yield return new WalkAILowLevelPlan(World, MainEntity, worldPositionOverride.ToNumericsVector2Center());
-        yield return new WaitAILowLevelPlan(World, MainEntity, World.RawWorldTime
-            + World.GetWorldTimeFromTicks(MainEntity.GetVillagerComponent().PlantSpeed));
+        await new WalkAILowLevelPlan(World, MainEntity, worldPositionOverride.ToNumericsVector2Center()).RunAsync(frameAwaiter);
+        await new WaitAILowLevelPlan(World, MainEntity, workableEntity, World.RawWorldTime
+            + World.GetWorldTimeFromTicks(MainEntity.GetVillagerComponent().PlantSpeed)).RunAsync(frameAwaiter);
+
         World.AddPlantEntity(plantTemplate, worldPositionOverride.ToNumericsVector2(), false, true);
         workableEntity.GetZoneComponent().WorkedTiles.Remove(worldPositionOverride);
     }

@@ -11,5 +11,5 @@ abstract class AIHighLevelPlan
     protected World World { get; }
     protected Entity MainEntity { get; }
 
-    public abstract IEnumerable<AILowLevelPlan> GetLowLevelPlans();
+    public abstract Task RunAsync(IFrameAwaiter frameAwaiter);
 }

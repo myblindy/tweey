@@ -9,15 +9,15 @@ class PoopAIHighLevelPlan : AIHighLevelPlan
         this.toiletEntity = toiletEntity;
     }
 
-    public override IEnumerable<AILowLevelPlan> GetLowLevelPlans()
+    public override async Task RunAsync(IFrameAwaiter frameAwaiter)
     {
         if (toiletEntity != Entity.Invalid)
         {
-            yield return new WalkAILowLevelPlan(World, MainEntity, toiletEntity, true);
+            await new WalkAILowLevelPlan(World, MainEntity, toiletEntity, true).RunAsync(frameAwaiter);
             toiletEntity.GetWorkableComponent().EntityWorking = true;
         }
 
-        yield return new WaitAILowLevelPlan(World, MainEntity, World.WorldTime + TimeSpan.FromSeconds(World.Configuration.Data.BasePoopDurationInWorldSeconds));
+        await new WaitAILowLevelPlan(World, MainEntity, toiletEntity, World.WorldTime + TimeSpan.FromSeconds(World.Configuration.Data.BasePoopDurationInWorldSeconds)).RunAsync(frameAwaiter);
         MainEntity.GetVillagerComponent().Needs.Poop = MainEntity.GetVillagerComponent().Needs.PoopMax;
 
         if (toiletEntity == Entity.Invalid)

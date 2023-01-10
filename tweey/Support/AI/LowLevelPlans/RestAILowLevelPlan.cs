@@ -2,18 +2,22 @@
 
 class RestAILowLevelPlan : AILowLevelPlan
 {
-    private readonly Entity? bedEntity;
+    private readonly Entity bedEntity;
 
-    public RestAILowLevelPlan(World world, Entity entity, Entity? bedEntity) : base(world, entity)
+    public RestAILowLevelPlan(World world, Entity entity, Entity bedEntity) : base(world, entity, bedEntity)
     {
         this.bedEntity = bedEntity;
     }
 
-    public override bool Run()
+    public override async Task RunAsync(IFrameAwaiter frameAwaiter)
     {
-        ref var villagerComponent = ref MainEntity.GetVillagerComponent();
-        var bedMultiplier = bedEntity.HasValue ? 1 : 0.4;
-        villagerComponent.Needs.Tired = Math.Clamp(villagerComponent.Needs.Tired + World.DeltaWorldTime.TotalSeconds * 0.005 * bedMultiplier, 0, villagerComponent.Needs.TiredMax);
-        return villagerComponent.Needs.Tired != villagerComponent.Needs.TiredMax;
+        var needs = MainEntity.GetVillagerComponent().Needs;
+        var bedMultiplier = bedEntity != Entity.Invalid ? 1 : 0.4;
+
+        while (needs.TiredPercentage < .95)
+        {
+            needs.Tired = Math.Clamp(needs.Tired + World.DeltaWorldTime.TotalSeconds * 0.005 * bedMultiplier, 0, needs.TiredMax);
+            await frameAwaiter;
+        }
     }
 }

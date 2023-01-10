@@ -12,8 +12,6 @@ class WanderAIHighLevelPlan : AIHighLevelPlan
         this.speedMultiplier = speedMultiplier;
     }
 
-    public override IEnumerable<AILowLevelPlan> GetLowLevelPlans()
-    {
-        yield return new WanderAILowLevelPlan(World, MainEntity, targetWorldPosition, speedMultiplier);
-    }
+    public override Task RunAsync(IFrameAwaiter frameAwaiter) =>
+        new WanderAILowLevelPlan(World, MainEntity, targetWorldPosition, speedMultiplier).RunAsync(frameAwaiter);
 }

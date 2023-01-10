@@ -143,7 +143,7 @@ partial class AISystem
             using var availableBeds = CollectionPool<(Entity entity, Vector2i location)>.Get();
             EcsCoordinator.IterateBuildingArchetype((in EcsCoordinator.BuildingIterationResult bw) =>
             {
-                if (bw.BuildingComponent.IsBuilt && bw.BuildingComponent().Type is BuildingType.Rest && bw.WorkableComponent.Entity == Entity.Invalid)
+                if (bw.BuildingComponent.IsBuilt && bw.BuildingComponent.Template.Type is BuildingType.Rest && bw.WorkableComponent.Entity == Entity.Invalid)
                     availableBeds.Add((bw.Entity, bw.LocationComponent.Box.Center.ToVector2i()));
             });
 
@@ -164,7 +164,7 @@ partial class AISystem
         if (tiredRatio < .1f && selectedPlans is null)
             selectedPlans = new AIHighLevelPlan[]
             {
-                new RestAIHighLevelPlan(world, workerEntity, null)
+                new RestAIHighLevelPlan(world, workerEntity, Entity.Invalid)
             };
 
         return (plans = selectedPlans) is not null;
@@ -344,7 +344,33 @@ partial class AISystem
         return (plans = selectedPlans) is not null;
     }
 
-    readonly List<PlanRunner?> planRunners = new();
+    sealed class FrameAwaiter : INotifyCompletion, IFrameAwaiter
+    {
+        private readonly FastList<Action> continuations = new();
+
+        public bool IsCompleted => false;
+
+        public IAwaiter GetAwaiter() => this;
+        public void GetResult() { }
+        public void OnCompleted(Action continuation) => continuations.Add(continuation);
+
+        public void Run()
+        {
+            if (continuations.Count > 0)
+            {
+                using var continuationsCopy = continuations.ToPooledCollection();
+                continuations.Clear();
+
+                foreach (var continuation in continuationsCopy)
+                    continuation();
+            }
+        }
+
+        public void UnsafeOnCompleted(Action continuation) => OnCompleted(continuation);
+    }
+    readonly FrameAwaiter frameAwaiter = new();
+
+    readonly List<Task?> planRunners = new();
     readonly Dictionary<Entity, Vector2> wanderCenterLocations = new();
 
     public partial void Run()
@@ -362,22 +388,28 @@ partial class AISystem
                     wanderCenterLocations.Remove(w.Entity);
             }
 
-            if (w.WorkerComponent.Plans is not null)
+            if (w.WorkerComponent.Plans is { } workerPlans)
             {
                 while (planRunners.Count <= w.Entity)
                     planRunners.Add(null);
 
                 if (planRunners[w.Entity] is null)
-                    planRunners[w.Entity] = new(world, w.Entity);
+                {
+                    static async Task runPlansAsync(IEnumerable<AIHighLevelPlan> workerPlans, IFrameAwaiter frameAwaiter)
+                    {
+                        foreach (var plan in workerPlans)
+                            await plan.RunAsync(frameAwaiter);
+                    }
 
-                if (!planRunners[w.Entity]!.Run())
+                    planRunners[w.Entity] = runPlansAsync(workerPlans, frameAwaiter);
+                }
+
+                if (planRunners[w.Entity]?.IsCompleted == true)
                 {
                     planRunners[w.Entity]!.Dispose();
                     planRunners[w.Entity] = null;
                     w.WorkerComponent.Plans = null;
                 }
-
-                w.Entity.UpdateRenderPartitions();
             }
             else
             {
@@ -391,5 +423,9 @@ partial class AISystem
                 };
             }
         });
+
+        frameAwaiter.Run();
+
+        IterateComponents((in IterationResult w) => w.Entity.UpdateRenderPartitions());
     }
 }

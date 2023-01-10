@@ -160,7 +160,7 @@ public class FastList<T> : IList<T>, IReadOnlyList<T>
 
     public bool Contains(T item) => count > 0 && IndexOf(item) >= 0;
 
-    public void CopyTo(T[] array, int arrayIndex) => items.AsSpan().CopyTo(array.AsSpan(arrayIndex));
+    public void CopyTo(T[] array, int arrayIndex) => items.AsSpan(..count).CopyTo(array.AsSpan(arrayIndex));
 
     public IEnumerator<T> GetEnumerator()
     {

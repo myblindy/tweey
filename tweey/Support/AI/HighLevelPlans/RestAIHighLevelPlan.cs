@@ -2,29 +2,29 @@
 
 class RestAIHighLevelPlan : AIHighLevelPlan
 {
-    private readonly Entity? bedEntity;
+    private readonly Entity bedEntity;
 
-    public RestAIHighLevelPlan(World world, Entity mainEntity, Entity? bedEntity) : base(world, mainEntity)
+    public RestAIHighLevelPlan(World world, Entity mainEntity, Entity bedEntity) : base(world, mainEntity)
     {
         this.bedEntity = bedEntity;
     }
 
-    public override IEnumerable<AILowLevelPlan> GetLowLevelPlans()
+    public override async Task RunAsync(IFrameAwaiter frameAwaiter)
     {
-        if (bedEntity.HasValue)
+        if (bedEntity != Entity.Invalid)
         {
-            yield return new WalkAILowLevelPlan(World, MainEntity, bedEntity.Value, true);
-            bedEntity.Value.GetWorkableComponent().EntityWorking = true;
+            await new WalkAILowLevelPlan(World, MainEntity, bedEntity, true).RunAsync(frameAwaiter);
+            bedEntity.GetWorkableComponent().EntityWorking = true;
         }
         else
             MainEntity.GetVillagerComponent().AddThought(World, World.ThoughtTemplates[ThoughtTemplates.SleptOnGround]);
 
-        yield return new RestAILowLevelPlan(World, MainEntity, bedEntity);
+        await new RestAILowLevelPlan(World, MainEntity, bedEntity).RunAsync(frameAwaiter);
 
-        if (bedEntity.HasValue)
+        if (bedEntity != Entity.Invalid)
         {
-            bedEntity.Value.GetWorkableComponent().Entity = Entity.Invalid;
-            bedEntity.Value.GetWorkableComponent().EntityWorking = false;
+            bedEntity.GetWorkableComponent().Entity = Entity.Invalid;
+            bedEntity.GetWorkableComponent().EntityWorking = false;
         }
     }
 }

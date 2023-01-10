@@ -135,7 +135,7 @@ partial class RenderSystem
 
         IterateRenderPartitionByLocationComponents(worldViewBox, (in IterationResult w) =>
         {
-            if (w.Entity.HasBuildingComponent() && !w.Entity.GetBuildingComponent().IsBuilt) return;
+            if (w.Entity.HasBuildingComponent() && (!w.Entity.GetBuildingComponent().IsBuilt || w.Entity.GetBuildingComponent().Template.WorkInside)) return;
 
             if (w.RenderableComponent.OcclusionScale > 0)
                 markOcclusionBox(w.LocationComponent.Box, w.RenderableComponent.OcclusionCircle, w.RenderableComponent.OcclusionScale);
@@ -330,16 +330,16 @@ partial class RenderSystem
         if (world.ShowDetails)
             EcsCoordinator.IterateWorkerArchetype((in EcsCoordinator.WorkerIterationResult w) =>
             {
-                if (w.WorkerComponent.CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity aiLowLevelPlanWithTargetEntity
-                    && aiLowLevelPlanWithTargetEntity.TargetEntity is { } targetEntity)
+                if (w.WorkerComponent.CurrentLowLevelPlan is AILowLevelPlan aiLowLevelPlan
+                    && aiLowLevelPlan.TargetEntity is { } targetEntity && targetEntity != Entity.Invalid)
                 {
                     ScreenLine(RenderLayer.Gui, w.LocationComponent.Box,
-                        aiLowLevelPlanWithTargetEntity.TargetEntity!.Value.GetLocationComponent().Box, 1.5f, Colors4.Yellow);
+                        aiLowLevelPlan.TargetEntity.GetLocationComponent().Box, 1.5f, Colors4.Yellow);
                 }
             });
         else if (world.SelectedEntity.HasValue && world.SelectedEntity.Value.HasWorkerComponent()
-            && world.SelectedEntity.Value.GetWorkerComponent().CurrentLowLevelPlan is AILowLevelPlanWithTargetEntity { } aiLowLevelPlanWithTargetEntity
-            && aiLowLevelPlanWithTargetEntity.TargetEntity is { } targetEntity)
+            && world.SelectedEntity.Value.GetWorkerComponent().CurrentLowLevelPlan is AILowLevelPlan { } aiLowLevelPlan
+            && aiLowLevelPlan.TargetEntity is { } targetEntity && targetEntity != Entity.Invalid)
         {
             ScreenLine(RenderLayer.Gui, world.SelectedEntity.Value.GetLocationComponent().Box,
                 targetEntity.GetLocationComponent().Box, 1.5f, Colors4.Yellow);

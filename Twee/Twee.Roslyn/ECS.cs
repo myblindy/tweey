@@ -526,7 +526,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             var id = extraAvailableEntityIDs.Min;
                             extraAvailableEntityIDs.Remove(id);
                 
-                            var entity = new Entity { ID = id };
+                            var entity = new Entity(id);
                 
                             EnsureEntityComponentsListEntityExists(entity);
                             entityComponents[entity] = 0;
@@ -538,7 +538,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                             return entity;
                         }
                 
-                        var entity0 = new Entity { ID = maxGeneratedEntityID++ };
+                        var entity0 = new Entity(maxGeneratedEntityID++);
                 
                         EnsureEntityComponentsListEntityExists(entity0);
                         entityComponents[entity0] = 0;

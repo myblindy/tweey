@@ -9,7 +9,7 @@ public class EntityJsonConverter : JsonConverter<Entity>
     {
         if (!reader.Read())
             throw new JsonException();
-        return new() { ID = reader.GetInt32() };
+        return new(reader.GetInt32());
     }
 
     public override void Write(Utf8JsonWriter writer, Entity value, JsonSerializerOptions options) =>

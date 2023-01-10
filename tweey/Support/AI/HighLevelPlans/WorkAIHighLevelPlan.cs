@@ -12,17 +12,17 @@ class WorkAIHighLevelPlan : AIHighLevelPlan
         this.billMarker = billMarker;
     }
 
-    public override IEnumerable<AILowLevelPlan> GetLowLevelPlans()
+    public override async Task RunAsync(IFrameAwaiter frameAwaiter)
     {
-        yield return new WalkAILowLevelPlan(World, MainEntity, workableEntity);
+        await new WalkAILowLevelPlan(World, MainEntity, workableEntity).RunAsync(frameAwaiter);
 
         workableEntity.GetWorkableComponent().EntityWorking = true;
         if (workableEntity.HasBuildingComponent())
             if (workableEntity.GetBuildingComponent().IsBuilt)
             {
                 while (workableEntity.GetWorkableComponent().ActiveBillTicks-- > 0)
-                    yield return new WaitAILowLevelPlan(World, MainEntity, World.RawWorldTime
-                        + World.GetWorldTimeFromTicks(MainEntity.GetVillagerComponent().WorkSpeedMultiplier));
+                    await new WaitAILowLevelPlan(World, MainEntity, workableEntity, World.RawWorldTime
+                        + World.GetWorldTimeFromTicks(MainEntity.GetVillagerComponent().WorkSpeedMultiplier)).RunAsync(frameAwaiter);
 
                 workableEntity.GetWorkableComponent().ClearWorkers();
                 MainEntity.GetInventoryComponent().Inventory.Remove(billMarker!.Value);
@@ -34,15 +34,13 @@ class WorkAIHighLevelPlan : AIHighLevelPlan
             else
             {
                 while (workableEntity.GetBuildingComponent().BuildWorkTicks-- > 0)
-                    yield return new WaitAILowLevelPlan(World, MainEntity, World.RawWorldTime
-                        + World.GetWorldTimeFromTicks(MainEntity.GetVillagerComponent().WorkSpeedMultiplier));
+                    await new WaitAILowLevelPlan(World, MainEntity, workableEntity, World.RawWorldTime + World.GetWorldTimeFromTicks(MainEntity.GetVillagerComponent().WorkSpeedMultiplier)).RunAsync(frameAwaiter);
                 workableEntity.GetWorkableComponent().ClearWorkers();
             }
         else if (workableEntity.HasPlantComponent())
         {
             while (workableEntity.GetPlantComponent().WorkTicks-- > 0)
-                yield return new WaitAILowLevelPlan(World, MainEntity, World.RawWorldTime
-                    + World.GetWorldTimeFromTicks(MainEntity.GetVillagerComponent().HarvestSpeedMultiplier));
+                await new WaitAILowLevelPlan(World, MainEntity, workableEntity, World.RawWorldTime + World.GetWorldTimeFromTicks(MainEntity.GetVillagerComponent().HarvestSpeedMultiplier)).RunAsync(frameAwaiter);
 
             World.AddResourceEntities(ResourceMarker.All, workableEntity.GetInventoryComponent().Inventory.Clone(), ResourceMarker.Unmarked,
                 workableEntity.GetLocationComponent().Box.Center.Floor());

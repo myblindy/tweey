@@ -2,7 +2,7 @@
 
 namespace Tweey.Support.AI.LowLevelPlans;
 
-class WalkAILowLevelPlan : AILowLevelPlanWithTargetEntity
+class WalkAILowLevelPlan : AILowLevelPlan
 {
     readonly PathFindingResult pathFindingResult;
     int nextPathIndex = 0;
@@ -10,7 +10,7 @@ class WalkAILowLevelPlan : AILowLevelPlanWithTargetEntity
     private readonly float speedMultiplier;
 
     public WalkAILowLevelPlan(World world, Entity entity, Vector2 targetLocation, bool moveToCenter = false, float speedMultiplier = 1f)
-        : base(world, entity, null)
+        : base(world, entity, Entity.Invalid)
     {
         pathFindingResult = PathFindingService.Calculate(world,
             MainEntity.GetLocationComponent().Box.Center.ToVector2i(), targetLocation.ToVector2i());
@@ -32,7 +32,7 @@ class WalkAILowLevelPlan : AILowLevelPlanWithTargetEntity
         Debug.Assert(pathFindingResult.IsValid);
     }
 
-    public override bool Run()
+    public override async Task RunAsync(IFrameAwaiter frameAwaiter)
     {
         void snapToTarget(int delta)
         {
@@ -40,30 +40,44 @@ class WalkAILowLevelPlan : AILowLevelPlanWithTargetEntity
                 MainEntity.GetLocationComponent().Box = Box2.FromCornerSize(pathFindingResult.Positions[nextPathIndex + delta].ToNumericsVector2(), Vector2.One);
         }
 
-        if (!pathFindingResult.IsComplete) return true;
-        if (!pathFindingResult.IsValid) throw new InvalidOperationException();
-        if (nextPathIndex >= pathFindingResult.Positions!.Count - (moveToCenter ? 0 : 1)) { snapToTarget(0); return false; }
+        while (!pathFindingResult.IsComplete)
+            await frameAwaiter;
 
-        ref var entityLocationComponent = ref MainEntity.GetLocationComponent();
-        var currentPosition = entityLocationComponent.Box.Center;
+        if (!pathFindingResult.IsValid)
+            throw new InvalidOperationException();
 
-        retry:
-        var targetPosition = pathFindingResult.Positions[nextPathIndex].ToNumericsVector2Center();
-        var vectorDifference = targetPosition - currentPosition;
-        if (vectorDifference.LengthSquared() < .15f)
-            if (++nextPathIndex >= pathFindingResult.Positions.Count - (moveToCenter ? 0 : 1))
-            {
-                snapToTarget(-1);
-                return false;
-            }
+        if (nextPathIndex >= pathFindingResult.Positions!.Count - (moveToCenter ? 0 : 1))
+        {
+            snapToTarget(0);
+            return;
+        }
+
+        bool first = true;
+        while (true)
+        {
+            if (first)
+                first = false;
             else
-                goto retry;
+                await frameAwaiter;
 
-        ref var currentTile = ref World.TerrainCells![(int)Math.Round(currentPosition.X), (int)Math.Round(currentPosition.Y)];
-        entityLocationComponent.Box = entityLocationComponent.Box.WithOffset(Vector2.Normalize(vectorDifference)
-            * (float)(MainEntity.GetVillagerComponent().MovementRateMultiplier * World.DeltaWorldTime.TotalSeconds * speedMultiplier
-                * MathF.Max(0.5f, MathF.Min(currentTile.GroundMovementModifier, currentTile.AboveGroundMovementModifier))));
+            var currentPosition = MainEntity.GetLocationComponent().Box.Center;
+            var targetPosition = pathFindingResult.Positions[nextPathIndex].ToNumericsVector2Center();
 
-        return true;
+            var vectorDifference = targetPosition - currentPosition;
+            if (vectorDifference.LengthSquared() < .15f)
+                if (++nextPathIndex >= pathFindingResult.Positions.Count - (moveToCenter ? 0 : 1))
+                {
+                    snapToTarget(-1);
+                    break;
+                }
+
+            if (vectorDifference != default)
+            {
+                var currentTile = World.TerrainCells![(int)Math.Round(currentPosition.X), (int)Math.Round(currentPosition.Y)];
+                MainEntity.GetLocationComponent().Box = MainEntity.GetLocationComponent().Box.WithOffset(Vector2.Normalize(vectorDifference)
+                    * (float)(MainEntity.GetVillagerComponent().MovementRateMultiplier * World.DeltaWorldTime.TotalSeconds * speedMultiplier
+                        * MathF.Max(0.5f, MathF.Min(currentTile.GroundMovementModifier, currentTile.AboveGroundMovementModifier))));
+            }
+        }
     }
 }
