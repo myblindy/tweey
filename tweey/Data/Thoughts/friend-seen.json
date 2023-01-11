@@ -1,0 +1,8 @@
+{
+  "$schema": "./_schema.json",
+
+  "description": "Saw friend",
+  "moodChange": 2,
+  "durationInWorldDays": 0.3,
+  "stackLimit": 2
+}

@@ -264,6 +264,17 @@ partial class RenderSystem
         }
     }
 
+    void RenderThoughtBubble(in Box2 box, in VillagerComponent villagerComponent)
+    {
+        if (villagerComponent.ThoughtIcons.TryPeek(out var thoughtIcon))
+        {
+            ScreenFillQuad(RenderLayer.Gui, Box2.FromCornerSize((box.TopLeft - world.Offset) * world.Zoom + new Vector2(world.Zoom * .5f, -world.Zoom * 1.5f), new Vector2(world.Zoom * 1.5f)),
+                atlas["Data/Misc/thought-bubble.png"], false);
+            ScreenFillQuad(RenderLayer.Gui, Box2.FromCornerSize((box.TopLeft - world.Offset) * world.Zoom + new Vector2(world.Zoom * .74f, -world.Zoom * 1.5f), new Vector2(world.Zoom * 1f)),
+                atlas[thoughtIcon], false);
+        }
+    }
+
     public partial void Run()
     {
         var worldViewBox = Box2.FromCornerSize(world.Offset, windowUbo.Data.WindowSize / world.Zoom);
@@ -315,6 +326,8 @@ partial class RenderSystem
                 if (w.Entity.HasInventoryComponent() && w.Entity.HasResourceComponent() && w.Entity.GetInventoryComponent().Inventory.IsEmpty(ResourceMarker.Unmarked))
                     return;
                 ScreenFillQuad(w.Entity.HasVillagerComponent() ? RenderLayer.Pawn : RenderLayer.BelowPawns, w.LocationComponent.Box, atlas[atlasEntryName]);
+                if (w.Entity.HasVillagerComponent())
+                    RenderThoughtBubble(w.LocationComponent.Box, w.Entity.GetVillagerComponent());
             }
             else if (w.Entity.HasZoneComponent())
             {
@@ -353,7 +366,7 @@ partial class RenderSystem
         EcsCoordinator.IterateVillagerArchetype((in EcsCoordinator.VillagerIterationResult w) =>
         {
             ScreenString(RenderLayer.Gui, w.IdentityComponent.Name, new() { Size = 16 },
-                new Vector2((w.LocationComponent.Box.Left + .5f - world.Offset.X) * world.Zoom, (w.LocationComponent.Box.Top - world.Offset.Y) * world.Zoom - 20),
+                new Vector2((w.LocationComponent.Box.Left + .5f - world.Offset.X) * world.Zoom, (w.LocationComponent.Box.Top - world.Offset.Y) * world.Zoom + 20),
                 Colors4.White, new(0, 0, 0, .4f), HorizontalAlignment.Center);
             //if (world.ShowDetails)
             //    ScreenString(villager.AIPlan?.Description, new() { Size = 13 },
