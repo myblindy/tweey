@@ -7,6 +7,7 @@ struct VillagerComponent
 
     public Needs Needs { get; }
     public FastList<Thought> Thoughts { get; } = new();
+    public Queue<string> ThoughtIcons { get; } = new();
     public double MaxCarryWeight { get; }
     public double PickupSpeedMultiplier { get; }
     public double MovementRateMultiplier { get; }
@@ -51,5 +52,8 @@ struct VillagerComponent
             var oldestThoughtIndex = Thoughts.IndexOf(oldestThought);
             Thoughts[oldestThoughtIndex] = new(thought, world.WorldTime + thought.DurationInWorldTime);
         }
+
+        if (thought.IconFileName is not null)
+            ThoughtIcons.Enqueue(thought.IconFileName);
     }
 }

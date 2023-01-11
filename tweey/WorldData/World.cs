@@ -116,6 +116,7 @@ internal partial class World
         entity.AddWorkerComponent();
         entity.AddInventoryComponent();
         entity.AddIdentityComponent(name);
+        entity.AddThoughtWhenInRangeComponent(ThoughtTemplates[ThoughtTemplates.FriendSeen], TimeSpan.FromDays(.4), 5);
 
         var villagerComponent = entity.AddVillagerComponent(Configuration.Data.BaseCarryWeight, Configuration.Data.BasePickupSpeed, Configuration.Data.BaseMovementSpeed,
             Configuration.Data.BaseWorkSpeed, Configuration.Data.BaseHarvestSpeed, Configuration.Data.BasePlantSpeed,
