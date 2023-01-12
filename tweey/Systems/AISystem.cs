@@ -295,6 +295,7 @@ partial class AISystem
     bool TryToPoop(in IterationResult w, out AIHighLevelPlan[]? plans)
     {
         var workerEntity = w.Entity;
+        ref var workerVillagerComponent = ref workerEntity.GetVillagerComponent();
         var workerEntityLocation = w.LocationComponent.Box.Center;
         AIHighLevelPlan[]? selectedPlans = default;
 
@@ -313,63 +314,85 @@ partial class AISystem
             return availableToilets.Count > 0;
         }
 
-        EcsCoordinator.IterateVillagerArchetype((in EcsCoordinator.VillagerIterationResult vw) =>
+        if (workerVillagerComponent.Needs.PoopPercentage < 1.0 / 3)
         {
-            if (vw.VillagerComponent.Needs.PoopPercentage < 1.0 / 3)
+            if (searchForAvailableToilets())
             {
-                if (searchForAvailableToilets())
-                {
-                    // plan to use the closest one
-                    var selectedToilet = availableToilets.OrderByDistanceFrom(workerEntityLocation, static w => w.location.ToNumericsVector2Center(), static w => w.entity).First();
+                // plan to use the closest one
+                var selectedToilet = availableToilets.OrderByDistanceFrom(workerEntityLocation, static w => w.location.ToNumericsVector2Center(), static w => w.entity).First();
 
-                    selectedToilet.GetWorkableComponent().Entity = workerEntity;
-                    selectedPlans = new AIHighLevelPlan[]
-                    {
-                        new PoopAIHighLevelPlan(world, workerEntity, selectedToilet)
-                    };
-                }
-            }
-
-            if (selectedPlans is null && !vw.VillagerComponent.IsPooping && vw.VillagerComponent.Needs.PoopPercentage <= 0)
-            {
-                // uh oh, poop on the ground
-                vw.VillagerComponent.IsPooping = true;
+                selectedToilet.GetWorkableComponent().Entity = workerEntity;
                 selectedPlans = new AIHighLevelPlan[]
                 {
-                    new PoopAIHighLevelPlan(world, workerEntity, Entity.Invalid)
+                    new PoopAIHighLevelPlan(world, workerEntity, selectedToilet)
                 };
             }
-        });
+        }
+
+        if (selectedPlans is null && !workerVillagerComponent.IsPooping && workerVillagerComponent.Needs.PoopPercentage <= 0)
+        {
+            // uh oh, poop on the ground
+            workerVillagerComponent.IsPooping = true;
+            selectedPlans = new AIHighLevelPlan[]
+            {
+                new PoopAIHighLevelPlan(world, workerEntity, Entity.Invalid)
+            };
+        }
 
         return (plans = selectedPlans) is not null;
     }
 
-    sealed class FrameAwaiter : INotifyCompletion, IFrameAwaiter
+    bool TryToEat(in IterationResult w, out AIHighLevelPlan[]? plans)
     {
-        private readonly FastList<Action> continuations = new();
+        var workerEntity = w.Entity;
+        ref var workerVillagerComponent = ref workerEntity.GetVillagerComponent();
+        var workerEntityLocation = w.LocationComponent.Box.Center;
+        var workerAvailableWeight = w.VillagerComponent.MaxCarryWeight - w.InventoryComponent.Inventory.GetWeight(ResourceMarker.All);
+        AIHighLevelPlan[]? selectedPlans = default;
 
-        public bool IsCompleted => false;
+        using var availableFood = CollectionPool<(Entity entity, Vector2i location)>.Get();
+        var availableFoodSearched = false;
 
-        public IAwaiter GetAwaiter() => this;
-        public void GetResult() { }
-        public void OnCompleted(Action continuation) => continuations.Add(continuation);
-
-        public void Run()
+        bool SearchForAvailableFood()
         {
-            if (continuations.Count > 0)
+            if (availableFoodSearched) return availableFood!.Count > 0;
+            EcsCoordinator.IteratePlacedResourceArchetype((in EcsCoordinator.PlacedResourceIterationResult rw) =>
             {
-                using var continuationsCopy = continuations.ToPooledCollection();
-                continuations.Clear();
+                if (rw.InventoryComponent.Inventory.ContainsGroup(ResourceMarker.Unmarked, "food"))
+                    availableFood!.Add((rw.Entity, rw.LocationComponent.Box.Center.ToVector2i()));
+            });
+            availableFoodSearched = true;
+            return availableFood.Count > 0;
+        }
 
-                foreach (var continuation in continuationsCopy)
-                    continuation();
+        ResourceMarker marker = default;
+
+        if (workerVillagerComponent.Needs.HungerPercentage < 1.0 / 3)
+        {
+            if (SearchForAvailableFood())
+            {
+                // plan to use the closest ones
+                if (ResourceBucket.TryToMarkResources(() => marker = ResourceMarker.Create(),
+                    availableFood!.OrderByDistanceFrom(workerEntityLocation, static w => w.location.ToNumericsVector2Center(), static w => w.entity).Select(e => e.GetInventoryComponent().Inventory),
+                    ResourceMarker.Unmarked, workerAvailableWeight, new[] { new BuildingResouceQuantityTemplate { Resource = "food", Quantity = 1 } }, out _))
+                {
+
+                    selectedPlans = new AIHighLevelPlan[]
+                    {
+                        new GatherResourcesAIHighLevelPlan(world, workerEntity, marker),
+                        new EatAIHighLevelPlan(world, workerEntity, marker)
+                    };
+                }
             }
         }
 
-        public void UnsafeOnCompleted(Action continuation) => OnCompleted(continuation);
-    }
-    readonly FrameAwaiter frameAwaiter = new();
+        if (workerVillagerComponent.Needs.HungerPercentage <= 0)
+            workerVillagerComponent.AddThought(world, world.ThoughtTemplates[ThoughtTemplates.Starving], false);
 
+        return (plans = selectedPlans) is not null;
+    }
+
+    readonly FrameAwaiter frameAwaiter = new();
     readonly List<Task?> planRunners = new();
     readonly Dictionary<Entity, Vector2> wanderCenterLocations = new();
 
@@ -379,9 +402,9 @@ partial class AISystem
         {
             if (w.WorkerComponent.Plans is null)
             {
-                _ = TryToRest(w, out var plans) || TryToPoop(w, out plans) || TryToPlant(w, out plans) || TryToBuild(w, out plans)
-                    || TryToHaulToBuilingSite(w, out plans) || TryToHarvest(w, out plans) || TryToWorkBills(w, out plans)
-                    || TryToHaulToStorage(w, out plans);
+                _ = TryToEat(w, out var plans) || TryToRest(w, out plans) || TryToPoop(w, out plans) || TryToPlant(w, out plans)
+                    || TryToBuild(w, out plans) || TryToHaulToBuilingSite(w, out plans) || TryToHarvest(w, out plans)
+                    || TryToWorkBills(w, out plans) || TryToHaulToStorage(w, out plans);
                 w.WorkerComponent.Plans = plans;
 
                 if (w.WorkerComponent.Plans is not null && w.WorkerComponent.Plans is not [WanderAIHighLevelPlan])

@@ -230,6 +230,9 @@ internal class ResourceBucket
         return true;
     }
 
+    public bool ContainsGroup(ResourceMarker marker, string group) =>
+        GetResourceQuantities(marker).Any(w => w.Resource.Groups.Contains(group));
+
     public ResourceBucket WithRemove(ResourceBucket other)
     {
         var newRB = Clone();
