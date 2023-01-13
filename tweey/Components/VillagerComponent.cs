@@ -14,11 +14,10 @@ struct VillagerComponent
     public double WorkSpeedMultiplier { get; }
     public double HarvestSpeedMultiplier { get; }
     public double PlantSpeed { get; }
+    public ResourceMarker PocketFoodMarker { get; } = ResourceMarker.Create();
 
     public double MoodPercentageTarget => Thoughts.Sum(w => w.Template.MoodChange);
     public double MoodPercentage { get; set; } = 50;
-
-    public bool IsPooping { get; set; }
 
     public VillagerComponent(double MaxCarryWeight, double PickupSpeedMultiplier, double MovementRateMultiplier,
         double WorkSpeedMultiplier, double HarvestSpeedMultiplier, double PlantSpeed, double TiredMax, double TiredDecayPerWorldSecond,

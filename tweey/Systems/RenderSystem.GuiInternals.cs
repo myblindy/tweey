@@ -333,6 +333,8 @@ partial class RenderSystem
         if (view.IsVisible is not null && !view.IsVisible()) return new();
         view = GetTemplatedView(view);
 
+        if (view is LabelView lv && lv.Text?.Invoke() == "Sana") { }
+
         var viewMargin = view.Margin?.Invoke() ?? new();
         Vector2 size = new(view.Padding.Left + view.Padding.Right + viewMargin.Left + viewMargin.Right,
             view.Padding.Top + view.Padding.Bottom + viewMargin.Top + viewMargin.Bottom);
@@ -399,8 +401,8 @@ partial class RenderSystem
                 throw new NotImplementedException();
         }
 
-        view.ViewData.Box = Box2.FromCornerSize(new(), ConstrainSize(view, size - new Vector2(viewMargin.Left + viewMargin.Right, viewMargin.Top + viewMargin.Bottom)));
-        view.ViewData.BaseBox = Box2.FromCornerSize(new(), size - new Vector2(viewMargin.Left + viewMargin.Right, viewMargin.Top + viewMargin.Bottom));
+        view.ViewData.Box = Box2.FromCornerSize(new(), ConstrainSize(view, size /*- new Vector2(viewMargin.Left + viewMargin.Right, viewMargin.Top + viewMargin.Bottom)*/));
+        view.ViewData.BaseBox = Box2.FromCornerSize(new(), size /*- new Vector2(viewMargin.Left + viewMargin.Right, viewMargin.Top + viewMargin.Bottom)*/);
         return view.ViewData.Box.Size;
     }
 
@@ -420,6 +422,8 @@ partial class RenderSystem
         {
             case StackView stackView:
                 {
+                    if (stackView.BackgroundColor == Colors4.Red) { }
+
                     Vector2 extraSize = default;
 
                     // finish the layout for views that inherit their size from us
@@ -441,9 +445,15 @@ partial class RenderSystem
                     var start = boxStart;
                     foreach (var child in stackView.Children.Where(v => v.IsVisible?.Invoke() ?? true).Select(GetTemplatedView))
                     {
+                        var childMargin = child.Margin?.Invoke() ?? default;
+                        //start += new Vector2(childMargin.Left, childMargin.Top);
                         var childExtraSize = LayoutView(child, start, new(1, 1));
-                        extraSize = stackView.Type != StackType.Horizontal ? new Vector2(Math.Max(childExtraSize.X, extraSize.X), extraSize.Y + childExtraSize.Y)
+                        //start += new Vector2(childMargin.Right, childMargin.Bottom);
+
+                        extraSize = stackView.Type != StackType.Horizontal
+                            ? new Vector2(Math.Max(childExtraSize.X, extraSize.X), extraSize.Y + childExtraSize.Y)
                             : new(extraSize.X + childExtraSize.X, Math.Max(childExtraSize.Y, extraSize.Y));
+
                         start = stackView.Type == StackType.Horizontal
                             ? new(start.X + child.ViewData.Box.Size.X, start.Y)
                             : new(start.X, start.Y + child.ViewData.Box.Size.Y);
@@ -455,6 +465,7 @@ partial class RenderSystem
                         view.ViewData.Box = ConstrainSize(view, view.ViewData.BaseBox);
                     }
 
+                    extraSize += new Vector2(viewMargin.Right, viewMargin.Bottom);
                     return extraSize;
                 }
 
