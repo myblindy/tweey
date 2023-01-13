@@ -17,6 +17,7 @@ partial class AISystem
     {
         this.world = world;
 
+        SystemJobs.Add(new EatSystemJob(world));
         SystemJobs.Add(new RestSystemJob(world));
         SystemJobs.Add(new PoopSystemJob(world));
         SystemJobs.Add(new PlantSystemJob(world));

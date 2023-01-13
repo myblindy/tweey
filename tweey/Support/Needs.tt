@@ -5,7 +5,7 @@
 <#@ import namespace="System.Collections.Generic" #>
 <#@ output extension=".cs" #>
 
-<# var needs = new[] { "Tired", "Poop" }; #>
+<# var needs = new[] { "Tired", "Poop", "Hunger" }; #>
 
 namespace Tweey.Support;
 

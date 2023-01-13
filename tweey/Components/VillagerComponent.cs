@@ -21,7 +21,7 @@ struct VillagerComponent
 
     public VillagerComponent(double MaxCarryWeight, double PickupSpeedMultiplier, double MovementRateMultiplier,
         double WorkSpeedMultiplier, double HarvestSpeedMultiplier, double PlantSpeed, double TiredMax, double TiredDecayPerWorldSecond,
-        double PoopMax, double PoopDecayPerWorldSecond)
+        double PoopMax, double PoopDecayPerWorldSecond, double HungerMax, double HungerDecayPerWorldSecond)
     {
         this.MaxCarryWeight = MaxCarryWeight;
         this.PickupSpeedMultiplier = PickupSpeedMultiplier;
@@ -34,25 +34,35 @@ struct VillagerComponent
             Tired = TiredMax,
             TiredMax = TiredMax,
             TiredDecayPerWorldSecond = TiredDecayPerWorldSecond,
+
+            Hunger = HungerMax,
+            HungerMax = HungerMax,
+            HungerDecayPerWorldSecond = HungerDecayPerWorldSecond,
+
             Poop = PoopMax,
             PoopMax = PoopMax,
             PoopDecayPerWorldSecond = PoopDecayPerWorldSecond
         };
     }
 
-    public void AddThought(World world, ThoughtTemplate thought)
+    public void AddThought(World world, ThoughtTemplate thought, bool addIfOverLimit = true)
     {
+        var added = false;
         var existingCount = Thoughts.Count(w => w.Template == thought);
         if (existingCount < thought.StackLimit)
+        {
             Thoughts.Add(new(thought, world.WorldTime + thought.DurationInWorldTime));
-        else
+            added = true;
+        }
+        else if (addIfOverLimit)
         {
             var oldestThought = Thoughts.Where(w => w.Template == thought).MinBy(w => w.Expiration);
             var oldestThoughtIndex = Thoughts.IndexOf(oldestThought);
             Thoughts[oldestThoughtIndex] = new(thought, world.WorldTime + thought.DurationInWorldTime);
+            added = true;
         }
 
-        if (thought.IconFileName is not null)
+        if (added && thought.IconFileName is not null)
             ThoughtIcons.Enqueue(thought.IconFileName);
     }
 }

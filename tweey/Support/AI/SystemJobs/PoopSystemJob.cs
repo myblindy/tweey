@@ -1,4 +1,6 @@
-﻿namespace Tweey.Support.AI.SystemJobs;
+﻿using Tweey.WorldData;
+
+namespace Tweey.Support.AI.SystemJobs;
 
 class PoopSystemJob : BaseSystemJob
 {
@@ -11,6 +13,7 @@ class PoopSystemJob : BaseSystemJob
 
     public override bool TryToRun(Entity workerEntity, [NotNullWhen(true)] out AIHighLevelPlan[]? plans)
     {
+        ref var workerVillagerComponent = ref workerEntity.GetVillagerComponent();
         var workerEntityLocation = workerEntity.GetLocationComponent().Box.Center;
         AIHighLevelPlan[]? selectedPlans = default;
 
@@ -29,32 +32,29 @@ class PoopSystemJob : BaseSystemJob
             return availableToilets.Count > 0;
         }
 
-        EcsCoordinator.IterateVillagerArchetype((in EcsCoordinator.VillagerIterationResult vw) =>
+        if (workerVillagerComponent.Needs.PoopPercentage < 1.0 / 3)
         {
-            if (vw.VillagerComponent.Needs.PoopPercentage < 1.0 / 3)
+            if (searchForAvailableToilets())
             {
-                if (searchForAvailableToilets())
-                {
-                    // plan to use the closest one
-                    var selectedToilet = availableToilets.OrderByDistanceFrom(workerEntityLocation, static w => w.location.ToNumericsVector2Center(), static w => w.entity).First();
+                // plan to use the closest one
+                var selectedToilet = availableToilets.OrderByDistanceFrom(workerEntityLocation, static w => w.location.ToNumericsVector2Center(), static w => w.entity).First();
 
-                    selectedToilet.GetWorkableComponent().Entity = workerEntity;
-                    selectedPlans = new AIHighLevelPlan[]
-                    {
-                        new PoopAIHighLevelPlan(World, workerEntity, selectedToilet)
-                    };
-                }
-            }
-
-            if (selectedPlans is null && vw.VillagerComponent.Needs.PoopPercentage <= 0)
-            {
-                // uh oh, poop on the ground
+                selectedToilet.GetWorkableComponent().Entity = workerEntity;
                 selectedPlans = new AIHighLevelPlan[]
                 {
-                    new PoopAIHighLevelPlan(World, workerEntity, Entity.Invalid)
+                    new PoopAIHighLevelPlan(World, workerEntity, selectedToilet)
                 };
             }
-        });
+        }
+
+        if (selectedPlans is null && workerVillagerComponent.Needs.PoopPercentage <= 0)
+        {
+            // uh oh, poop on the ground
+            selectedPlans = new AIHighLevelPlan[]
+            {
+                new PoopAIHighLevelPlan(World, workerEntity, Entity.Invalid)
+            };
+        }
 
         return (plans = selectedPlans) is not null;
     }

@@ -275,6 +275,8 @@ partial class RenderSystem
                                         () => world.SelectedEntity!.Value.GetVillagerComponent().Needs.TiredMax),
                                     getNeedsView("Poop", () => world.SelectedEntity!.Value.GetVillagerComponent().Needs.Poop,
                                         () => world.SelectedEntity!.Value.GetVillagerComponent().Needs.PoopMax),
+                                    getNeedsView("Hunger", () => world.SelectedEntity!.Value.GetVillagerComponent().Needs.Hunger,
+                                        () => world.SelectedEntity!.Value.GetVillagerComponent().Needs.HungerMax),
                                 }
                             }
                         }

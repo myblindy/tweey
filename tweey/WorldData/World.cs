@@ -121,7 +121,8 @@ internal partial class World
 
         var villagerComponent = entity.AddVillagerComponent(Configuration.Data.BaseCarryWeight, Configuration.Data.BasePickupSpeed, Configuration.Data.BaseMovementSpeed,
             Configuration.Data.BaseWorkSpeed, Configuration.Data.BaseHarvestSpeed, Configuration.Data.BasePlantSpeed,
-            Configuration.Data.BaseTiredMax, Configuration.Data.BaseTiredDecayPerWorldSecond, Configuration.Data.BasePoopMax, Configuration.Data.BasePoopDecayPerWorldSecond);
+            Configuration.Data.BaseTiredMax, Configuration.Data.BaseTiredDecayPerWorldSecond, Configuration.Data.BasePoopMax, Configuration.Data.BasePoopDecayPerWorldSecond,
+            Configuration.Data.BaseHungerMax, Configuration.Data.BaseHungerDecayPerWorldSecond);
         villagerComponent.AddThought(this, ThoughtTemplates[ThoughtTemplates.ExtremelyLowExpectations]);
 
         return entity;
