@@ -3,7 +3,6 @@
 
   "baseCarryWeight": 45,
   "groundStackMaximumWeight": 75,
-  "ticksPerDay": 72000, // 20mins
   "maximumGroundDropSpillOverRange": 2,
 
   "baseMovementSpeed": 0.005,
@@ -11,7 +10,6 @@
   "baseWorkSpeed": 0.2,
   "baseHarvestSpeed": 0.2,
   "basePlantSpeed": 3,
-  "baseHungerMax": 100,
   "baseHungerPerRealTimeSecond": 1,
   "baseEatSpeed": 1,
   "baseHungerPercentage": 0.6,
@@ -19,6 +17,11 @@
 
   "baseTiredMax": 100,
   "baseTiredDecayPerWorldSecond": 0.001,
+
+  "baseHungerMax": 100,
+  "baseHungerDecayPerWorldSecond": 0.0025,
+  "baseEatSpeedPerWorldSeconds": 300,
+
   "basePoopMax": 100,
   "basePoopDecayPerWorldSecond": 0.0006,
   "basePoopDurationInWorldSeconds": 240,

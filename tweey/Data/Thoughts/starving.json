@@ -1,0 +1,7 @@
+{
+  "$schema": "./_schema.json",
+
+  "description": "Starving",
+  "moodChange": -8,
+  "durationInWorldDays": 1
+}

@@ -10,13 +10,16 @@ class ConfigurationData
     public double BaseWorkSpeed { get; set; }
     public double BaseHarvestSpeed { get; set; }
     public double BasePlantSpeed { get; set; }
-    public double BaseHungerMax { get; set; }
-    public double BaseEatSpeed { get; set; }
     public double BaseHungerPercentage { get; set; }
     public double BaseHungerEmergencyPercentage { get; set; }
 
     public double BaseTiredMax { get; set; }
     public double BaseTiredDecayPerWorldSecond { get; set; }
+
+    public double BaseHungerMax { get; set; }
+    public double BaseHungerDecayPerWorldSecond { get; set; }
+    public double BaseEatSpeedPerWorldSeconds { get; set; }
+
     public double BasePoopMax { get; set; }
     public double BasePoopDecayPerWorldSecond { get; set; }
     public double BasePoopDurationInWorldSeconds { get; set; }

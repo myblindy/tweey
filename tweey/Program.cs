@@ -59,6 +59,8 @@ class Program : GameWindow
 
         world.SelectedEntity = world.AddVillagerEntity("Sana", embarkmentLocation.ToNumericsVector2());
         world.AddVillagerEntity("Momo", embarkmentLocation.ToNumericsVector2() + Vector2.One);
+        //world.AddResourceEntities(ResourceMarker.All, new(new ResourceQuantity(world.Resources["meal"], 100)),
+        //    ResourceMarker.Unmarked, embarkmentLocation.ToNumericsVector2() + new Vector2(1, 0));
         world.RawOffset = embarkmentLocation.ToNumericsVector2() - new Vector2(25, 17);
 
         EcsCoordinator.ConstructThoughtIconExpirySystem(world);
