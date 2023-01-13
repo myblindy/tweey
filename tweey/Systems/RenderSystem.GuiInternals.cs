@@ -333,8 +333,6 @@ partial class RenderSystem
         if (view.IsVisible is not null && !view.IsVisible()) return new();
         view = GetTemplatedView(view);
 
-        if (view is LabelView lv && lv.Text?.Invoke() == "Sana") { }
-
         var viewMargin = view.Margin?.Invoke() ?? new();
         Vector2 size = new(view.Padding.Left + view.Padding.Right + viewMargin.Left + viewMargin.Right,
             view.Padding.Top + view.Padding.Bottom + viewMargin.Top + viewMargin.Bottom);
@@ -422,8 +420,6 @@ partial class RenderSystem
         {
             case StackView stackView:
                 {
-                    if (stackView.BackgroundColor == Colors4.Red) { }
-
                     Vector2 extraSize = default;
 
                     // finish the layout for views that inherit their size from us
