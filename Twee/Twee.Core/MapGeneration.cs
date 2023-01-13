@@ -59,7 +59,6 @@ public static class MapGeneration
                         (bestBiomeIndex, bestBiomeError) = (biomeIndex, error);
                     }
 
-                if (bestBiomeIndex == 4) { }
                 result[x, y] = (heightValue, (byte)bestBiomeIndex);
             }
 
