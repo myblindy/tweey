@@ -659,7 +659,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
                     public static readonly Dictionary<string, TimeSpan> SystemTimingInformation = new();
                     public const int SystemsCount = {{systems.Length}};
                     {{string.Join(Environment.NewLine, systems.Select(s => $$"""
-                        static {{s!.FullName}}? {{s!.TypeRootName}}System;
+                        public static {{s!.FullName}}? {{s!.TypeRootName}}System { get; private set; }
 
                         public static void Construct{{s!.TypeRootName}}System(
                             {{string.Join(", ", s.ConstructorParameters.Select(w => $"{w.FullTypeName} {w.Name} {(w.Default is null ? "" : $" = {w.Default}")}"))}}

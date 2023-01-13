@@ -113,7 +113,8 @@ internal partial class World
         entity.AddRenderableComponent("Data/Misc/villager.png",
             LightEmission: Colors4.White, LightRange: 12, LightAngleRadius: .1f);
         entity.AddHeadingComponent();
-        entity.AddWorkerComponent();
+        entity.AddWorkerComponent()
+            .SystemJobPriorities = Enumerable.Repeat(2, EcsCoordinator.AISystem.SystemJobs.Count).ToArray();
         entity.AddInventoryComponent();
         entity.AddIdentityComponent(name);
         entity.AddThoughtWhenInRangeComponent(ThoughtTemplates[ThoughtTemplates.FriendSeen], TimeSpan.FromDays(.4), 5);

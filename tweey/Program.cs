@@ -57,10 +57,6 @@ class Program : GameWindow
         EcsCoordinator.ConstructPartitions(new(400, 400), world.Zoom);
         world.GenerateMap(400, 400, out var embarkmentLocation);
 
-        world.SelectedEntity = world.AddVillagerEntity("Sana", embarkmentLocation.ToNumericsVector2());
-        world.AddVillagerEntity("Momo", embarkmentLocation.ToNumericsVector2() + Vector2.One);
-        world.RawOffset = embarkmentLocation.ToNumericsVector2() - new Vector2(25, 17);
-
         EcsCoordinator.ConstructThoughtIconExpirySystem(world);
         EcsCoordinator.ConstructThoughtWhenInRangeSystem(world);
         EcsCoordinator.ConstructExpirationSystem(world);
@@ -69,6 +65,11 @@ class Program : GameWindow
         EcsCoordinator.ConstructFarmSystem(world);
         EcsCoordinator.ConstructAISystem(world);
         EcsCoordinator.ConstructRenderSystem(world);
+
+        world.SelectedEntity = world.AddVillagerEntity("Sana", embarkmentLocation.ToNumericsVector2());
+        world.AddVillagerEntity("Momo", embarkmentLocation.ToNumericsVector2() + Vector2.One);
+        world.RawOffset = embarkmentLocation.ToNumericsVector2() - new Vector2(25, 17);
+
         EcsCoordinator.SendResizeMessageToRenderSystem(Size.X, Size.Y);
     }
 

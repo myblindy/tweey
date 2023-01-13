@@ -24,7 +24,6 @@ class PoopAIHighLevelPlan : AIHighLevelPlan
         {
             MainEntity.GetVillagerComponent().AddThought(World, World.ThoughtTemplates[ThoughtTemplates.PoopedOnTheGround]);
             World.AddPoopEntity(MainEntity.GetLocationComponent().Box.TopLeft, World.WorldTime + TimeSpan.FromDays(World.Configuration.Data.BasePoopExpiryInWorldDays));
-            MainEntity.GetVillagerComponent().IsPooping = false;
         }
         else
         {
