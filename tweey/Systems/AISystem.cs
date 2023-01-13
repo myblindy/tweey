@@ -8,7 +8,7 @@ partial class AISystem
     readonly World world;
 
     readonly FrameAwaiter frameAwaiter = new();
-    readonly List<Task?> planRunners = new();
+    readonly EntityDictionary<Task?> planRunners = new();
     readonly Dictionary<Entity, Vector2> wanderCenterLocations = new();
 
     public List<BaseSystemJob> SystemJobs { get; } = new();
@@ -47,9 +47,6 @@ partial class AISystem
 
             if (w.WorkerComponent.Plans is { } workerPlans)
             {
-                while (planRunners.Count <= w.Entity)
-                    planRunners.Add(null);
-
                 if (planRunners[w.Entity] is null)
                 {
                     static async Task runPlansAsync(IEnumerable<AIHighLevelPlan> workerPlans, IFrameAwaiter frameAwaiter)

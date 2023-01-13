@@ -1,4 +1,5 @@
-﻿using Tweey.Support.AI.SystemJobs;
+﻿using System.Drawing.Printing;
+using Tweey.Support.AI.SystemJobs;
 
 namespace Tweey.Systems;
 
@@ -53,7 +54,11 @@ partial class RenderSystem
             {
                 Children =
                 {
-                    new LabelView($"{name}: ") { FontSize = () => smallFontSize },
+                    new LabelView($"{name}: ")
+                    {
+                        FontSize = () => smallFontSize,
+                        MinWidth = () => (int)WidthPercentage(3.2f)
+                    },
                     new ProgressView
                     {
                         Maximum = valueMaxGen,
@@ -464,10 +469,10 @@ partial class RenderSystem
                     // selector
                     new RepeaterView<string>
                     {
-                        Margin = () => new(0, 20, 0, 0),
+                        Margin = () => new(0, (int)HeightPercentage(10), 0, 0),
                         Source = () => bottomTabs,
                         ContainerView = new StackView(StackType.Horizontal),
-                        ItemView = (val, idx) => new ButtonView(()=> val)
+                        ItemView = (val, idx) => new ButtonView(() => val)
                         {
                             IsChecked = () => selectedBottomTab == idx,
                             Clicked = () => selectedBottomTab = idx
@@ -520,7 +525,7 @@ partial class RenderSystem
                         ForegroundColor = () => Colors4.Red,
                     },
                 }
-            }));
+            }, Anchor.TopLeft));
 
         // picker, has to be last
         gui.RootViewDescriptions.Add(new(

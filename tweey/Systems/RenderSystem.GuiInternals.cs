@@ -401,8 +401,8 @@ partial class RenderSystem
                 throw new NotImplementedException();
         }
 
-        view.ViewData.Box = Box2.FromCornerSize(new(), ConstrainSize(view, size - new Vector2(viewMargin.Left + viewMargin.Right, viewMargin.Top + viewMargin.Bottom)));
-        view.ViewData.BaseBox = Box2.FromCornerSize(new(), size - new Vector2(viewMargin.Left + viewMargin.Right, viewMargin.Top + viewMargin.Bottom));
+        view.ViewData.Box = Box2.FromCornerSize(new(), ConstrainSize(view, size /*- new Vector2(viewMargin.Left + viewMargin.Right, viewMargin.Top + viewMargin.Bottom)*/));
+        view.ViewData.BaseBox = Box2.FromCornerSize(new(), size /*- new Vector2(viewMargin.Left + viewMargin.Right, viewMargin.Top + viewMargin.Bottom)*/);
         return view.ViewData.Box.Size;
     }
 
@@ -422,7 +422,7 @@ partial class RenderSystem
         {
             case StackView stackView:
                 {
-                    if (stackView.Children is [_, LabelView lv, ..] && lv.Text?.Invoke() == "Sana") { }
+                    if (stackView.BackgroundColor == Colors4.Red) { }
 
                     Vector2 extraSize = default;
 
@@ -446,11 +446,12 @@ partial class RenderSystem
                     foreach (var child in stackView.Children.Where(v => v.IsVisible?.Invoke() ?? true).Select(GetTemplatedView))
                     {
                         var childMargin = child.Margin?.Invoke() ?? default;
-                        start += new Vector2(childMargin.Left, childMargin.Top);
+                        //start += new Vector2(childMargin.Left, childMargin.Top);
                         var childExtraSize = LayoutView(child, start, new(1, 1));
-                        start += new Vector2(childMargin.Right, childMargin.Bottom);
+                        //start += new Vector2(childMargin.Right, childMargin.Bottom);
 
-                        extraSize = stackView.Type != StackType.Horizontal ? new Vector2(Math.Max(childExtraSize.X, extraSize.X), extraSize.Y + childExtraSize.Y)
+                        extraSize = stackView.Type != StackType.Horizontal
+                            ? new Vector2(Math.Max(childExtraSize.X, extraSize.X), extraSize.Y + childExtraSize.Y)
                             : new(extraSize.X + childExtraSize.X, Math.Max(childExtraSize.Y, extraSize.Y));
 
                         start = stackView.Type == StackType.Horizontal
