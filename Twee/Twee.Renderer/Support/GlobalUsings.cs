@@ -5,7 +5,6 @@ global using System.Drawing.Imaging;
 global using System.Drawing.Text;
 global using System.Numerics;
 global using System.Runtime.CompilerServices;
-global using System.Runtime.InteropServices;
 global using OpenTK.Graphics;
 global using OpenTK.Graphics.OpenGL;
 

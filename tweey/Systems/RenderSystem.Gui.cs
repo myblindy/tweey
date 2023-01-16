@@ -1,4 +1,5 @@
-﻿using Tweey.Gui.Base;
+﻿using System.Drawing.Printing;
+using Tweey.Support.AI.SystemJobs;
 
 namespace Tweey.Systems;
 
@@ -53,7 +54,11 @@ partial class RenderSystem
             {
                 Children =
                 {
-                    new LabelView($"{name}: ") { FontSize = () => smallFontSize },
+                    new LabelView($"{name}: ")
+                    {
+                        FontSize = () => smallFontSize,
+                        MinWidth = () => (int)WidthPercentage(3.2f)
+                    },
                     new ProgressView
                     {
                         Maximum = valueMaxGen,
@@ -89,6 +94,14 @@ partial class RenderSystem
                     }
                 }
             };
+
+        PooledCollection<Entity> getVillagers()
+        {
+            var result = CollectionPool<Entity>.Get();
+            EcsCoordinator.IterateVillagerArchetype((in EcsCoordinator.VillagerIterationResult vw) => result.Add(vw.Entity));
+
+            return result;
+        }
 
         // selection box
         gui.RootViewDescriptions.Add(new(
@@ -222,7 +235,7 @@ partial class RenderSystem
                                         ForegroundColor = () => world.SelectedEntity!.Value.GetVillagerComponent().MoodPercentage / 100 > 0.2
                                             ? Colors4.DarkGreen : Colors4.DarkRed
                                     },
-                                    new LabelView(world.SelectedEntity!.Value.GetVillagerComponent().MoodPercentageTarget == world.SelectedEntity!.Value.GetVillagerComponent().MoodPercentage ? ""
+                                    new LabelView(() => world.SelectedEntity!.Value.GetVillagerComponent().MoodPercentageTarget == world.SelectedEntity!.Value.GetVillagerComponent().MoodPercentage ? ""
                                         : $" (target: {world.SelectedEntity!.Value.GetVillagerComponent().MoodPercentageTarget}%)", () => smallFontSize)
                                     {
                                         ForegroundColor = () => descriptionColor
@@ -267,6 +280,8 @@ partial class RenderSystem
                                         () => world.SelectedEntity!.Value.GetVillagerComponent().Needs.TiredMax),
                                     getNeedsView("Poop", () => world.SelectedEntity!.Value.GetVillagerComponent().Needs.Poop,
                                         () => world.SelectedEntity!.Value.GetVillagerComponent().Needs.PoopMax),
+                                    getNeedsView("Hunger", () => world.SelectedEntity!.Value.GetVillagerComponent().Needs.Hunger,
+                                        () => world.SelectedEntity!.Value.GetVillagerComponent().Needs.HungerMax),
                                 }
                             }
                         }
@@ -336,7 +351,9 @@ partial class RenderSystem
                 }
             }, Anchor.BottomLeft));
 
-        // orders
+        // orders, priorities
+        var bottomTabs = new[] { "Orders", "Priorities" };
+        var selectedBottomTab = 0;
         gui.RootViewDescriptions.Add(new(
             new StackView(StackType.Vertical)
             {
@@ -344,67 +361,123 @@ partial class RenderSystem
                 BackgroundColor = panelBackgroundColor,
                 Children =
                 {
+                    // orders
                     new StackView(StackType.Vertical)
                     {
+                        IsVisible = () => selectedBottomTab == 0,
                         Children =
                         {
-                            new LabelView("Orders:"),
-                            new StackView(StackType.Horizontal)
+                            new StackView(StackType.Vertical)
                             {
                                 Children =
                                 {
-                                    new ButtonView("Harvest")
+                                    new LabelView("Orders:"),
+                                    new StackView(StackType.Horizontal)
                                     {
-                                        IsChecked = () => world.CurrentWorldTemplate.ZoneType == ZoneType.MarkHarvest,
-                                        Clicked = () => (world.CurrentWorldTemplate.ZoneType, world.CurrentZoneStartPoint) =
-                                            (ZoneType.MarkHarvest, null),
-                                    },
+                                        Children =
+                                        {
+                                            new ButtonView("Harvest")
+                                            {
+                                                IsChecked = () => world.CurrentWorldTemplate.ZoneType == ZoneType.MarkHarvest,
+                                                Clicked = () => (world.CurrentWorldTemplate.ZoneType, world.CurrentZoneStartPoint) =
+                                                    (ZoneType.MarkHarvest, null),
+                                            },
+                                        }
+                                    }
                                 }
-                            }
-                        }
-                    },
-                    new StackView(StackType.Vertical)
-                    {
-                        Children =
-                        {
-                            new LabelView("Zones:"),
-                            new StackView(StackType.Horizontal)
+                            },
+                            new StackView(StackType.Vertical)
                             {
                                 Children =
                                 {
-                                    new ButtonView("Grow")
+                                    new LabelView("Zones:"),
+                                    new StackView(StackType.Horizontal)
                                     {
-                                        IsChecked = () => world.CurrentWorldTemplate.ZoneType == ZoneType.Grow,
-                                        Clicked = () => (world.CurrentWorldTemplate.ZoneType, world.CurrentZoneStartPoint) =
-                                            (ZoneType.Grow, null),
-                                    },
-                                    new ButtonView("Storage")
-                                    {
-                                        IsChecked = () => world.CurrentWorldTemplate.ZoneType == ZoneType.Storage,
-                                        Clicked = () => (world.CurrentWorldTemplate.ZoneType, world.CurrentZoneStartPoint) =
-                                            (ZoneType.Storage, null),
-                                    },
+                                        Children =
+                                        {
+                                            new ButtonView("Grow")
+                                            {
+                                                IsChecked = () => world.CurrentWorldTemplate.ZoneType == ZoneType.Grow,
+                                                Clicked = () => (world.CurrentWorldTemplate.ZoneType, world.CurrentZoneStartPoint) =
+                                                    (ZoneType.Grow, null),
+                                            },
+                                            new ButtonView("Storage")
+                                            {
+                                                IsChecked = () => world.CurrentWorldTemplate.ZoneType == ZoneType.Storage,
+                                                Clicked = () => (world.CurrentWorldTemplate.ZoneType, world.CurrentZoneStartPoint) =
+                                                    (ZoneType.Storage, null),
+                                            },
+                                        }
+                                    }
                                 }
-                            }
+                            },
+                            new StackView(StackType.Vertical)
+                            {
+                                Children =
+                                {
+                                    new LabelView("Buildings:"),
+                                    new RepeaterView<BuildingTemplate>
+                                    {
+                                        Source = () => world.BuildingTemplates,
+                                        ContainerView = new StackView(StackType.Horizontal),
+                                        ItemView = (bt, _) => new ButtonView(() => bt.Name)
+                                        {
+                                            IsChecked = () => world.CurrentWorldTemplate.BuildingTemplate == bt,
+                                            Clicked = () => world.CurrentWorldTemplate.BuildingTemplate= bt,
+                                        }
+                                    }
+                                }
+                            },
+
                         }
                     },
-                    new StackView(StackType.Vertical)
+
+                    // priorities
+                    new StackView(StackType.Horizontal)
                     {
+                        IsVisible = () => selectedBottomTab == 1,
                         Children =
                         {
-                            new LabelView("Buildings:"),
-                            new RepeaterView<BuildingTemplate>
+                            new RepeaterView<BaseSystemJob?>
                             {
-                                Source = () => world.BuildingTemplates,
+                                Source = () => EcsCoordinator.AISystem!.SystemJobs.Where(j => j.IsConfigurable).Prepend(null),
                                 ContainerView = new StackView(StackType.Horizontal),
-                                ItemView = (bt, _) => new ButtonView(() => bt.Name)
-                                {
-                                    IsChecked = () => world.CurrentWorldTemplate.BuildingTemplate == bt,
-                                    Clicked = () => world.CurrentWorldTemplate.BuildingTemplate= bt,
-                                }
+                                ItemView = (job, jobIdx) => job is null
+                                    ? new RepeaterView<Entity>
+                                    {
+                                        ContainerView = new StackView(StackType.Vertical),
+                                        Source = () => getVillagers().Prepend(Entity.Invalid),
+                                        ItemView = (villager, villagerIdx) => new LabelView((Func<string?>)(villager == Entity.Invalid ? static () => null : () => $"{villager.GetIdentityComponent().Name}    "))
+                                        {
+                                            Margin = () => villagerIdx == 0 ? new(0, 0, 0, (int)HeightPercentage(3.05f)) : new(0, 0, 0, (int)HeightPercentage(2.4f))
+                                        }
+                                    }
+                                    : new RepeaterView<Entity>
+                                    {
+                                        Source = () => getVillagers().Prepend(Entity.Invalid),
+                                        ItemView = (villager, _) => villager == Entity.Invalid
+                                            ? new LabelView(() => $"{job.Name}    ")
+                                            : new ButtonView(() => (villager.GetWorkerComponent().SystemJobPriorities[jobIdx - 1] + 1).ToString())
+                                            {
+                                                Clicked = () => villager.GetWorkerComponent().SystemJobPriorities[jobIdx - 1] = (villager.GetWorkerComponent().SystemJobPriorities[jobIdx - 1] + 1) % 5
+                                            }
+                                    }
                             }
                         }
                     },
+
+                    // selector
+                    new RepeaterView<string>
+                    {
+                        Margin = () => new(0, (int)HeightPercentage(10), 0, 0),
+                        Source = () => bottomTabs,
+                        ContainerView = new StackView(StackType.Horizontal),
+                        ItemView = (val, idx) => new ButtonView(() => val)
+                        {
+                            IsChecked = () => selectedBottomTab == idx,
+                            Clicked = () => selectedBottomTab = idx
+                        }
+                    }
                 }
             }, Anchor.BottomLeft));
 
@@ -452,7 +525,7 @@ partial class RenderSystem
                         ForegroundColor = () => Colors4.Red,
                     },
                 }
-            }));
+            }, Anchor.TopLeft));
 
         // picker, has to be last
         gui.RootViewDescriptions.Add(new(

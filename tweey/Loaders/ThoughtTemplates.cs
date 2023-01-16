@@ -25,6 +25,7 @@ class ThoughtTemplates : BaseTemplates<ThoughtTemplateIn, ThoughtTemplate>
     public const string PoopedOnTheGround = "pooped-on-ground";
     public const string PoopSeen = "poop-seen";
     public const string FriendSeen = "friend-seen";
+    public const string Starving = "starving";
 
     public ThoughtTemplates(ILoader loader)
         : base(loader, "Thoughts", x => x.FileName!)

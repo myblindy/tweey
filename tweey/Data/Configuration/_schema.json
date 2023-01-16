@@ -50,11 +50,6 @@
       "minimum": 0,
       "description": "How fast a villager will plant in ticks."
     },
-    "baseHungerMax": {
-      "type": "number",
-      "minimum": 1,
-      "description": "How much hunger can be accumulated until death."
-    },
     "baseHungerPerRealTimeSecond": {
       "type": "number",
       "minimum": 0,
@@ -84,6 +79,19 @@
     "baseTiredDecayPerWorldSecond": {
       "type": "number",
       "minimum": 0
+    },
+    "baseHungerMax": {
+      "type": "number",
+      "minimum": 0
+    },
+    "baseHungerDecayPerWorldSecond": {
+      "type": "number",
+      "minimum": 0
+    },
+    "baseEatSpeedPerWorldSeconds": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Base time to eat one unit of food in world seconds"
     },
     "basePoopMax": {
       "type": "number",
@@ -115,7 +123,6 @@
     "ticksPerDay",
     "maximumGroundDropSpillOverRange",
     "baseMovementSpeed",
-    "baseHungerMax",
     "baseHungerPerRealTimeSecond",
     "baseHungerPercentage",
     "baseHungerEmergencyPercentage",
@@ -125,6 +132,9 @@
     "treeMovementModifier",
     "baseTiredDecayPerWorldSecond",
     "baseTiredMax",
+    "baseHungerDecayPerWorldSecond",
+    "baseHungerMax",
+    "baseEatSpeedPerWorldSeconds",
     "basePoopDecayPerWorldSecond",
     "basePoopMax",
     "basePoopDurationInWorldSeconds",

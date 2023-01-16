@@ -20,7 +20,8 @@ partial class ThoughtIconExpirySystem
                 if (!entityThoughtIconExpiry.TryGetValue(w.Entity, out var expiry))
                     entityThoughtIconExpiry[w.Entity] = expiry = world.TotalRealTime + TimeSpan.FromSeconds(3);
 
-                if (expiry <= world.TotalRealTime)
+                // accelerate the expiration if we have multiple thought icons to get through
+                if (expiry <= world.TotalRealTime || (w.VillagerComponent.ThoughtIcons.Count > 1 && (expiry - world.TotalRealTime).TotalSeconds <= 1.5))
                 {
                     w.VillagerComponent.ThoughtIcons.Dequeue();
                     entityThoughtIconExpiry[w.Entity] = world.TotalRealTime + TimeSpan.FromSeconds(3);
