@@ -53,6 +53,11 @@ public class Texture2D : BaseTexture, IDisposable
         finally { bmp.UnlockBits(bmpData); }
     }
 
+    public void Clear(uint value)
+    {
+        GL.ClearTexImage(Handle, 0, PixelFormat.Rgba, PixelType.UnsignedByte, value);
+    }
+
     public override void Bind(int unit = 0)
     {
         if (LastBoundTexture[unit] != this)
@@ -61,6 +66,11 @@ public class Texture2D : BaseTexture, IDisposable
             GL.BindTexture(TextureTarget.Texture2d, Handle);
             LastBoundTexture[unit] = this;
         }
+    }
+
+    public void BindAsImageTexture(int unit, BufferAccessARB bufferAccess, InternalFormat internalFormat)
+    {
+        GL.BindImageTexture((uint)unit, Handle, 0, false, 0, bufferAccess, internalFormat);
     }
 
     private bool disposedValue;

@@ -330,10 +330,10 @@ partial class RenderSystem
 
     Vector2 MeasureView(View view)
     {
-        if (view.IsVisible is not null && !view.IsVisible()) return new();
+        if (view.IsVisible is not null && !view.IsVisible()) return default;
         view = GetTemplatedView(view);
 
-        var viewMargin = view.Margin?.Invoke() ?? new();
+        var viewMargin = view.Margin?.Invoke() ?? default;
         Vector2 size = new(view.Padding.Left + view.Padding.Right + viewMargin.Left + viewMargin.Right,
             view.Padding.Top + view.Padding.Bottom + viewMargin.Top + viewMargin.Bottom);
         switch (view)
@@ -410,7 +410,7 @@ partial class RenderSystem
         view = GetTemplatedView(view);
 
         var boxSize = view.ViewData.Box.Size;
-        var viewMargin = view.Margin?.Invoke() ?? new();
+        var viewMargin = view.Margin?.Invoke() ?? default;
         var boxStart = offset + new Vector2(Math.Min(multiplier.X, 0), Math.Min(multiplier.Y, 0)) * boxSize
             + new Vector2(view.Padding.Left + viewMargin.Left, view.Padding.Top + viewMargin.Top);
         view.ViewData.Box = Box2.FromCornerSize(boxStart, boxSize);
