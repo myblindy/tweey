@@ -19,19 +19,8 @@ partial class RenderSystem
     readonly AtlasEntry markForHarvestAtlasEntry;
     readonly AtlasEntry blankAtlasEntry;
 
-    readonly StaticVertexArrayObject<LightMapFBVertex> lightMapFBVao =
-        new(new LightMapFBVertex[]
-        {
-            new(new(-1, -1), new (0, 0)),
-            new(new(1, -1), new (1, 0)),
-            new(new(-1, 1), new (0, 1)),
-
-            new(new(-1, 1), new (0, 1)),
-            new(new(1, -1), new (1, 0)),
-            new(new(1, 1), new (1, 1)),
-        });
-    readonly ShaderProgram lightMapFBShaderProgram;
-    readonly UniformBufferObject<LightMapFBUbo> lightMapFBUbo = new();
+    readonly ShaderProgram lightMapComputeShaderProgram;
+    readonly UniformBufferObject<LightMapFBUbo> lightMapComputeUbo = new();
 
     Texture2D lightMapOcclusionTexture = null!;
     FrameBuffer lightMapOcclusionFrameBuffer = null!;
@@ -42,15 +31,14 @@ partial class RenderSystem
 
     const int lightsUboBindingPoint = 3;
     Texture2D lightMapTexture = null!;
-    FrameBuffer lightMapFrameBuffer = null!;
 
     public RenderSystem(World world)
     {
         ScreenStringMeasureHelper = new(this);
         ScreenStringWriteHelper = new(this);
 
-        guiShaderProgram = new(shaderPrograms, DiskLoader.Instance.VFS, "gui");
-        guiLightMapShaderProgram = new(shaderPrograms, DiskLoader.Instance.VFS, "gui-lightmap");
+        guiShaderProgram = ShaderProgram.FromVertexFragment(shaderPrograms, DiskLoader.Instance.VFS, "gui");
+        guiLightMapShaderProgram = ShaderProgram.FromVertexFragment(shaderPrograms, DiskLoader.Instance.VFS, "gui-lightmap");
 
         this.world = world;
 
@@ -72,12 +60,12 @@ partial class RenderSystem
             lightMapOcclusionCircleTexture = new(lightMapOcclusionCircleTextureStream,
                 SizedInternalFormat.R8, minFilter: TextureMinFilter.NearestMipmapNearest, magFilter: TextureMagFilter.Nearest);
 
-        lightMapFBShaderProgram = new(shaderPrograms, DiskLoader.Instance.VFS, "lightmap");
-        lightMapOcclusionShaderProgram = new(shaderPrograms, DiskLoader.Instance.VFS, "lightmap-occlusion");
+        lightMapComputeShaderProgram = new(shaderPrograms, DiskLoader.Instance.VFS, csPath: "lightmap.comp");
+        lightMapOcclusionShaderProgram = ShaderProgram.FromVertexFragment(shaderPrograms, DiskLoader.Instance.VFS, "lightmap-occlusion");
 
-        lightMapFBShaderProgram.UniformBlockBind("ubo_window", windowUboBindingPoint);
-        lightMapFBShaderProgram.UniformBlockBind("ubo_lights", lightsUboBindingPoint);
-        lightMapFBShaderProgram.Uniform("occlusionSampler", 0);
+        lightMapComputeShaderProgram.UniformBlockBind("ubo_lights", lightsUboBindingPoint);
+        lightMapComputeShaderProgram.Uniform("occlusionImage", 0);
+        lightMapComputeShaderProgram.Uniform("outputImage", 1);
 
         lightMapOcclusionShaderProgram.UniformBlockBind("ubo_window", windowUboBindingPoint);
         lightMapOcclusionShaderProgram.Uniform("circleSampler", 0);
@@ -85,7 +73,7 @@ partial class RenderSystem
         InitializeGui();
 
         windowUbo.Bind(windowUboBindingPoint);
-        lightMapFBUbo.Bind(lightsUboBindingPoint);
+        lightMapComputeUbo.Bind(lightsUboBindingPoint);
     }
 
     [Message]
@@ -100,10 +88,8 @@ partial class RenderSystem
         largeFontSize = defaultFontSize * 1.2f;
         smallFontSize = defaultFontSize * 0.8f;
 
-        lightMapFrameBuffer?.Dispose();
         lightMapTexture?.Dispose();
         lightMapTexture = new(width, height, SizedInternalFormat.Rgba8, minFilter: TextureMinFilter.Nearest, magFilter: TextureMagFilter.Nearest);
-        lightMapFrameBuffer = new(new[] { lightMapTexture });
 
         lightMapOcclusionFrameBuffer?.Dispose();
         lightMapOcclusionTexture?.Dispose();
@@ -111,6 +97,7 @@ partial class RenderSystem
         lightMapOcclusionFrameBuffer = new(new[] { lightMapOcclusionTexture });
     }
 
+    bool lastFrameHadLights;
     unsafe void RenderLightMapToFrameBuffer(in Box2 worldViewBox, bool useTorches)
     {
         // setup the occlusion map for rendering and build the occlusions
@@ -156,29 +143,37 @@ partial class RenderSystem
         var lightCount = 0;
 
         // setup the re-callable engine to render the light maps
-        lightMapFrameBuffer.Bind(FramebufferTarget.Framebuffer);
-        GraphicsEngine.Viewport(0, 0, (int)windowUbo.Data.WindowSize.X, (int)windowUbo.Data.WindowSize.Y);
-        GraphicsEngine.Clear();
-        lightMapFBShaderProgram.Use();
-        lightMapOcclusionTexture.Bind(0);
-        GraphicsEngine.BlendAdditive();
+        lightMapComputeShaderProgram.Use();
+        lightMapOcclusionTexture.BindAsImageTexture(0, BufferAccessARB.ReadOnly, InternalFormat.R8);
+        lightMapTexture.BindAsImageTexture(1, BufferAccessARB.WriteOnly, InternalFormat.Rgba8);
+        //GraphicsEngine.BlendAdditive();
 
+        bool firstLightsChunk = true, anyLights = false;
         void renderLights()
         {
             if (lightCount == 0) return;
+            anyLights = true;
 
             for (int idx = lightCount; idx < LightMapFBUbo.MaxLightCount; ++idx)
-                lightMapFBUbo.Data[idx].ClearToInvalid();
+                lightMapComputeUbo.Data[idx].ClearToInvalid();
 
-            lightMapFBUbo.UploadData();
+            // ensure the previous draw finished
+            if (firstLightsChunk)
+                firstLightsChunk = false;
+            else
+                GL.MemoryBarrier(MemoryBarrierMask.ShaderImageAccessBarrierBit);
+
+            lightMapComputeUbo.UploadData();
 
             // render the light map
-            lightMapFBVao.Draw(PrimitiveType.Triangles);
+            Vector2 workgroupSize = new(32, 16);
+            GL.DispatchCompute((uint)MathF.Ceiling(windowUbo.Data.WindowSize.X / workgroupSize.X),
+                (uint)MathF.Ceiling(windowUbo.Data.WindowSize.Y / workgroupSize.Y), 1);
         }
 
         void addLight(Vector2 location, float range, Vector3 color, Vector2 angleMinMax)
         {
-            lightMapFBUbo.Data[lightCount++] = new(location, range, color, angleMinMax);
+            lightMapComputeUbo.Data[lightCount++] = new(new(location.X, windowUbo.Data.WindowSize.Y - location.Y), range, color, angleMinMax);
             if (lightCount == LightMapFBUbo.MaxLightCount)
             {
                 renderLights();
@@ -204,12 +199,17 @@ partial class RenderSystem
         if (world.DebugShowLightAtMouse)
         {
             var totalTimeSec = (float)world.TotalRealTime.TotalSeconds;
-            addLight(new Vector2(world.MouseScreenPosition.X, world.MouseScreenPosition.Y) - world.Offset * world.Zoom, 16 * world.Zoom,
+            addLight(new Vector2(world.MouseScreenPosition.X, world.MouseScreenPosition.Y) /*- world.Offset * world.Zoom*/, 16 * world.Zoom,
                 new(MathF.Sin(totalTimeSec / 2f) / 2 + 1, MathF.Sin(totalTimeSec / 4f) / 2 + 1, MathF.Sin(totalTimeSec / 6f) / 2 + 1),
                 LightMapFBUbo.Light.FullAngle);
         }
 
         renderLights();
+
+        // if we didn't render any lights, we need to make sure the lightmap is cleared
+        if (!anyLights && !lastFrameHadLights)
+            lightMapTexture.Clear(0);
+        lastFrameHadLights = anyLights;
     }
 
     void RenderZone(in Box2 box, ZoneType zoneType, bool error, bool showGrid, bool showSizes)
@@ -403,6 +403,8 @@ partial class RenderSystem
         GraphicsEngine.BlendNormalAlpha();
 
         guiVAO.UploadNewData(..^1);
+        // ensure the lightmap compute shader finished
+        GL.MemoryBarrier(MemoryBarrierMask.ShaderImageAccessBarrierBit);
         guiVAO.Draw(PrimitiveType.Triangles);
 
         // draw the gui overlays, which shouldn't be light mapped

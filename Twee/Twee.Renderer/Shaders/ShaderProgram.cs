@@ -8,7 +8,7 @@ public class ShaderProgram
 
     public bool Loaded => shaderHandles is null;
 
-    public ShaderProgram(ShaderPrograms shaderPrograms, VFSReader vfs, string vsPath, string fsPath)
+    public ShaderProgram(ShaderPrograms shaderPrograms, VFSReader vfs, string? vsPath = null, string? fsPath = null, string? csPath = null)
     {
         ShaderHandle CompileShader(ShaderType type, string path)
         {
@@ -29,28 +29,31 @@ public class ShaderProgram
                     {statusInfoLog}
                     """);
             }
-
+            
             return handle;
         }
 
-        shaderHandles = new[]
+        IEnumerable<(string, ShaderHandle)> yieldIfNotNull(string? path, Func<ShaderHandle> handleGen)
         {
-            (vsPath, CompileShader(ShaderType.VertexShader, Path.Combine("Data", "Shaders", vsPath))),
-            (fsPath, CompileShader(ShaderType.FragmentShader, Path.Combine("Data", "Shaders", fsPath)))
-        };
+            if (!string.IsNullOrWhiteSpace(path))
+                yield return (path, handleGen());
+        }
+
+        shaderHandles = yieldIfNotNull(vsPath, () => CompileShader(ShaderType.VertexShader, Path.Combine("Data", "Shaders", vsPath!)))
+            .Concat(yieldIfNotNull(fsPath, () => CompileShader(ShaderType.FragmentShader, Path.Combine("Data", "Shaders", fsPath!))))
+            .Concat(yieldIfNotNull(csPath, () => CompileShader(ShaderType.ComputeShader, Path.Combine("Data", "Shaders", csPath!))))
+            .ToArray();
 
         programHandle = GL.CreateProgram();
-        GL.AttachShader(programHandle, shaderHandles[0].handle);
-        GL.AttachShader(programHandle, shaderHandles[1].handle);
+        foreach (var (_, handle) in shaderHandles)
+            GL.AttachShader(programHandle, handle);
         GL.LinkProgram(programHandle);
 
         shaderPrograms.Add(this);
     }
 
-    public ShaderProgram(ShaderPrograms shaderPrograms, VFSReader vfs, string path)
-        : this(shaderPrograms, vfs, path + ".vert", path + ".frag")
-    {
-    }
+    public static ShaderProgram FromVertexFragment(ShaderPrograms shaderPrograms, VFSReader vfs, string path) =>
+        new ShaderProgram(shaderPrograms, vfs, path + ".vert", path + ".frag");
 
     void EnsureIsLoaded()
     {

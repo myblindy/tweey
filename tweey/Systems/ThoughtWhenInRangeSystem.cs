@@ -20,18 +20,19 @@ partial class ThoughtWhenInRangeSystem
             EcsCoordinator.IterateVillagerArchetype((in EcsCoordinator.VillagerIterationResult vw) =>
             {
                 foreach (var (entityThatTriggersThoughts, locationOfEntityThatTriggersThoughts) in entitiesThatTriggerThoughts)
-                {
-                    ref var thoughtWhenInRangeComponent = ref entityThatTriggersThoughts.GetThoughtWhenInRangeComponent();
-                    if (!thoughtWhenInRangeComponent.CooldownExpirations.TryGetValue(vw.Entity, out var cooldownExpiry))
-                        cooldownExpiry = default;
-
-                    if ((locationOfEntityThatTriggersThoughts - vw.LocationComponent.Box.Center).LengthSquared() < thoughtWhenInRangeComponent.Range * thoughtWhenInRangeComponent.Range
-                        && cooldownExpiry <= world.WorldTime)
+                    if (entityThatTriggersThoughts != vw.Entity)
                     {
-                        vw.VillagerComponent.AddThought(world, thoughtWhenInRangeComponent.ThoughtTemplate);
-                        thoughtWhenInRangeComponent.CooldownExpirations[vw.Entity] = world.WorldTime + thoughtWhenInRangeComponent.CooldownInWorldTime;
+                        ref var thoughtWhenInRangeComponent = ref entityThatTriggersThoughts.GetThoughtWhenInRangeComponent();
+                        if (!thoughtWhenInRangeComponent.CooldownExpirations.TryGetValue(vw.Entity, out var cooldownExpiry))
+                            cooldownExpiry = default;
+
+                        if ((locationOfEntityThatTriggersThoughts - vw.LocationComponent.Box.Center).LengthSquared() < thoughtWhenInRangeComponent.Range * thoughtWhenInRangeComponent.Range
+                            && cooldownExpiry <= world.WorldTime)
+                        {
+                            vw.VillagerComponent.AddThought(world, thoughtWhenInRangeComponent.ThoughtTemplate);
+                            thoughtWhenInRangeComponent.CooldownExpirations[vw.Entity] = world.WorldTime + thoughtWhenInRangeComponent.CooldownInWorldTime;
+                        }
                     }
-                }
             });
         }
     }

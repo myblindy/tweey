@@ -72,7 +72,7 @@ unsafe struct LightMapFBUbo
             (LocationAndAngle, RangeAndStartColor) = (new(-100000, -100000, FullAngle.X, FullAngle.Y), new(0, 0, 0, 0));
     }
 
-    public const int MaxLightCount = 16;
+    public const int MaxLightCount = 32;
     fixed byte Data[Light.Size * MaxLightCount];
     public ref Light this[int idx]
     {
