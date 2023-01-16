@@ -342,9 +342,9 @@ internal partial class World
     {
         if (TerrainCells is not null)
         {
-            var (ye, xe) = ((int)MathF.Round(box.Bottom), (int)MathF.Round(box.Right));
-            for (int y = (int)box.Top; y <= ye; ++y)
-                for (int x = (int)box.Left; x <= xe; ++x)
+            var (ye, xe) = ((int)MathF.Round(MathF.Min(TerrainCells.GetLength(1), box.Bottom)), (int)MathF.Round(MathF.Min(TerrainCells.GetLength(0), box.Right)));
+            for (int y = (int)MathF.Max(0, box.Top); y <= ye; ++y)
+                for (int x = (int)MathF.Max(0, box.Left); x <= xe; ++x)
                 {
                     ref var cell = ref TerrainCells[x, y];
                     if (cell.AboveGroundMovementModifier == 0 || cell.GroundMovementModifier == 0)

@@ -46,7 +46,8 @@ class WalkAILowLevelPlan : AILowLevelPlan
         if (!pathFindingResult.IsValid)
             throw new InvalidOperationException();
 
-        if (nextPathIndex >= pathFindingResult.Positions!.Count - (moveToCenter ? 0 : 1))
+        var adjustedPositionsCount = pathFindingResult.Positions!.Count - (moveToCenter ? 0 : 1);
+        if (nextPathIndex >= adjustedPositionsCount)
         {
             snapToTarget(0);
             return;
@@ -62,22 +63,21 @@ class WalkAILowLevelPlan : AILowLevelPlan
 
             var currentPosition = MainEntity.GetLocationComponent().Box.Center;
             var targetPosition = pathFindingResult.Positions[nextPathIndex].ToNumericsVector2Center();
-
             var vectorDifference = targetPosition - currentPosition;
-            if (vectorDifference.LengthSquared() < .15f)
-                if (++nextPathIndex >= pathFindingResult.Positions.Count - (moveToCenter ? 0 : 1))
+
+            var currentTile = World.TerrainCells![(int)Math.Round(currentPosition.X), (int)Math.Round(currentPosition.Y)];
+            var positionDelta = Vector2.Normalize(vectorDifference) * (float)(MainEntity.GetVillagerComponent().MovementRateMultiplier * World.DeltaWorldTime.TotalSeconds * speedMultiplier
+                * MathF.Max(0.5f, MathF.Min(currentTile.GroundMovementModifier, currentTile.AboveGroundMovementModifier)));
+
+            if (vectorDifference == default || vectorDifference.LengthSquared() <= positionDelta.LengthSquared())
+                if (++nextPathIndex >= adjustedPositionsCount)
                 {
                     snapToTarget(-1);
                     break;
                 }
 
             if (vectorDifference != default)
-            {
-                var currentTile = World.TerrainCells![(int)Math.Round(currentPosition.X), (int)Math.Round(currentPosition.Y)];
-                MainEntity.GetLocationComponent().Box = MainEntity.GetLocationComponent().Box.WithOffset(Vector2.Normalize(vectorDifference)
-                    * (float)(MainEntity.GetVillagerComponent().MovementRateMultiplier * World.DeltaWorldTime.TotalSeconds * speedMultiplier
-                        * MathF.Max(0.5f, MathF.Min(currentTile.GroundMovementModifier, currentTile.AboveGroundMovementModifier))));
-            }
+                MainEntity.GetLocationComponent().Box = MainEntity.GetLocationComponent().Box.WithOffset(positionDelta);
         }
     }
 }

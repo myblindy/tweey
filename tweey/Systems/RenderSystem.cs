@@ -365,13 +365,9 @@ partial class RenderSystem
         // render top layer (tri2)
         EcsCoordinator.IterateVillagerArchetype((in EcsCoordinator.VillagerIterationResult w) =>
         {
-            ScreenString(RenderLayer.Gui, w.IdentityComponent.Name, new() { Size = 16 },
-                new Vector2((w.LocationComponent.Box.Left + .5f - world.Offset.X) * world.Zoom, (w.LocationComponent.Box.Top - world.Offset.Y) * world.Zoom + 20),
+            ScreenString(RenderLayer.Gui, w.IdentityComponent.Name, new() { Size = smallFontSize },
+                new Vector2((w.LocationComponent.Box.Left + .5f - world.Offset.X) * world.Zoom, (w.LocationComponent.Box.Bottom + 1 - world.Offset.Y) * world.Zoom),
                 Colors4.White, new(0, 0, 0, .4f), HorizontalAlignment.Center);
-            //if (world.ShowDetails)
-            //    ScreenString(villager.AIPlan?.Description, new() { Size = 13 },
-            //        new Vector2((villager.InterpolatedLocation.X + .5f - world.Offset.X) * world.Zoom, (villager.InterpolatedLocation.Y + 1 - world.Offset.Y) * world.Zoom),
-            //        Colors4.White, new(0, 0, 0, .4f), HorizontalAlignment.Center);
         });
 
         // building template
@@ -404,7 +400,7 @@ partial class RenderSystem
 
         guiVAO.UploadNewData(..^1);
         // ensure the lightmap compute shader finished
-        GL.MemoryBarrier(MemoryBarrierMask.ShaderImageAccessBarrierBit);
+        //GL.MemoryBarrier(MemoryBarrierMask.ShaderImageAccessBarrierBit);
         guiVAO.Draw(PrimitiveType.Triangles);
 
         // draw the gui overlays, which shouldn't be light mapped
