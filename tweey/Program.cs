@@ -67,7 +67,7 @@ class Program : GameWindow
         EcsCoordinator.ConstructRenderSystem(world);
 
         world.SelectedEntity = world.AddVillagerEntity("Sana", embarkmentLocation.ToNumericsVector2());
-        //world.AddVillagerEntity("Momo", embarkmentLocation.ToNumericsVector2() + Vector2.One);
+        world.AddVillagerEntity("Momo", embarkmentLocation.ToNumericsVector2() + Vector2.One);
         world.RawOffset = embarkmentLocation.ToNumericsVector2() - new Vector2(25, 17);
 
         EcsCoordinator.SendResizeMessageToRenderSystem(Size.X, Size.Y);

@@ -1,0 +1,17 @@
+{
+  "$schema": "./_schema.json",
+  "name": "Stool",
+  "type": "chair",
+  "buildCost": {
+    "workTicks": 20,
+    "resources": [
+      {
+        "resource": "wood",
+        "quantity": 10
+      }
+    ]
+  },
+  "workInside": true,
+  "width": 1,
+  "height": 1
+}

@@ -1,6 +1,6 @@
 ﻿namespace Tweey.Loaders;
 
-internal enum BuildingType { Production, Rest, Toilet }
+internal enum BuildingType { Production, Rest, Toilet, Chair, Table }
 
 internal class BuildingProductionLineTemplate
 {

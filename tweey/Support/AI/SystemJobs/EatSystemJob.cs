@@ -1,4 +1,5 @@
-﻿using Tweey.WorldData;
+﻿using Microsoft.Win32.SafeHandles;
+using Tweey.WorldData;
 
 namespace Tweey.Support.AI.SystemJobs;
 
@@ -43,11 +44,29 @@ class EatSystemJob : BaseSystemJob
                     availableFood!.OrderByDistanceFrom(workerEntityLocation, static w => w.location.ToNumericsVector2Center(), static w => w.entity).Select(e => e.GetInventoryComponent().Inventory),
                     ResourceMarker.Unmarked, workerAvailableWeight, new[] { new BuildingResouceQuantityTemplate { Resource = "food", Quantity = 1 } }, out _))
                 {
+                    // find all tables and chairs
+                    using var tables = CollectionPool<(Entity entity, Box2 box)>.Get();
+                    using var chairs = CollectionPool<(Entity entity, Box2 box)>.Get();
+                    EcsCoordinator.IterateBuildingArchetype((in EcsCoordinator.BuildingIterationResult bw) =>
+                    {
+                        if (bw.BuildingComponent.IsBuilt)
+                            if (bw.BuildingComponent.Template.Type is BuildingType.Table)
+                                tables.Add((bw.Entity, bw.LocationComponent.Box));
+                            else if (bw.WorkableComponent.Entity == Entity.Invalid && bw.BuildingComponent.Template.Type is BuildingType.Chair)
+                                chairs.Add((bw.Entity, bw.LocationComponent.Box));
+                    });
+
+                    // find the closest chair with a table next to it
+                    var chair = chairs.OrderByDistanceFrom(workerEntityLocation, w => w.box.Center, w => w.entity)
+                        .FirstOrDefault(c => tables.Any(t => c.GetLocationComponent().Box.Intersects(t.box.WithExpand(new Vector2(1f)))), Entity.Invalid);
+
+                    if (chair != Entity.Invalid)
+                        chair.GetWorkableComponent().Entity = workerEntity;
 
                     selectedPlans = new AIHighLevelPlan[]
                     {
                         new GatherResourcesAIHighLevelPlan(World, workerEntity, marker),
-                        new EatAIHighLevelPlan(World, workerEntity, marker)
+                        new EatAIHighLevelPlan(World, workerEntity, chair, marker)
                     };
                 }
             }
