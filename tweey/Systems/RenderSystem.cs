@@ -246,7 +246,7 @@ partial class RenderSystem
 
     void RenderBuildingSite(in Box2 box, in BuildingComponent buildingComponent)
     {
-        var worldBox = Box2.FromCornerSize((box.TopLeft - world.Offset) * world.Zoom, new(world.Zoom));
+        var worldBox = Box2.FromCornerSize((box.TopLeft - world.Offset) * world.Zoom, box.Size * world.Zoom);
         ScreenFillFrame(RenderLayer.BelowPawns, worldBox, "BuildingSite", world.Zoom / 3, FrameType.NoEdges | FrameType.NoBackground);
 
         var percentageFilled = 1 - buildingComponent.BuildWorkTicks / buildingComponent.Template.BuildWorkTicks;
@@ -259,7 +259,7 @@ partial class RenderSystem
                 Box2.FromCornerSize(worldBox.BottomRight - new Vector2(col + 1, row + 1) * world.Zoom / subDivisions, new(world.Zoom / subDivisions)).WithExpand(new Vector2(-2)),
                 2, Colors4.DarkGray, blankAtlasEntry);
 
-            if (++col == totalCells.Y)
+            if (++col == totalCells.X)
                 (row, col) = (row + 1, 0);
         }
     }
@@ -325,7 +325,7 @@ partial class RenderSystem
             {
                 if (w.Entity.HasInventoryComponent() && w.Entity.HasResourceComponent() && w.Entity.GetInventoryComponent().Inventory.IsEmpty(ResourceMarker.Unmarked))
                     return;
-                ScreenFillQuad(w.Entity.HasVillagerComponent() ? RenderLayer.Pawn : RenderLayer.BelowPawns, w.LocationComponent.Box, atlas[atlasEntryName]);
+                ScreenFillQuad(w.Entity.HasVillagerComponent() || w.RenderableComponent.HigherZOrder ? RenderLayer.Pawn : RenderLayer.BelowPawns, w.LocationComponent.Box, atlas[atlasEntryName]);
                 if (w.Entity.HasVillagerComponent())
                     RenderThoughtBubble(w.LocationComponent.Box, w.Entity.GetVillagerComponent());
             }

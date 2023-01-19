@@ -19,7 +19,7 @@
   "baseTiredDecayPerWorldSecond": 0.001,
 
   "baseHungerMax": 100,
-  "baseHungerDecayPerWorldSecond": 0.0025,
+  "baseHungerDecayPerWorldSecond": 0.01,
   "baseEatSpeedPerWorldSeconds": 300,
 
   "basePoopMax": 100,

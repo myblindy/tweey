@@ -1,0 +1,17 @@
+{
+  "$schema": "./_schema.json",
+  "name": "Table",
+  "type": "table",
+  "buildCost": {
+    "workTicks": 50,
+    "resources": [
+      {
+        "resource": "wood",
+        "quantity": 45
+      }
+    ]
+  },
+  "workInside": true,
+  "width": 2,
+  "height": 4
+}

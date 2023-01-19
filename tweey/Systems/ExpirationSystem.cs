@@ -15,7 +15,7 @@ partial class ExpirationSystem
         using var expiredEntities = CollectionPool<Entity>.Get();
         IterateComponents((in IterationResult w) =>
         {
-            if (w.ExpirationComponent.Date <= world.WorldTime)
+            if (w.ExpirationComponent.Date <= world.WorldTime || w.ExpirationComponent.IsExpired?.Invoke() == true)
                 expiredEntities.Add(w.Entity);
         });
 

@@ -109,6 +109,9 @@ public static class Extensions
     public static Vector2 Floor(this Vector2 vector) =>
         new(MathF.Floor(vector.X), MathF.Floor(vector.Y));
 
+    public static Vector2 MaximumValueOnly(this Vector2 vector) =>
+        vector.X > vector.Y ? new(vector.X, 0) : new(0, vector.Y);
+
     public static TRes Floor<TRes>(this double val)
         where TRes : INumber<TRes>
     {
