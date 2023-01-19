@@ -325,7 +325,7 @@ partial class RenderSystem
             {
                 if (w.Entity.HasInventoryComponent() && w.Entity.HasResourceComponent() && w.Entity.GetInventoryComponent().Inventory.IsEmpty(ResourceMarker.Unmarked))
                     return;
-                ScreenFillQuad(w.Entity.HasVillagerComponent() ? RenderLayer.Pawn : RenderLayer.BelowPawns, w.LocationComponent.Box, atlas[atlasEntryName]);
+                ScreenFillQuad(w.Entity.HasVillagerComponent() || w.RenderableComponent.HigherZOrder ? RenderLayer.Pawn : RenderLayer.BelowPawns, w.LocationComponent.Box, atlas[atlasEntryName]);
                 if (w.Entity.HasVillagerComponent())
                     RenderThoughtBubble(w.LocationComponent.Box, w.Entity.GetVillagerComponent());
             }

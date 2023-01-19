@@ -57,16 +57,17 @@ class EatSystemJob : BaseSystemJob
                     });
 
                     // find the closest chair with a table next to it
-                    var chair = chairs.OrderByDistanceFrom(workerEntityLocation, w => w.box.Center, w => w.entity)
-                        .FirstOrDefault(c => tables.Any(t => c.GetLocationComponent().Box.Intersects(t.box.WithExpand(new Vector2(1f)))), Entity.Invalid);
+                    var (chair, table) = chairs.OrderByDistanceFrom(workerEntityLocation, w => w.box.Center, w => w.entity)
+                        .Select(c => (chair: c, table: tables.FirstOrDefault(t => c.GetLocationComponent().Box.Intersects(t.box.WithExpand(new Vector2(1f))), (Entity.Invalid, default)).entity))
+                        .FirstOrDefault(w => w is (var chair, var table) && chair != Entity.Invalid && table != Entity.Invalid, (Entity.Invalid, Entity.Invalid));
 
-                    if (chair != Entity.Invalid)
+                    if (chair != Entity.Invalid && table != Entity.Invalid)
                         chair.GetWorkableComponent().Entity = workerEntity;
 
                     selectedPlans = new AIHighLevelPlan[]
                     {
                         new GatherResourcesAIHighLevelPlan(World, workerEntity, marker),
-                        new EatAIHighLevelPlan(World, workerEntity, chair, marker)
+                        new EatAIHighLevelPlan(World, workerEntity, chair, table, marker)
                     };
                 }
             }

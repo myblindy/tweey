@@ -8,6 +8,7 @@ readonly struct CustomDateTime : IAdditionOperators<CustomDateTime, CustomDateTi
     readonly TimeSpan timeSpan;
 
     public static readonly CustomDateTime Invalid = new(TimeSpan.FromTicks(-100000));
+    public static readonly CustomDateTime MaxValue = new(TimeSpan.MaxValue);
 
     public CustomDateTime(TimeSpan timeSpan) =>
         this.timeSpan = timeSpan;
