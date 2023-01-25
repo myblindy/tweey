@@ -6,6 +6,7 @@ class RestSystemJob : BaseSystemJob
     {
     }
 
+    public override bool IsConfigurable => false;
     public override string Name => "Resting";
 
     public override bool TryToRun(Entity workerEntity, [NotNullWhen(true)] out AIHighLevelPlan[]? plans)

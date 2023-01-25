@@ -245,7 +245,7 @@ partial class RenderSystem
                             new LabelView("Thoughts:"),
                             new RepeaterView<(ThoughtTemplate thought, int stacks)>
                             {
-                                Source = () => world.SelectedEntity!.Value.GetVillagerComponent().Thoughts.GroupBy(w=>w.Template).Select(w=>(w.Key, w.Count())),
+                                Source = () => world.SelectedEntity!.Value.GetVillagerComponent().Thoughts.GroupBy(w => w.Template).Select(w => (w.Key, w.Count())),
                                 ContainerView = new StackView(StackType.Vertical),
                                 ItemView = (w, _) => new StackView(StackType.Horizontal)
                                 {
@@ -423,7 +423,7 @@ partial class RenderSystem
                                         ItemView = (bt, _) => new ButtonView(() => bt.Name)
                                         {
                                             IsChecked = () => world.CurrentWorldTemplate.BuildingTemplate == bt,
-                                            Clicked = () => world.CurrentWorldTemplate.BuildingTemplate= bt,
+                                            Clicked = () => world.CurrentWorldTemplate.BuildingTemplate = bt,
                                         }
                                     }
                                 }
@@ -438,16 +438,16 @@ partial class RenderSystem
                         IsVisible = () => selectedBottomTab == 1,
                         Children =
                         {
-                            new RepeaterView<BaseSystemJob?>
+                            new RepeaterView<(int index, BaseSystemJob? job)>
                             {
-                                Source = () => EcsCoordinator.AISystem!.SystemJobs.Where(j => j.IsConfigurable).Prepend(null),
+                                Source = () => EcsCoordinator.AISystem!.SystemJobs.Select((j, idx) => (idx, job: (BaseSystemJob?)j)).Where(w => w.job!.IsConfigurable).Prepend((-1, null)),
                                 ContainerView = new StackView(StackType.Horizontal),
-                                ItemView = (job, jobIdx) => job is null
+                                ItemView = (w, _) => w.job is null
                                     ? new RepeaterView<Entity>
                                     {
                                         ContainerView = new StackView(StackType.Vertical),
                                         Source = () => getVillagers().Prepend(Entity.Invalid),
-                                        ItemView = (villager, villagerIdx) => new LabelView((Func<string?>)(villager == Entity.Invalid ? static () => null : () => $"{villager.GetIdentityComponent().Name}    "))
+                                        ItemView = (villager, villagerIdx) => new LabelView(villager == Entity.Invalid ? static () => null : () => $"{villager.GetIdentityComponent().Name}    ")
                                         {
                                             Margin = () => villagerIdx == 0 ? new(0, 0, 0, (int)HeightPercentage(3.05f)) : new(0, 0, 0, (int)HeightPercentage(2.4f))
                                         }
@@ -456,10 +456,10 @@ partial class RenderSystem
                                     {
                                         Source = () => getVillagers().Prepend(Entity.Invalid),
                                         ItemView = (villager, _) => villager == Entity.Invalid
-                                            ? new LabelView(() => $"{job.Name}    ")
-                                            : new ButtonView(() => (villager.GetWorkerComponent().SystemJobPriorities[jobIdx - 1] + 1).ToString())
+                                            ? new LabelView(() => $"{w.job.Name}    ")
+                                            : new ButtonView(() => (villager.GetWorkerComponent().SystemJobPriorities[w.index] + 1).ToString())
                                             {
-                                                Clicked = () => villager.GetWorkerComponent().SystemJobPriorities[jobIdx - 1] = (villager.GetWorkerComponent().SystemJobPriorities[jobIdx - 1] + 1) % 5
+                                                Clicked = () => villager.GetWorkerComponent().SystemJobPriorities[w.index] = (villager.GetWorkerComponent().SystemJobPriorities[w.index] + 1) % 5
                                             }
                                     }
                             }

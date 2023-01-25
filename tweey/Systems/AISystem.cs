@@ -1,4 +1,5 @@
-﻿using Tweey.Support.AI.SystemJobs;
+﻿using SuperLinq;
+using Tweey.Support.AI.SystemJobs;
 
 namespace Tweey.Systems;
 
@@ -35,7 +36,8 @@ partial class AISystem
             if (w.WorkerComponent.Plans is null)
             {
                 AIHighLevelPlan[]? plans = null;
-                foreach (var systemJob in SystemJobs)
+                var priorities = w.WorkerComponent.SystemJobPriorities;
+                foreach (var systemJob in SystemJobs.Index().OrderBy(jw => priorities[jw.index]).Select(jw => jw.item))
                     if (systemJob.TryToRun(w.Entity, out plans))
                         break;
 

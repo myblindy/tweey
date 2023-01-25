@@ -9,6 +9,7 @@ class EatSystemJob : BaseSystemJob
     {
     }
 
+    public override bool IsConfigurable => false;
     public override string Name => "Eating";
 
     public override bool TryToRun(Entity workerEntity, [NotNullWhen(true)] out AIHighLevelPlan[]? plans)

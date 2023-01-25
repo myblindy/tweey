@@ -114,7 +114,7 @@ internal partial class World
             LightEmission: Colors4.White, LightRange: 12, LightAngleRadius: .1f);
         entity.AddHeadingComponent();
         entity.AddWorkerComponent()
-            .SystemJobPriorities = Enumerable.Repeat(2, EcsCoordinator.AISystem!.SystemJobs.Count).ToArray();
+            .SystemJobPriorities = EcsCoordinator.AISystem!.SystemJobs.Select(j => j.IsConfigurable ? 2 : -1).ToArray();
         entity.AddInventoryComponent();
         entity.AddIdentityComponent(name);
         entity.AddThoughtWhenInRangeComponent(ThoughtTemplates[ThoughtTemplates.FriendSeen], TimeSpan.FromDays(.4), 5);
