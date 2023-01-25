@@ -1,5 +1,4 @@
-﻿using SuperLinq;
-using Tweey.Support.AI.SystemJobs;
+﻿using Tweey.Support.AI.SystemJobs;
 
 namespace Tweey.Systems;
 

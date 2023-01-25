@@ -1,7 +1,4 @@
-﻿using Microsoft.Win32.SafeHandles;
-using Tweey.WorldData;
-
-namespace Tweey.Support.AI.SystemJobs;
+﻿namespace Tweey.Support.AI.SystemJobs;
 
 class EatSystemJob : BaseSystemJob
 {

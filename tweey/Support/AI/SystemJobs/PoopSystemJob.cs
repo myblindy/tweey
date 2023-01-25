@@ -1,6 +1,4 @@
-﻿using Tweey.WorldData;
-
-namespace Tweey.Support.AI.SystemJobs;
+﻿namespace Tweey.Support.AI.SystemJobs;
 
 class PoopSystemJob : BaseSystemJob
 {
