@@ -1,7 +1,4 @@
-﻿using Microsoft.Win32.SafeHandles;
-using Tweey.WorldData;
-
-namespace Tweey.Support.AI.SystemJobs;
+﻿namespace Tweey.Support.AI.SystemJobs;
 
 class EatSystemJob : BaseSystemJob
 {
@@ -9,6 +6,7 @@ class EatSystemJob : BaseSystemJob
     {
     }
 
+    public override bool IsConfigurable => false;
     public override string Name => "Eating";
 
     public override bool TryToRun(Entity workerEntity, [NotNullWhen(true)] out AIHighLevelPlan[]? plans)
