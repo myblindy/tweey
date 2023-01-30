@@ -15,7 +15,7 @@ internal partial class World
 
     internal Entity? SelectedEntity { get; set; }
     public CurrentWorldTemplate CurrentWorldTemplate { get; } = new();
-    public Vector2i? CurrentZoneStartPoint { get; set; }
+    public Vector2i? CurrentTemplateStartPoint { get; set; }
 
     public double TimeSpeedUp { get; set; } = 1;
 
@@ -381,14 +381,14 @@ internal partial class World
     public void MouseEvent(GameWindow gameWindow, Vector2i screenPosition, Vector2 worldLocation, InputAction? inputAction = null, MouseButton? mouseButton = null, KeyModifiers? keyModifiers = null)
     {
         if (inputAction == InputAction.Press && mouseButton == MouseButton.Button1)
-            if (CurrentWorldTemplate.ZoneType is not null && CurrentZoneStartPoint is null)
+            if ((CurrentWorldTemplate.ZoneType is not null || CurrentWorldTemplate.BuildingTemplate?.TileType is BuildingTileType.OneAxis or BuildingTileType.BothAxis) && CurrentTemplateStartPoint is null)
                 // first point
-                CurrentZoneStartPoint = MouseWorldPosition.ToVector2i();
+                CurrentTemplateStartPoint = MouseWorldPosition.ToVector2i();
             else if (CurrentWorldTemplate.ZoneType is not null)
             {
                 // second point, add the zone entity
-                var box = Box2.FromCornerSize(CurrentZoneStartPoint!.Value,
-                    (MouseWorldPosition - CurrentZoneStartPoint.Value.ToNumericsVector2() + Vector2.One).ToVector2i());
+                var box = Box2.FromCornerSize(CurrentTemplateStartPoint!.Value,
+                    (MouseWorldPosition - CurrentTemplateStartPoint.Value.ToNumericsVector2() + Vector2.One).ToVector2i());
 
                 if (CurrentWorldTemplate.ZoneType is ZoneType.MarkHarvest)
                     MarkAllPlantsForHarvest(box);
@@ -401,6 +401,37 @@ internal partial class World
                         AddStorageZoneEntity(CurrentWorldTemplate.ZoneType.Value, box);
                     else
                         throw new NotImplementedException();
+                }
+                CurrentWorldTemplate.Clear();
+            }
+            else if (CurrentWorldTemplate.BuildingTemplate is { TileType: BuildingTileType.OneAxis or BuildingTileType.BothAxis } currentBuildingTemplate)
+            {
+                // tiled building
+                void addBuildingTemplates(Box2 box, Vector2i count)
+                {
+                    var colorShading = IsBoxFreeOfBuildings(box) && IsBoxFreeOfBlockingTerrain(box) ? Colors4.Lime : Colors4.Red;
+                    var itemSize = new Vector2(currentBuildingTemplate!.Width, currentBuildingTemplate!.Height);
+                    for (int y = 0; y < count.Y; ++y)
+                        for (int x = 0; x < count.X; ++x)
+                            AddBuildingEntity(currentBuildingTemplate, box.TopLeft + new Vector2(x, y) * itemSize, false);
+                }
+
+                if (currentBuildingTemplate.TileType is BuildingTileType.None || CurrentTemplateStartPoint is null)
+                    addBuildingTemplates(Box2.FromCornerSize(MouseWorldPosition.ToVector2i(), currentBuildingTemplate.Width, currentBuildingTemplate.Height), Vector2i.One);
+                else if (CurrentTemplateStartPoint is not null)
+                {
+                    var fullSize = (MouseWorldPosition - CurrentTemplateStartPoint.Value.ToNumericsVector2() + Vector2.One).ToVector2i();
+                    var fullCount = fullSize / new Vector2i(currentBuildingTemplate.Width, currentBuildingTemplate.Height);
+                    if (fullCount.X <= 0) fullCount.X -= 2;
+                    if (fullCount.Y <= 0) fullCount.Y -= 2;
+                    var start = CurrentTemplateStartPoint.Value;
+                    if (currentBuildingTemplate.TileType is BuildingTileType.OneAxis)
+                        if (Math.Abs(fullCount.X) > Math.Abs(fullCount.Y))
+                            (start, fullCount) = (new(start.X, fullCount.Y > 0 ? start.Y : start.Y - fullSize.Y + 1), new(Math.Abs(fullCount.X), 1));
+                        else
+                            (start, fullCount) = (new(fullCount.X > 0 ? start.X : start.X - fullSize.X + 1, start.Y), new(1, Math.Abs(fullCount.Y)));
+
+                    addBuildingTemplates(Box2.FromCornerSize(start, fullSize), fullCount);
                 }
                 CurrentWorldTemplate.Clear();
             }

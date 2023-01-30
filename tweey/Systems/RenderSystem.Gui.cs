@@ -378,7 +378,7 @@ partial class RenderSystem
                                             new ButtonView("Harvest")
                                             {
                                                 IsChecked = () => world.CurrentWorldTemplate.ZoneType == ZoneType.MarkHarvest,
-                                                Clicked = () => (world.CurrentWorldTemplate.ZoneType, world.CurrentZoneStartPoint) =
+                                                Clicked = () => (world.CurrentWorldTemplate.ZoneType, world.CurrentTemplateStartPoint) =
                                                     (ZoneType.MarkHarvest, null),
                                             },
                                         }
@@ -397,13 +397,13 @@ partial class RenderSystem
                                             new ButtonView("Grow")
                                             {
                                                 IsChecked = () => world.CurrentWorldTemplate.ZoneType == ZoneType.Grow,
-                                                Clicked = () => (world.CurrentWorldTemplate.ZoneType, world.CurrentZoneStartPoint) =
+                                                Clicked = () => (world.CurrentWorldTemplate.ZoneType, world.CurrentTemplateStartPoint) =
                                                     (ZoneType.Grow, null),
                                             },
                                             new ButtonView("Storage")
                                             {
                                                 IsChecked = () => world.CurrentWorldTemplate.ZoneType == ZoneType.Storage,
-                                                Clicked = () => (world.CurrentWorldTemplate.ZoneType, world.CurrentZoneStartPoint) =
+                                                Clicked = () => (world.CurrentWorldTemplate.ZoneType, world.CurrentTemplateStartPoint) =
                                                     (ZoneType.Storage, null),
                                             },
                                         }
@@ -422,7 +422,8 @@ partial class RenderSystem
                                         ItemView = (bt, _) => new ButtonView(() => bt.Name)
                                         {
                                             IsChecked = () => world.CurrentWorldTemplate.BuildingTemplate == bt,
-                                            Clicked = () => world.CurrentWorldTemplate.BuildingTemplate = bt,
+                                            Clicked = () => (world.CurrentWorldTemplate.BuildingTemplate, world.CurrentTemplateStartPoint) =
+                                                (bt, null),
                                         }
                                     }
                                 }

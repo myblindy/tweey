@@ -1,0 +1,16 @@
+{
+  "$schema": "./_schema.json",
+  "name": "Crappy Wall",
+  "type": "wall",
+  "buildCost": {
+    "workTicks": 10,
+    "resources": [
+      {
+        "resource": "wood",
+        "quantity": 10
+      }
+    ]
+  },
+  "width": 1,
+  "height": 1
+}
