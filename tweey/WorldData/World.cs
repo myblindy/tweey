@@ -166,17 +166,17 @@ internal partial class World
     {
         // obey the maximum ground stack weight
         var result = new List<Entity>();
-        using var availableNeighbours = CollectionPool<(Vector2i pt, Entity? entity, ResourceBucket? rb)>.Get();
+        using var availableNeighbors = CollectionPool<(Vector2i pt, Entity? entity, ResourceBucket? rb)>.Get();
 
-        var availableNeighboursSearchRadius = -1;
+        var availableNeighborsSearchRadius = -1;
         while (!srcRB.IsEmpty(srcMarker))
         {
             // take any spill-over and put it in a random direction, up to maximumGroundDropSpillOverRange range
-            while (availableNeighbours.Count == 0)
+            while (availableNeighbors.Count == 0)
             {
-                ++availableNeighboursSearchRadius;
+                ++availableNeighborsSearchRadius;
 
-                foreach (var dv in GameUtilities.EnumerateNeighbourLocations(location, radiusMin: availableNeighboursSearchRadius, radiusMax: availableNeighboursSearchRadius))
+                foreach (var dv in GameUtilities.EnumerateNeighborLocations(location, radiusMin: availableNeighborsSearchRadius, radiusMax: availableNeighborsSearchRadius))
                 {
                     var okay = true;
                     ResourceBucket? foundResourceBucket = default;
@@ -196,21 +196,21 @@ internal partial class World
                     });
 
                     if (okay)
-                        availableNeighbours.Add((dv, foundEntity, foundResourceBucket));
+                        availableNeighbors.Add((dv, foundEntity, foundResourceBucket));
                 }
             }
 
-            var chosenNeighbourIndex = Random.Shared.Next(availableNeighbours.Count);
-            var chosenNeighbour = availableNeighbours[chosenNeighbourIndex];
-            availableNeighbours.Remove(chosenNeighbour);
+            var chosenNeighborIndex = Random.Shared.Next(availableNeighbors.Count);
+            var chosenNeighbor = availableNeighbors[chosenNeighborIndex];
+            availableNeighbors.Remove(chosenNeighbor);
 
-            var newRB = chosenNeighbour.rb;
-            var newEntity = chosenNeighbour.entity ?? Entity.Invalid;
+            var newRB = chosenNeighbor.rb;
+            var newEntity = chosenNeighbor.entity ?? Entity.Invalid;
             if (newRB is null)
             {
                 newEntity = EcsCoordinator.CreateEntity();
                 newEntity.AddRenderableComponent(null);
-                newEntity.AddLocationComponent(Box2.FromCornerSize(chosenNeighbour.pt, new(1, 1)));
+                newEntity.AddLocationComponent(Box2.FromCornerSize(chosenNeighbor.pt, new(1, 1)));
                 newEntity.AddResourceComponent();
                 newRB = newEntity.AddInventoryComponent().Inventory;
                 newEntity.AddIdentityComponent();
@@ -244,7 +244,7 @@ internal partial class World
         return result;
     }
 
-    public static Entity AddBuildingEntity(BuildingTemplate buildingTemplate, Vector2 location, bool isBuilt)
+    public Entity AddBuildingEntity(BuildingTemplate buildingTemplate, Vector2 location, bool isBuilt)
     {
         var entity = EcsCoordinator.CreateEntity();
         ref var locationComponent = ref entity.AddLocationComponent(Box2.FromCornerSize(location, buildingTemplate.Width, buildingTemplate.Height));
@@ -258,6 +258,9 @@ internal partial class World
 
         if (buildingTemplate.Type is BuildingType.Rest)
             entity.AddRestableComponent();
+
+        foreach (var loc in locationComponent.Box)
+            TerrainCells![loc.X, loc.Y].BuildingTemplate = buildingTemplate;
 
         MarkAllPlantsForHarvest(locationComponent.Box);
 
@@ -301,6 +304,13 @@ internal partial class World
             && entity.GetLocationComponent().Box.TopLeft.ToVector2i() is { } pos)
         {
             TerrainCells![pos.X, pos.Y].AboveGroundMovementModifier = 1;
+        }
+
+        if (entity.HasBuildingComponent()
+            && entity.GetLocationComponent().Box is var box)
+        {
+            foreach (var loc in box)
+                TerrainCells![loc.X, loc.Y].BuildingTemplate = null;
         }
 
         return entity.Delete();
@@ -585,4 +595,5 @@ internal partial class World
 record struct TerrainCell(string? TileFileName, float GroundMovementModifier = 1, float AboveGroundMovementModifier = 1)
 {
     public bool Impassable => GroundMovementModifier == 0 || AboveGroundMovementModifier == 0;
+    public BuildingTemplate? BuildingTemplate { get; set; }
 }

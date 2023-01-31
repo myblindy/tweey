@@ -22,7 +22,9 @@ class PathFindingService
 
         for (int y = 0; y < height; ++y)
             for (int x = 0; x < width; ++x)
-                cells[y * width + x] = (byte)(255 - Math.Round(Math.Min(world.TerrainCells![x, y].GroundMovementModifier, world.TerrainCells![x, y].AboveGroundMovementModifier) * 255));
+                cells[y * width + x] = world.TerrainCells![x, y].BuildingTemplate is not null ? (byte)255
+                    : (byte)(255 - Math.Round(Math.Min(world.TerrainCells![x, y].GroundMovementModifier, world.TerrainCells![x, y].AboveGroundMovementModifier) * 255));
+        cells[goalPosition.X + goalPosition.Y * width] = 0;
 
         var open = new PriorityQueue<Node, float>();
         var openSet = new HashSet<Vector2i>();
@@ -31,7 +33,7 @@ class PathFindingService
 
         float getDistance(Vector2i position) =>
             Math.Abs(position.X - goalPosition.X) + Math.Abs(position.Y - goalPosition.Y);
-        
+
         open.Enqueue(new Node(null, startPosition, cells[startPosition.X + startPosition.Y * width]), getDistance(startPosition));
         openSet.Add(startPosition);
 
