@@ -40,6 +40,8 @@ internal class BuildingTemplate : ITemplateFileName
         BuildingType.Wall or BuildingType.Door => BuildingTileType.OneAxis,
         _ => BuildingTileType.None
     };
+
+    public bool IsBlocking => Type is BuildingType.Wall;
 }
 
 internal class BuildingProductionLineTemplateIn

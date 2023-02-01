@@ -1,13 +1,13 @@
 {
   "$schema": "./_schema.json",
-  "name": "Wall",
-  "type": "wall",
+  "name": "Door",
+  "type": "door",
   "buildCost": {
-    "workTicks": 10,
+    "workTicks": 25,
     "resources": [
       {
         "resource": "wood",
-        "quantity": 10
+        "quantity": 20
       }
     ]
   },

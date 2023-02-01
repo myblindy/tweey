@@ -87,7 +87,7 @@ public sealed class VertexSourceGen : IIncrementalGenerator
                 result.PackingAttributeCorrect = sd.AttributeLists.SelectMany(a => a.Attributes)
                     .Any(a => a.Name is NameSyntax ns
                         && semanticModel.GetSymbolInfo(ns).Symbol is IMethodSymbol methodSymbol && methodSymbol.ReceiverType?.ToDisplayString() is "System.Runtime.InteropServices.StructLayoutAttribute"
-                        && a.ArgumentList.Arguments.Count >= 2
+                        && a.ArgumentList?.Arguments.Count >= 2
                         && a.ArgumentList.Arguments[0].Expression is MemberAccessExpressionSyntax mes0
                         && semanticModel.GetSymbolInfo(mes0.Expression).Symbol is ITypeSymbol mes0TypeSymbol && mes0TypeSymbol.ToDisplayString() is "System.Runtime.InteropServices.LayoutKind"
                         && mes0.Name is IdentifierNameSyntax mes0ins && mes0ins.Identifier.Text is "Sequential"
