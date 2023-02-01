@@ -147,4 +147,16 @@ public static class Extensions
 
         throw new NotImplementedException();
     }
+
+    public static Queue<T> ToQueue<T>(this IEnumerable<T> source)
+    {
+        var queue = new Queue<T>();
+
+        if (source.TryGetNonEnumeratedCount(out var count))
+            queue.EnsureCapacity(count);
+
+        foreach (var item in source)
+            queue.Enqueue(item);
+        return queue;
+    }
 }

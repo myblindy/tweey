@@ -1,4 +1,5 @@
 ﻿using System.Text.RegularExpressions;
+using System.Transactions;
 
 namespace Tweey.WorldData;
 
@@ -8,10 +9,14 @@ internal partial class World
     public PlantTemplates PlantTemplates { get; }
     public BuildingTemplates BuildingTemplates { get; }
     public ThoughtTemplates ThoughtTemplates { get; }
+    public RoomTemplates RoomTemplates { get; }
     public Configuration Configuration { get; }
     public Biomes Biomes { get; }
 
+    public List<Room> Rooms { get; } = new();
     public TerrainCell[,]? TerrainCells { get; private set; }
+    public int Width { get; private set; }
+    public int Height { get; private set; }
 
     internal Entity? SelectedEntity { get; set; }
     public CurrentWorldTemplate CurrentWorldTemplate { get; } = new();
@@ -46,11 +51,15 @@ internal partial class World
         (Resources, Configuration, ThoughtTemplates) = (new(loader), new(loader), new(loader));
         (BuildingTemplates, PlantTemplates) = (new(loader, Resources), new(loader, Resources));
         Biomes = new(loader, PlantTemplates);
+        RoomTemplates = new(loader, BuildingTemplates);
     }
 
     [MemberNotNull(nameof(TerrainCells))]
     public void GenerateMap(int width, int height, out Vector2i embarkmentLocation)
     {
+        Width = width;
+        Height = height;
+
         // generate the terrain
         var map = MapGeneration.Generate(width, height,
             new MapGenerationWave[]
@@ -82,6 +91,7 @@ internal partial class World
                 var biome = Biomes[map[x, y].BiomeIndex];
                 ref var tile = ref TerrainCells[x, y];
                 tile = new(biomeTiles[biome.TileName].RandomSubset(1).First(), (float)biome.MovementModifier);
+                tile.BuildingEntity = Entity.Invalid;
 
                 // plant a tree?
                 foreach (var (template, chance) in biome.Plants)
@@ -251,7 +261,7 @@ internal partial class World
         entity.AddRenderableComponent($"Data/Buildings/{buildingTemplate.FileName}.png",
             OcclusionScale: buildingTemplate.EmitLight is null ? 1 : 0,
             LightEmission: buildingTemplate.EmitLight?.Color.ToVector4(1) ?? default, LightRange: buildingTemplate.EmitLight?.Range ?? 0f);
-        entity.AddBuildingComponent(buildingTemplate, isBuilt ? 0 : buildingTemplate.BuildWorkTicks);
+        ref var buildingComponent = ref entity.AddBuildingComponent(buildingTemplate, isBuilt ? 0 : buildingTemplate.BuildWorkTicks);
         entity.AddInventoryComponent();
         entity.AddWorkableComponent();
         entity.AddIdentityComponent(buildingTemplate.Name);
@@ -260,7 +270,10 @@ internal partial class World
             entity.AddRestableComponent();
 
         foreach (var loc in locationComponent.Box)
-            TerrainCells![loc.X, loc.Y].BuildingTemplate = buildingTemplate;
+            TerrainCells![loc.X, loc.Y].BuildingEntity = entity;
+
+        // when the building is finished trigger a recalculation of rooms and room templates in the world
+        buildingComponent.IsBuiltChanged += RecalculateRooms;
 
         MarkAllPlantsForHarvest(locationComponent.Box);
 
@@ -288,6 +301,88 @@ internal partial class World
     }
     #endregion
 
+    public void RecalculateRooms()
+    {
+        var open = Box2.FromCornerSize(Vector2i.Zero, new(Width, Height))
+            .Where(l => TerrainCells![l.X, l.Y].IsBuildingEntityBlocking is not true)
+            .ToHashSet();
+        var floodQueue = new Queue<Vector2i>();
+
+        Rooms.Clear();
+
+        while (open.Count > 0)
+        {
+            var location = open.First();
+            open.Remove(location);
+
+            // flood fill setup
+            floodQueue.Clear();
+            floodQueue.Enqueue(location);
+
+            var roomLocations = new List<Vector2i>();
+            var roomBuildingEntities = new List<Entity>();
+            var roomIndoors = true;
+
+            // flood fill
+            while (floodQueue.TryDequeue(out var currentLocation))
+            {
+                open.Remove(currentLocation);
+
+                if (roomIndoors)
+                {
+                    roomLocations.Add(currentLocation);
+                    if (TerrainCells![currentLocation.X, currentLocation.Y].BuildingEntity != Entity.Invalid)
+                        roomBuildingEntities.Add(TerrainCells![currentLocation.X, currentLocation.Y].BuildingEntity);
+                }
+
+                // outdoors?
+                if (roomIndoors && (currentLocation.X == 0 || currentLocation.X == Width - 1 || currentLocation.Y == 0 || currentLocation.Y == Height - 1))
+                    roomIndoors = false;
+
+                // neighbors
+                static void enqueueNeighbor(Vector2i newLocation, Queue<Vector2i> floodQueue, HashSet<Vector2i> open)
+                {
+                    floodQueue.Enqueue(newLocation);
+                    open.Remove(newLocation);
+                }
+
+                static bool isRoomBoundary(Entity entity) =>
+                    entity.HasBuildingComponent() && entity.GetBuildingComponent().Template?.Type is BuildingType.Wall or BuildingType.Door;
+
+                if (currentLocation.X > 0
+                    && !isRoomBoundary(TerrainCells![currentLocation.X - 1, currentLocation.Y].BuildingEntity)
+                    && open.Contains(new(currentLocation.X - 1, currentLocation.Y)))
+                {
+                    enqueueNeighbor(new(currentLocation.X - 1, currentLocation.Y), floodQueue, open);
+                }
+
+                if (currentLocation.Y > 0
+                    && !isRoomBoundary(TerrainCells![currentLocation.X, currentLocation.Y - 1].BuildingEntity)
+                    && open.Contains(new(currentLocation.X, currentLocation.Y - 1)))
+                {
+                    enqueueNeighbor(new(currentLocation.X, currentLocation.Y - 1), floodQueue, open);
+                }
+
+                if (currentLocation.X < Width - 1
+                    && !isRoomBoundary(TerrainCells![currentLocation.X + 1, currentLocation.Y].BuildingEntity)
+                    && open.Contains(new(currentLocation.X + 1, currentLocation.Y)))
+                {
+                    enqueueNeighbor(new(currentLocation.X + 1, currentLocation.Y), floodQueue, open);
+                }
+
+                if (currentLocation.Y < Height - 1
+                    && !isRoomBoundary(TerrainCells![currentLocation.X, currentLocation.Y + 1].BuildingEntity)
+                    && open.Contains(new(currentLocation.X, currentLocation.Y + 1)))
+                {
+                    enqueueNeighbor(new(currentLocation.X, currentLocation.Y + 1), floodQueue, open);
+                }
+            }
+
+            if (roomIndoors)
+                Rooms.Add(new(this, roomLocations, roomBuildingEntities.Distinct()));
+        }
+    }
+
     public static void MarkAllPlantsForHarvest(Box2 box)
     {
         EcsCoordinator.IteratePlantArchetype((in EcsCoordinator.PlantIterationResult w) =>
@@ -310,7 +405,7 @@ internal partial class World
             && entity.GetLocationComponent().Box is var box)
         {
             foreach (var loc in box)
-                TerrainCells![loc.X, loc.Y].BuildingTemplate = null;
+                TerrainCells![loc.X, loc.Y].BuildingEntity = Entity.Invalid;
         }
 
         return entity.Delete();
@@ -595,5 +690,15 @@ internal partial class World
 record struct TerrainCell(string? TileFileName, float GroundMovementModifier = 1, float AboveGroundMovementModifier = 1)
 {
     public bool Impassable => GroundMovementModifier == 0 || AboveGroundMovementModifier == 0;
-    public BuildingTemplate? BuildingTemplate { get; set; }
+    public Entity BuildingEntity { get; set; }
+    public bool IsBuildingEntityBlocking
+    {
+        get
+        {
+            if (BuildingEntity == Entity.Invalid) return false;
+
+            ref var buildingComponent = ref BuildingEntity.GetBuildingComponent();
+            return !Unsafe.IsNullRef(ref buildingComponent) && buildingComponent.Template.IsBlocking == true;
+        }
+    }
 }

@@ -37,7 +37,7 @@ internal class BuildingTemplate : ITemplateFileName
 
     public BuildingTileType TileType => Type switch
     {
-        BuildingType.Wall or BuildingType.Door => BuildingTileType.OneAxis,
+        BuildingType.Wall => BuildingTileType.OneAxis,
         _ => BuildingTileType.None
     };
 

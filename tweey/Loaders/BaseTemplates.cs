@@ -7,7 +7,7 @@ public interface ITemplateFileName
 
 public abstract class BaseTemplates<TIn, TVal> : IEnumerable<TVal> where TVal : ITemplateFileName
 {
-    readonly ImmutableSortedDictionary<string, TVal> resources;
+    protected ImmutableSortedDictionary<string, TVal> resources;
 
     protected BaseTemplates(ILoader loader, string subFolder, Func<TVal, string> keySelector, object? mapperParameter = null)
     {
