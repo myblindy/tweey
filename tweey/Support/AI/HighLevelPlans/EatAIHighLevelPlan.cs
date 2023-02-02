@@ -50,6 +50,9 @@ class EatAIHighLevelPlan : AIHighLevelPlan
         {
             chairEntity.GetWorkableComponent().Entity = Entity.Invalid;
             chairEntity.GetWorkableComponent().EntityWorking = false;
+
+            if (World.GetRoomAtWorldLocationAsNullable(MainEntity.GetLocationComponent().Box.TopLeft.ToVector2i())?.Template?.FileName == RoomTemplates.DiningRoomFileName)
+                MainEntity.GetVillagerComponent().AddThought(World, World.ThoughtTemplates[ThoughtTemplates.AteInDiningRoom]);
         }
         done = true;
     }

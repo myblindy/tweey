@@ -1,0 +1,11 @@
+{
+  "$schema": "./_schema.json",
+  "name": "Barracks",
+  "requirements": [
+    {
+      "type": "atLeast",
+      "value": 2,
+      "building": "bed"
+    }
+  ]
+}

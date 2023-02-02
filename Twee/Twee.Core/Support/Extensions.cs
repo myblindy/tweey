@@ -16,6 +16,9 @@ public static class Extensions
 
     public static Vector2 Sign(this Vector2 v) => new(Math.Sign(v.X), Math.Sign(v.Y));
 
+    public static Vector2 Abs(this Vector2 v) => new(Math.Abs(v.X), Math.Abs(v.Y));
+    public static Vector2i Abs(this Vector2i v) => new(Math.Abs(v.X), Math.Abs(v.Y));
+
     public static void Deconstruct(this Vector2 v, out float x, out float y) => (x, y) = (v.X, v.Y);
 
     public static T[] ToArray<T>(this IEnumerable<T> e, int capacity)
@@ -131,6 +134,20 @@ public static class Extensions
         return pooledCollection;
     }
 
+    public static PooledHashSet<T> ToPooledHashSet<T>(this IEnumerable<T> source)
+    {
+        var pooledCollection = HashSetPool<T>.Get();
+        pooledCollection.AddRange(source);
+        return pooledCollection;
+    }
+
+    public static PooledQueue<T> ToPooledQueue<T>(this IEnumerable<T> source)
+    {
+        var pooledCollection = QueuePool<T>.Get();
+        pooledCollection.EnqueueRange(source);
+        return pooledCollection;
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public static unsafe bool HasFlagsFast<TEnum>(this TEnum @enum, TEnum flags) where TEnum : unmanaged
     {
@@ -146,5 +163,17 @@ public static class Extensions
             return (Unsafe.As<TEnum, UInt128>(ref @enum) & Unsafe.As<TEnum, UInt128>(ref flags)) == Unsafe.As<TEnum, UInt128>(ref flags);
 
         throw new NotImplementedException();
+    }
+
+    public static Queue<T> ToQueue<T>(this IEnumerable<T> source)
+    {
+        var queue = new Queue<T>();
+
+        if (source.TryGetNonEnumeratedCount(out var count))
+            queue.EnsureCapacity(count);
+
+        foreach (var item in source)
+            queue.Enqueue(item);
+        return queue;
     }
 }

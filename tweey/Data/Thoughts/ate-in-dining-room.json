@@ -1,0 +1,7 @@
+{
+  "$schema": "./_schema.json",
+
+  "description": "Ate in a nice dining room",
+  "moodChange": 4,
+  "durationInWorldDays": 1
+}

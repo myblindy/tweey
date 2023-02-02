@@ -1,6 +1,6 @@
 ﻿namespace Tweey.Loaders;
 
-internal enum BuildingType { Production, Rest, Toilet, Chair, Table }
+internal enum BuildingType { Production, Rest, Toilet, Chair, Table, Wall, Door }
 
 internal class BuildingProductionLineTemplate
 {
@@ -17,6 +17,8 @@ internal class BuildingLightTemplate
     public Vector3 Color { get; set; }
 }
 
+internal enum BuildingTilingType { None, OneAxis, BothAxis, Outline }
+
 internal class BuildingTemplate : ITemplateFileName
 {
     public string Name { get; set; } = null!;
@@ -32,6 +34,14 @@ internal class BuildingTemplate : ITemplateFileName
     public BuildingLightTemplate? EmitLight { get; set; }
 
     public string ImageFileName => $"Data/Buildings/{FileName}.png";
+
+    public BuildingTilingType TilingType => Type switch
+    {
+        BuildingType.Wall => BuildingTilingType.Outline,
+        _ => BuildingTilingType.None
+    };
+
+    public bool IsBlocking => Type is BuildingType.Wall;
 }
 
 internal class BuildingProductionLineTemplateIn

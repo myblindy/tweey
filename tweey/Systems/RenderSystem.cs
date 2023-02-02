@@ -146,7 +146,6 @@ partial class RenderSystem
         lightMapComputeShaderProgram.Use();
         lightMapOcclusionTexture.BindAsImageTexture(0, BufferAccessARB.ReadOnly, InternalFormat.R8);
         lightMapTexture.BindAsImageTexture(1, BufferAccessARB.WriteOnly, InternalFormat.Rgba8);
-        //GraphicsEngine.BlendAdditive();
 
         bool firstLightsChunk = true, anyLights = false;
         void renderLights()
@@ -371,18 +370,24 @@ partial class RenderSystem
         });
 
         // building template
-        if (world.CurrentWorldTemplate.BuildingTemplate is not null)
-        {
-            var box = Box2.FromCornerSize(world.MouseWorldPosition.ToVector2i(), world.CurrentWorldTemplate.BuildingTemplate.Width, world.CurrentWorldTemplate.BuildingTemplate.Height);
-            ScreenFillQuad(RenderLayer.BelowPawns, box, World.IsBoxFreeOfBuildings(box) && world.IsBoxFreeOfBlockingTerrain(box) ? Colors4.Lime : Colors4.Red,
-                atlas[world.CurrentWorldTemplate.BuildingTemplate.ImageFileName]);
-        }
+        if (world.CurrentWorldTemplate.BuildingTemplate is { } currentBuildingTemplate)
+            World.CalculateBuildingTiling(currentBuildingTemplate, world.CurrentTemplateStartPoint, world.MouseWorldPosition.ToVector2i(), (location, count) =>
+            {
+                var itemSize = new Vector2i(currentBuildingTemplate!.Width, currentBuildingTemplate!.Height);
+                for (int y = 0; y < count.Y; ++y)
+                    for (int x = 0; x < count.X; ++x)
+                    {
+                        var itemBox = Box2.FromCornerSize(location + new Vector2i(x, y) * itemSize, itemSize);
+                        var colorShading = world.IsBoxFreeOfBuildings(itemBox, true) && world.IsBoxFreeOfBlockingTerrain(itemBox) ? Colors4.Lime : Colors4.Red;
+                        ScreenFillQuad(RenderLayer.BelowPawns, itemBox, colorShading, atlas[currentBuildingTemplate!.ImageFileName]);
+                    }
+            });
 
         // zone template
-        if (world.CurrentWorldTemplate.ZoneType is not null && world.CurrentZoneStartPoint is not null
-            && Box2.FromCornerSize(world.CurrentZoneStartPoint.Value, (world.MouseWorldPosition - world.CurrentZoneStartPoint.Value.ToNumericsVector2() + Vector2.One).ToVector2i()) is { } zoneBox)
+        if (world.CurrentWorldTemplate.ZoneType is not null && world.CurrentTemplateStartPoint is not null
+            && Box2.FromCornerSize(world.CurrentTemplateStartPoint.Value, (world.MouseWorldPosition - world.CurrentTemplateStartPoint.Value.ToNumericsVector2() + Vector2.One).ToVector2i()) is { } zoneBox)
         {
-            RenderZone(zoneBox, world.CurrentWorldTemplate.ZoneType.Value, !World.IsBoxFreeOfBuildings(zoneBox) || !world.IsBoxFreeOfBlockingTerrain(zoneBox), true, true);
+            RenderZone(zoneBox, world.CurrentWorldTemplate.ZoneType.Value, !world.IsBoxFreeOfBuildings(zoneBox) || !world.IsBoxFreeOfBlockingTerrain(zoneBox), true, true);
         }
 
         // render gui (tri2)

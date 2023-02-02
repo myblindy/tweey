@@ -29,5 +29,12 @@ internal static class GlobalMapper
             .ForMember(x => x.Inventory, (src, resources) => new ResourceBucket(src.ContainingResources!.Select(rq => new ResourceQuantity(((ResourceTemplates)resources!)[rq.Resource!], rq.Quantity))));
         Mapper.CreateMap<ThoughtTemplateIn, ThoughtTemplate>()
             .ForMember(x => x.DurationInWorldTime, src => TimeSpan.FromDays(src.DurationInWorldDays));
+        Mapper.CreateMap<RoomTemplateIn, RoomTemplate>()
+            .ForMember(x => x.Requirements, (src, buildings) => src.Requirements.Select(r => new RoomRequirementTemplate
+            {
+                Type = r.Type,
+                Value = r.Value,
+                Building = ((BuildingTemplates)buildings!)[r.Building]
+            }).ToArray());
     }
 }

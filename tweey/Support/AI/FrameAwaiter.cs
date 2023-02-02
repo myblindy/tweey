@@ -1,29 +1,37 @@
-﻿namespace Tweey.Systems;
-
-partial class AISystem
+﻿namespace Tweey.Support.AI
 {
-    sealed class FrameAwaiter : INotifyCompletion, IFrameAwaiter
+    interface IFrameAwaiter : IAwaiter, IAwaitable
     {
-        private readonly FastList<Action> continuations = new();
+    }
+}
 
-        public bool IsCompleted => false;
-
-        public IAwaiter GetAwaiter() => this;
-        public void GetResult() { }
-        public void OnCompleted(Action continuation) => continuations.Add(continuation);
-
-        public void Run()
+namespace Tweey.Systems
+{
+    partial class AISystem
+    {
+        sealed class FrameAwaiter : INotifyCompletion, IFrameAwaiter
         {
-            if (continuations.Count > 0)
+            private readonly FastList<Action> continuations = new();
+
+            public bool IsCompleted => false;
+
+            public IAwaiter GetAwaiter() => this;
+            public void GetResult() { }
+            public void OnCompleted(Action continuation) => continuations.Add(continuation);
+
+            public void Run()
             {
-                using var continuationsCopy = continuations.ToPooledCollection();
-                continuations.Clear();
+                if (continuations.Count > 0)
+                {
+                    using var continuationsCopy = continuations.ToPooledCollection();
+                    continuations.Clear();
 
-                foreach (var continuation in continuationsCopy)
-                    continuation();
+                    foreach (var continuation in continuationsCopy)
+                        continuation();
+                }
             }
-        }
 
-        public void UnsafeOnCompleted(Action continuation) => OnCompleted(continuation);
+            public void UnsafeOnCompleted(Action continuation) => OnCompleted(continuation);
+        }
     }
 }

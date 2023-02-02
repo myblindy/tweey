@@ -1,0 +1,11 @@
+{
+  "$schema": "./_schema.json",
+  "name": "Bedroom",
+  "requirements": [
+    {
+      "type": "exact",
+      "value": 1,
+      "building": "bed"
+    }
+  ]
+}

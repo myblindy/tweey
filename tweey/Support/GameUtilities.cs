@@ -2,10 +2,10 @@
 
 public static class GameUtilities
 {
-    public static IEnumerable<Vector2i> EnumerateNeighbourLocations(Vector2 center, int radiusMin = 1, int radiusMax = 1) =>
-        EnumerateNeighbourLocations(new Vector2i((int)center.X, (int)center.Y), radiusMin, radiusMax);
+    public static IEnumerable<Vector2i> EnumerateNeighborLocations(Vector2 center, int radiusMin = 1, int radiusMax = 1) =>
+        EnumerateNeighborLocations(new Vector2i((int)center.X, (int)center.Y), radiusMin, radiusMax);
 
-    public static IEnumerable<Vector2i> EnumerateNeighbourLocations(Vector2i center, int radiusMin = 1, int radiusMax = 1)
+    public static IEnumerable<Vector2i> EnumerateNeighborLocations(Vector2i center, int radiusMin = 1, int radiusMax = 1)
     {
         if (radiusMin == 0) yield return center;
 

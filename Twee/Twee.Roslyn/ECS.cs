@@ -627,7 +627,7 @@ public sealed class ECSSourceGen : IIncrementalGenerator
 
                         [MethodImpl(MethodImplOptions.AggressiveInlining)]
                         public static bool Has{{c!.TypeRootName}}Component(Entity entity) =>
-                            (entityComponents[entity] & EcsComponents.{{c!.TypeRootName}}) == EcsComponents.{{c!.TypeRootName}};
+                            entity != Entity.Invalid && (entityComponents[entity] & EcsComponents.{{c!.TypeRootName}}) == EcsComponents.{{c!.TypeRootName}};
 
                         {{(c.Empty ? null : $$"""
                             [MethodImpl(MethodImplOptions.AggressiveInlining)]

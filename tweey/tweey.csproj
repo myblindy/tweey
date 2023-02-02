@@ -25,16 +25,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="Gui\Colors.cs">
+    <Compile Update="Gui\Colors.cs">
       <DesignTime>True</DesignTime>
       <AutoGen>True</AutoGen>
       <DependentUpon>Colors.tt</DependentUpon>
-    </None>
-    <None Include="Support\Needs.cs">
+    </Compile>
+    <Compile Update="Support\Needs.cs">
       <DesignTime>True</DesignTime>
       <AutoGen>True</AutoGen>
       <DependentUpon>Needs.tt</DependentUpon>
-    </None>
+    </Compile>
     <None Update="Data.bin">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -56,19 +56,6 @@
     <ProjectReference Include="..\Twee\Twee.Core\Twee.Core.csproj" />
     <ProjectReference Include="..\Twee\Twee.Renderer\Twee.Renderer.csproj" />
     <ProjectReference Include="..\Twee\Twee.Roslyn\Twee.Roslyn.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Update="Gui\Colors.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Colors.tt</DependentUpon>
-    </Compile>
-    <Compile Update="Support\Needs.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Needs.tt</DependentUpon>
-    </Compile>
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
