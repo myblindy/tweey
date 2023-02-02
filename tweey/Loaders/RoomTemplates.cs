@@ -1,20 +1,31 @@
 ﻿namespace Tweey.Loaders;
 
-class RoomTemplateIn { }
-
 enum RoomRequirementType { Exact, AtLeast }
 
-class RoomRequirementTemplate
+class RoomRequirementTemplateIn
 {
     public RoomRequirementType Type { get; set; }
     public int Value { get; set; }
-    public BuildingTemplate Building { get; set; }
+    public string Building { get; set; } = null!;
+}
+
+class RoomTemplateIn
+{
+    public string Name { get; set; } = null!;
+    public List<RoomRequirementTemplateIn> Requirements { get; set; } = null!;
+}
+
+class RoomRequirementTemplate
+{
+    public required RoomRequirementType Type { get; set; }
+    public required int Value { get; set; }
+    public required BuildingTemplate Building { get; set; }
 }
 
 class RoomTemplate : ITemplateFileName
 {
-    public string Name { get; set; }
-    public List<RoomRequirementTemplate> Requirements { get; set; }
+    public required string Name { get; set; }
+    public required RoomRequirementTemplate[] Requirements { get; set; }
     public string FileName { get; set; } = null!;
 }
 
@@ -35,43 +46,20 @@ readonly struct Room
 
 class RoomTemplates : BaseTemplates<RoomTemplateIn, RoomTemplate>
 {
+    public const string DiningRoomFileName = "dining-room";
+    public const string BedroomFileName = "bed-room";
+    public const string BarracksFileName = "barracks";
+
     public RoomTemplates(ILoader loader, BuildingTemplates buildingTemplates)
-        : base(loader, "Rooms", x => x.FileName!)
+        : base(loader, "Rooms", x => x.FileName!, buildingTemplates)
     {
-        resources = ImmutableSortedDictionary.CreateRange(new KeyValuePair<string, RoomTemplate>[]
-        {
-            new("bedroom", new()
-            {
-                Name = "Bedroom",
-                Requirements = new()
-                {
-                    new()
-                    {
-                        Type = RoomRequirementType.Exact,
-                        Value = 1,
-                        Building = buildingTemplates["bed"]
-                    }
-                }
-            }),
-            new("barracks", new()
-            {
-                Name="Barracks",
-                Requirements = new()
-                {
-                    new()
-                    {
-                        Type = RoomRequirementType.AtLeast,
-                        Value = 2,
-                        Building = buildingTemplates["bed"]
-                    }
-                }
-            })
-        });
     }
 
     public RoomTemplate? GetBestTemplate(IList<Entity> buildings)
     {
-        using var buildingCounts = buildings.CountBy(b => b.GetBuildingComponent().Template).ToPooledCollection();
+        using var buildingCounts = buildings.Where(b => b.GetBuildingComponent().IsBuilt)
+            .CountBy(b => b.GetBuildingComponent().Template).ToPooledCollection();
+
         foreach (var roomTemplate in this)
         {
             var okay = true;
@@ -93,7 +81,7 @@ class RoomTemplates : BaseTemplates<RoomTemplateIn, RoomTemplate>
                 break;
             }
 
-            if (okay)
+            if (okay && !buildingCounts.Select(w => w.key).Except(roomTemplate.Requirements.Select(w => w.Building)).Any())
                 return roomTemplate;
         }
 

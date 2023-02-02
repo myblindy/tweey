@@ -1,5 +1,4 @@
 ﻿using System.Text.RegularExpressions;
-using System.Transactions;
 
 namespace Tweey.WorldData;
 
@@ -113,6 +112,22 @@ internal partial class World
                         goto retry;
             embarkmentLocation = new(x, y);
         }
+    }
+
+    public Room? GetRoomAtWorldLocationAsNullable(Vector2i location)
+    {
+        foreach (ref var room in CollectionsMarshal.AsSpan(Rooms))
+            if (room.Locations.Contains(location))
+                return room;
+        return null;
+    }
+
+    public ref Room GetRoomAtWorldLocation(Vector2i location)
+    {
+        foreach (ref var room in CollectionsMarshal.AsSpan(Rooms))
+            if (room.Locations.Contains(location))
+                return ref room;
+        return ref Unsafe.NullRef<Room>();
     }
 
     #region AddEntities
@@ -254,10 +269,19 @@ internal partial class World
         return result;
     }
 
-    public Entity AddBuildingEntity(BuildingTemplate buildingTemplate, Vector2 location, bool isBuilt)
+    public Entity AddBuildingEntity(BuildingTemplate buildingTemplate, Vector2i location, bool isBuilt)
     {
+        var box = Box2.FromCornerSize(location, buildingTemplate.Width, buildingTemplate.Height);
+
+        // if there's buildings in the way already, we're replacing them all
+        foreach (var testLocation in box)
+        {
+            if (TerrainCells![testLocation.X, testLocation.Y].BuildingEntity.HasBuildingComponent())
+                DeleteEntity(TerrainCells![testLocation.X, testLocation.Y].BuildingEntity);
+        }
+
         var entity = EcsCoordinator.CreateEntity();
-        ref var locationComponent = ref entity.AddLocationComponent(Box2.FromCornerSize(location, buildingTemplate.Width, buildingTemplate.Height));
+        ref var locationComponent = ref entity.AddLocationComponent(box);
         entity.AddRenderableComponent($"Data/Buildings/{buildingTemplate.FileName}.png",
             OcclusionScale: buildingTemplate.EmitLight is null ? 1 : 0,
             LightEmission: buildingTemplate.EmitLight?.Color.ToVector4(1) ?? default, LightRange: buildingTemplate.EmitLight?.Range ?? 0f);
@@ -303,10 +327,10 @@ internal partial class World
 
     public void RecalculateRooms()
     {
-        var open = Box2.FromCornerSize(Vector2i.Zero, new(Width, Height))
-            .Where(l => TerrainCells![l.X, l.Y].IsBuildingEntityBlocking is not true)
-            .ToHashSet();
-        var floodQueue = new Queue<Vector2i>();
+        using var open = Box2.FromCornerSize(Vector2i.Zero, new(Width, Height))
+            .Where(l => TerrainCells![l.X, l.Y].IsBuildingEntityBlockingOrDoor is not true)
+            .ToPooledHashSet();
+        using var floodQueue = QueuePool<Vector2i>.Get();
 
         Rooms.Clear();
 
@@ -319,8 +343,8 @@ internal partial class World
             floodQueue.Clear();
             floodQueue.Enqueue(location);
 
-            var roomLocations = new List<Vector2i>();
-            var roomBuildingEntities = new List<Entity>();
+            using var roomLocations = CollectionPool<Vector2i>.Get();
+            using var roomBuildingEntities = HashSetPool<Entity>.Get();
             var roomIndoors = true;
 
             // flood fill
@@ -379,7 +403,7 @@ internal partial class World
             }
 
             if (roomIndoors)
-                Rooms.Add(new(this, roomLocations, roomBuildingEntities.Distinct()));
+                Rooms.Add(new(this, roomLocations, roomBuildingEntities));
         }
     }
 
@@ -396,35 +420,35 @@ internal partial class World
     {
         if (SelectedEntity == entity) SelectedEntity = null;
         if (entity.HasPlantComponent() && entity.GetPlantComponent().Template.IsTree
-            && entity.GetLocationComponent().Box.TopLeft.ToVector2i() is { } pos)
+            && entity.GetLocationComponent().Box.TopLeft.ToVector2i() is var pos)
         {
             TerrainCells![pos.X, pos.Y].AboveGroundMovementModifier = 1;
         }
 
-        if (entity.HasBuildingComponent()
-            && entity.GetLocationComponent().Box is var box)
-        {
+        if (entity.HasBuildingComponent() && entity.GetLocationComponent().Box is var box)
             foreach (var loc in box)
                 TerrainCells![loc.X, loc.Y].BuildingEntity = Entity.Invalid;
-        }
 
         return entity.Delete();
     }
 
-    public static bool IsBoxFreeOfBuildings(Box2 box)
+    public bool IsBoxFreeOfBuildings(Box2 box, bool allowUnbuilt = false)
     {
-        var okay = true;
-        EcsCoordinator.IterateBuildingArchetype((in EcsCoordinator.BuildingIterationResult w) =>
-        {
-            if (w.LocationComponent.Box.Intersects(box))
-            {
-                okay = false;
-                return false;
-            }
-            return true;
-        });
+        box = box.WithClamp(Box2.FromCornerSize(Vector2i.Zero, new(Width - 1, Height - 1)));
 
-        return okay;
+        return allowUnbuilt
+            ? box.All(l =>
+            {
+                var buildingEntity = TerrainCells![l.X, l.Y].BuildingEntity;
+                if (buildingEntity == Entity.Invalid) return true;
+
+                // building can be replaced if it hasn't been built yet and nobody's assigned to build it
+                ref var buildingComponent = ref buildingEntity.GetBuildingComponent();
+                ref var workableComponent = ref buildingEntity.GetWorkableComponent();
+                return Unsafe.IsNullRef(ref buildingComponent) || Unsafe.IsNullRef(ref workableComponent)
+                    || (!buildingComponent.IsBuilt && workableComponent.Entity == Entity.Invalid);
+            })
+            : box.All(l => TerrainCells![l.X, l.Y].BuildingEntity == Entity.Invalid);
     }
 
     public static bool IsBoxFreeOfPlants(Box2 box)
@@ -481,12 +505,38 @@ internal partial class World
     public Vector2 GetWorldLocationFromScreenPoint(Vector2i screenPoint) =>
         new(screenPoint.X / Zoom + Offset.X, screenPoint.Y / Zoom + Offset.Y);
 
+    public static void CalculateBuildingTiling(BuildingTemplate template, Vector2i? p0, Vector2i p1, Action<Vector2i, Vector2i> process)
+    {
+        if (template.TilingType is BuildingTilingType.None || p0 is null)
+            process(p1, Vector2i.One);
+        else if (p0 is not null)
+        {
+            var fullSize = (p1 - p0.Value).Abs() + Vector2i.One;
+            var fullCount = fullSize / new Vector2i(template.Width, template.Height);
+            if (template.TilingType is BuildingTilingType.Outline)
+            {
+                var start = new Vector2i(Math.Min(p0.Value.X, p1.X), Math.Min(p0.Value.Y, p1.Y));
+
+                if (fullCount.X > 0)
+                    process(start, new(fullCount.X, 1));
+                if (fullCount.X > 0 && fullCount.Y > 1)
+                    process(new(start.X, start.Y + (fullCount.Y - 1) * template!.Height), new(fullCount.X, 1));
+                if (fullCount.X > 0 && fullCount.Y > 2)
+                    process(new(start.X, start.Y + template!.Height), new(1, fullCount.Y - 2));
+                if (fullCount.X > 1 && fullCount.Y > 2)
+                    process(new(start.X + (fullCount.X - 1) * template!.Width, start.Y + template!.Height), new(1, fullCount.Y - 2));
+            }
+            else
+                throw new NotImplementedException();
+        }
+    }
+
     Vector2i? dragStart;
 
     public void MouseEvent(GameWindow gameWindow, Vector2i screenPosition, Vector2 worldLocation, InputAction? inputAction = null, MouseButton? mouseButton = null, KeyModifiers? keyModifiers = null)
     {
         if (inputAction == InputAction.Press && mouseButton == MouseButton.Button1)
-            if ((CurrentWorldTemplate.ZoneType is not null || CurrentWorldTemplate.BuildingTemplate?.TileType is BuildingTileType.OneAxis or BuildingTileType.BothAxis) && CurrentTemplateStartPoint is null)
+            if ((CurrentWorldTemplate.ZoneType is not null || CurrentWorldTemplate.BuildingTemplate?.TilingType is BuildingTilingType.OneAxis or BuildingTilingType.BothAxis or BuildingTilingType.Outline) && CurrentTemplateStartPoint is null)
                 // first point
                 CurrentTemplateStartPoint = MouseWorldPosition.ToVector2i();
             else if (CurrentWorldTemplate.ZoneType is not null)
@@ -507,45 +557,32 @@ internal partial class World
                     else
                         throw new NotImplementedException();
                 }
-                CurrentWorldTemplate.Clear();
+                if (keyModifiers?.HasFlagsFast(KeyModifiers.Shift) != true)
+                    CurrentWorldTemplate.Clear();
             }
-            else if (CurrentWorldTemplate.BuildingTemplate is { TileType: BuildingTileType.OneAxis or BuildingTileType.BothAxis } currentBuildingTemplate)
+            else if (CurrentWorldTemplate.BuildingTemplate is { TilingType: BuildingTilingType.OneAxis or BuildingTilingType.BothAxis or BuildingTilingType.Outline } currentBuildingTemplate)
             {
                 // tiled building
-                void addBuildingTemplates(Box2 box, Vector2i count)
+                CalculateBuildingTiling(currentBuildingTemplate, CurrentTemplateStartPoint, MouseWorldPosition.ToVector2i(), (location, count) =>
                 {
-                    var colorShading = IsBoxFreeOfBuildings(box) && IsBoxFreeOfBlockingTerrain(box) ? Colors4.Lime : Colors4.Red;
-                    var itemSize = new Vector2(currentBuildingTemplate!.Width, currentBuildingTemplate!.Height);
+                    var itemSize = new Vector2i(currentBuildingTemplate!.Width, currentBuildingTemplate!.Height);
                     for (int y = 0; y < count.Y; ++y)
                         for (int x = 0; x < count.X; ++x)
-                            AddBuildingEntity(currentBuildingTemplate, box.TopLeft + new Vector2(x, y) * itemSize, false);
-                }
-
-                if (currentBuildingTemplate.TileType is BuildingTileType.None || CurrentTemplateStartPoint is null)
-                    addBuildingTemplates(Box2.FromCornerSize(MouseWorldPosition.ToVector2i(), currentBuildingTemplate.Width, currentBuildingTemplate.Height), Vector2i.One);
-                else if (CurrentTemplateStartPoint is not null)
-                {
-                    var fullSize = (MouseWorldPosition - CurrentTemplateStartPoint.Value.ToNumericsVector2() + Vector2.One).ToVector2i();
-                    var fullCount = fullSize / new Vector2i(currentBuildingTemplate.Width, currentBuildingTemplate.Height);
-                    if (fullCount.X <= 0) fullCount.X -= 2;
-                    if (fullCount.Y <= 0) fullCount.Y -= 2;
-                    var start = CurrentTemplateStartPoint.Value;
-                    if (currentBuildingTemplate.TileType is BuildingTileType.OneAxis)
-                        if (Math.Abs(fullCount.X) > Math.Abs(fullCount.Y))
-                            (start, fullCount) = (new(start.X, fullCount.Y > 0 ? start.Y : start.Y - fullSize.Y + 1), new(Math.Abs(fullCount.X), 1));
-                        else
-                            (start, fullCount) = (new(fullCount.X > 0 ? start.X : start.X - fullSize.X + 1, start.Y), new(1, Math.Abs(fullCount.Y)));
-
-                    addBuildingTemplates(Box2.FromCornerSize(start, fullSize), fullCount);
-                }
-                CurrentWorldTemplate.Clear();
+                        {
+                            var itemBox = Box2.FromCornerSize(location + new Vector2i(x, y) * itemSize, itemSize);
+                            if (IsBoxFreeOfBuildings(itemBox, true) && IsBoxFreeOfBlockingTerrain(itemBox))
+                                AddBuildingEntity(currentBuildingTemplate, location + new Vector2i(x, y) * itemSize, false);
+                        }
+                });
+                if (keyModifiers?.HasFlagsFast(KeyModifiers.Shift) != true)
+                    CurrentWorldTemplate.Clear();
             }
             else if (CurrentWorldTemplate.BuildingTemplate is not null)
             {
                 var box = Box2.FromCornerSize(worldLocation.ToVector2i(), CurrentWorldTemplate.BuildingTemplate.Width, CurrentWorldTemplate.BuildingTemplate.Height);
-                if (IsBoxFreeOfBuildings(box) && IsBoxFreeOfBlockingTerrain(box))
+                if (IsBoxFreeOfBuildings(box, true) && IsBoxFreeOfBlockingTerrain(box))
                 {
-                    var building = AddBuildingEntity(CurrentWorldTemplate.BuildingTemplate, worldLocation.Floor(), false);
+                    var building = AddBuildingEntity(CurrentWorldTemplate.BuildingTemplate, worldLocation.ToVector2i(), false);
                     if (keyModifiers?.HasFlagsFast(KeyModifiers.Shift) != true)
                         CurrentWorldTemplate.Clear();
                 }
@@ -691,6 +728,7 @@ record struct TerrainCell(string? TileFileName, float GroundMovementModifier = 1
 {
     public bool Impassable => GroundMovementModifier == 0 || AboveGroundMovementModifier == 0;
     public Entity BuildingEntity { get; set; }
+
     public bool IsBuildingEntityBlocking
     {
         get
@@ -698,7 +736,18 @@ record struct TerrainCell(string? TileFileName, float GroundMovementModifier = 1
             if (BuildingEntity == Entity.Invalid) return false;
 
             ref var buildingComponent = ref BuildingEntity.GetBuildingComponent();
-            return !Unsafe.IsNullRef(ref buildingComponent) && buildingComponent.Template.IsBlocking == true;
+            return !Unsafe.IsNullRef(ref buildingComponent) && buildingComponent.IsBuilt && buildingComponent.Template.IsBlocking;
+        }
+    }
+
+    public bool IsBuildingEntityBlockingOrDoor
+    {
+        get
+        {
+            if (BuildingEntity == Entity.Invalid) return false;
+
+            ref var buildingComponent = ref BuildingEntity.GetBuildingComponent();
+            return !Unsafe.IsNullRef(ref buildingComponent) && (buildingComponent.Template.IsBlocking || buildingComponent.Template.Type is BuildingType.Door);
         }
     }
 }

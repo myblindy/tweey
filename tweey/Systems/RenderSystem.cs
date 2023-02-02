@@ -371,41 +371,23 @@ partial class RenderSystem
 
         // building template
         if (world.CurrentWorldTemplate.BuildingTemplate is { } currentBuildingTemplate)
-        {
-            void renderGhostTemplates(Box2 box, Vector2i count)
+            World.CalculateBuildingTiling(currentBuildingTemplate, world.CurrentTemplateStartPoint, world.MouseWorldPosition.ToVector2i(), (location, count) =>
             {
-                var colorShading = World.IsBoxFreeOfBuildings(box) && world.IsBoxFreeOfBlockingTerrain(box) ? Colors4.Lime : Colors4.Red;
-                var itemSize = new Vector2(currentBuildingTemplate!.Width, currentBuildingTemplate!.Height);
+                var itemSize = new Vector2i(currentBuildingTemplate!.Width, currentBuildingTemplate!.Height);
                 for (int y = 0; y < count.Y; ++y)
                     for (int x = 0; x < count.X; ++x)
-                        ScreenFillQuad(RenderLayer.BelowPawns, Box2.FromCornerSize(box.TopLeft + new Vector2(x, y) * itemSize, itemSize),
-                            colorShading, atlas[currentBuildingTemplate!.ImageFileName]);
-            }
-
-            if (currentBuildingTemplate.TileType is BuildingTileType.None || world.CurrentTemplateStartPoint is null)
-                renderGhostTemplates(Box2.FromCornerSize(world.MouseWorldPosition.ToVector2i(), currentBuildingTemplate.Width, currentBuildingTemplate.Height), Vector2i.One);
-            else if (world.CurrentTemplateStartPoint is not null)
-            {
-                var fullSize = (world.MouseWorldPosition - world.CurrentTemplateStartPoint.Value.ToNumericsVector2() + Vector2.One).ToVector2i();
-                var fullCount = fullSize / new Vector2i(currentBuildingTemplate.Width, currentBuildingTemplate.Height);
-                if (fullCount.X <= 0) fullCount.X -= 2;
-                if (fullCount.Y <= 0) fullCount.Y -= 2;
-                var start = world.CurrentTemplateStartPoint.Value;
-                if (currentBuildingTemplate.TileType is BuildingTileType.OneAxis)
-                    if (Math.Abs(fullCount.X) > Math.Abs(fullCount.Y))
-                        (start, fullCount) = (new(start.X, fullCount.Y > 0 ? start.Y : start.Y - fullSize.Y + 1), new(Math.Abs(fullCount.X), 1));
-                    else
-                        (start, fullCount) = (new(fullCount.X > 0 ? start.X : start.X - fullSize.X + 1, start.Y), new(1, Math.Abs(fullCount.Y)));
-
-                renderGhostTemplates(Box2.FromCornerSize(start, fullSize), fullCount);
-            }
-        }
+                    {
+                        var itemBox = Box2.FromCornerSize(location + new Vector2i(x, y) * itemSize, itemSize);
+                        var colorShading = world.IsBoxFreeOfBuildings(itemBox, true) && world.IsBoxFreeOfBlockingTerrain(itemBox) ? Colors4.Lime : Colors4.Red;
+                        ScreenFillQuad(RenderLayer.BelowPawns, itemBox, colorShading, atlas[currentBuildingTemplate!.ImageFileName]);
+                    }
+            });
 
         // zone template
         if (world.CurrentWorldTemplate.ZoneType is not null && world.CurrentTemplateStartPoint is not null
             && Box2.FromCornerSize(world.CurrentTemplateStartPoint.Value, (world.MouseWorldPosition - world.CurrentTemplateStartPoint.Value.ToNumericsVector2() + Vector2.One).ToVector2i()) is { } zoneBox)
         {
-            RenderZone(zoneBox, world.CurrentWorldTemplate.ZoneType.Value, !World.IsBoxFreeOfBuildings(zoneBox) || !world.IsBoxFreeOfBlockingTerrain(zoneBox), true, true);
+            RenderZone(zoneBox, world.CurrentWorldTemplate.ZoneType.Value, !world.IsBoxFreeOfBuildings(zoneBox) || !world.IsBoxFreeOfBlockingTerrain(zoneBox), true, true);
         }
 
         // render gui (tri2)

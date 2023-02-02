@@ -1,0 +1,16 @@
+{
+  "$schema": "./_schema.json",
+  "name": "Dining Room",
+  "requirements": [
+    {
+      "type": "atLeast",
+      "value": 1,
+      "building": "table"
+    },
+    {
+      "type": "atLeast",
+      "value": 1,
+      "building": "stool"
+    }
+  ]
+}

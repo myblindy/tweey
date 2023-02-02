@@ -25,6 +25,16 @@ class RestAIHighLevelPlan : AIHighLevelPlan
         {
             bedEntity.GetWorkableComponent().Entity = Entity.Invalid;
             bedEntity.GetWorkableComponent().EntityWorking = false;
+
+            switch (World.GetRoomAtWorldLocationAsNullable(MainEntity.GetLocationComponent().Box.TopLeft.ToVector2i())?.Template?.FileName)
+            {
+                case RoomTemplates.BarracksFileName:
+                    MainEntity.GetVillagerComponent().AddThought(World, World.ThoughtTemplates[ThoughtTemplates.SleptInBarracks]);
+                    break;
+                case RoomTemplates.BedroomFileName:
+                    MainEntity.GetVillagerComponent().AddThought(World, World.ThoughtTemplates[ThoughtTemplates.SleptInBedroom]);
+                    break;
+            }
         }
     }
 }

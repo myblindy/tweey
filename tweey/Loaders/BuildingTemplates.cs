@@ -17,7 +17,7 @@ internal class BuildingLightTemplate
     public Vector3 Color { get; set; }
 }
 
-internal enum BuildingTileType { None, OneAxis, BothAxis }
+internal enum BuildingTilingType { None, OneAxis, BothAxis, Outline }
 
 internal class BuildingTemplate : ITemplateFileName
 {
@@ -35,10 +35,10 @@ internal class BuildingTemplate : ITemplateFileName
 
     public string ImageFileName => $"Data/Buildings/{FileName}.png";
 
-    public BuildingTileType TileType => Type switch
+    public BuildingTilingType TilingType => Type switch
     {
-        BuildingType.Wall => BuildingTileType.OneAxis,
-        _ => BuildingTileType.None
+        BuildingType.Wall => BuildingTilingType.Outline,
+        _ => BuildingTilingType.None
     };
 
     public bool IsBlocking => Type is BuildingType.Wall;

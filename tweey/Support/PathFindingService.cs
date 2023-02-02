@@ -16,15 +16,13 @@ class PathFindingService
 
     static public PathFindingResult Calculate(World world, Vector2i startPosition, Vector2i goalPosition)
     {
-        var width = world.TerrainCells!.GetLength(0);
-        var height = world.TerrainCells!.GetLength(1);
-        var cells = new byte[height * width];
+        var cells = new byte[world.Height * world.Width];
 
-        for (int y = 0; y < height; ++y)
-            for (int x = 0; x < width; ++x)
-                cells[y * width + x] = world.TerrainCells![x, y].IsBuildingEntityBlocking ? (byte)255
+        for (int y = 0; y < world.Height; ++y)
+            for (int x = 0; x < world.Width; ++x)
+                cells[y * world.Width + x] = world.TerrainCells![x, y].IsBuildingEntityBlocking ? (byte)255
                     : (byte)(255 - Math.Round(Math.Min(world.TerrainCells![x, y].GroundMovementModifier, world.TerrainCells![x, y].AboveGroundMovementModifier) * 255));
-        cells[goalPosition.X + goalPosition.Y * width] = 0;
+        cells[goalPosition.X + goalPosition.Y * world.Width] = 0;
 
         var open = new PriorityQueue<Node, float>();
         var openSet = new HashSet<Vector2i>();
@@ -34,7 +32,7 @@ class PathFindingService
         float getDistance(Vector2i position) =>
             Math.Abs(position.X - goalPosition.X) + Math.Abs(position.Y - goalPosition.Y);
 
-        open.Enqueue(new Node(null, startPosition, cells[startPosition.X + startPosition.Y * width]), getDistance(startPosition));
+        open.Enqueue(new Node(null, startPosition, cells[startPosition.X + startPosition.Y * world.Width]), getDistance(startPosition));
         openSet.Add(startPosition);
 
         while (open.Count != 0 && !closedSet.Contains(goalPosition))
@@ -46,7 +44,7 @@ class PathFindingService
             void process(Vector2i delta)
             {
                 var newPosition = currentNode.Position + delta;
-                if (!closedSet.Contains(newPosition) && cells[newPosition.X + newPosition.Y * width] is { } weight && weight < byte.MaxValue && !openSet.Contains(newPosition))
+                if (!closedSet.Contains(newPosition) && cells[newPosition.X + newPosition.Y * world.Width] is { } weight && weight < byte.MaxValue && !openSet.Contains(newPosition))
                 {
                     var newNode = new Node(currentNode, newPosition, weight);
                     open.Enqueue(newNode, getDistance(newPosition) + newNode.TotalCost / 255f);
@@ -59,8 +57,8 @@ class PathFindingService
 
             if (currentNode.Position.X > 0) process(new(-1, 0));
             if (currentNode.Position.Y > 0) process(new(0, -1));
-            if (currentNode.Position.X < width - 1) process(new(1, 0));
-            if (currentNode.Position.Y < height - 1) process(new(0, 1));
+            if (currentNode.Position.X < world.Width - 1) process(new(1, 0));
+            if (currentNode.Position.Y < world.Height - 1) process(new(0, 1));
         }
 
         if (!closedSet.Contains(goalPosition))

@@ -12,13 +12,26 @@ partial class RenderSystem
         var descriptionColor = new Vector4(.8f, .8f, .8f, 1);
         var highlightColor = Colors4.Aqua;
 
-        // time gui
+        ref Room getRoomAtMouseCursor()
+        {
+            foreach (ref var room in CollectionsMarshal.AsSpan(world.Rooms))
+                if (room.Locations.Contains(world.MouseWorldPosition.ToVector2i()))
+                    return ref room;
+            return ref Unsafe.NullRef<Room>();
+        }
+
+        // time & room gui
         gui.RootViewDescriptions.Add(new(
             new StackView(StackType.Vertical)
             {
                 BackgroundColor = panelBackgroundColor,
                 Children =
                 {
+                    new LabelView(() =>
+                    {
+                        ref var room = ref getRoomAtMouseCursor();
+                        return $"Room: {(Unsafe.IsNullRef(ref room) ? "Outdoors" : room.Template is { } roomTemplate ? roomTemplate.Name : "Generic")}";
+                    }) { FontSize = () => smallFontSize },
                     new LabelView(() => $"Time: {world.WorldTime}") { FontSize = () => smallFontSize },
                     new RepeaterView<double>
                     {
