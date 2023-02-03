@@ -29,6 +29,22 @@
         },
         "required": [ "building", "type", "value" ]
       }
+    },
+    "thoughts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [ "eat", "sleep" ]
+          },
+          "thought": {
+            "type": "string"
+          }
+        },
+        "required": [ "action", "thought" ]
+      }
     }
   },
 

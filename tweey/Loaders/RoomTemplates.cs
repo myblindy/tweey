@@ -9,10 +9,19 @@ class RoomRequirementTemplateIn
     public string Building { get; set; } = null!;
 }
 
+enum RoomThoughtActionType { Eat, Sleep }
+
+class RoomThoughtTemplateIn
+{
+    public RoomThoughtActionType Action { get; set; }
+    public string Thought { get; set; } = null!;
+}
+
 class RoomTemplateIn
 {
     public string Name { get; set; } = null!;
     public List<RoomRequirementTemplateIn> Requirements { get; set; } = null!;
+    public List<RoomThoughtTemplateIn> Thoughts { get; set; } = null!;
 }
 
 class RoomRequirementTemplate
@@ -31,11 +40,11 @@ class RoomTemplate : ITemplateFileName
 
 readonly struct Room
 {
-    public Room(World world, IEnumerable<Vector2i> locations, IEnumerable<Entity> buildings)
+    public Room(RoomTemplates roomTemplates, IEnumerable<Vector2i> locations, IEnumerable<Entity> buildings)
     {
         Locations = locations.ToList();
         this.buildings = buildings.ToList();
-        Template = world.RoomTemplates.GetBestTemplate(this.buildings);
+        Template = roomTemplates.GetBestTemplate(this.buildings);
     }
 
     public IReadOnlyList<Vector2i> Locations { get; }

@@ -23,6 +23,8 @@ class Program : GameWindow
             Flags = ContextFlags.ForwardCompatible,
         })
     {
+        //SynchronizationContext.SetSynchronizationContext(new SynchronizationContext());
+
         // set the default render frequency to the primary monitor's refresh rate
         var monitor = GLFW.GetPrimaryMonitor();
         var videoMode = GLFW.GetVideoMode(monitor);

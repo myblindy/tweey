@@ -12,5 +12,11 @@
       "value": 1,
       "building": "stool"
     }
+  ],
+  "thoughts": [
+    {
+      "action": "eat",
+      "thought": "ate-in-dining-room"
+    }
   ]
 }

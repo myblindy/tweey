@@ -7,5 +7,11 @@
       "value": 1,
       "building": "bed"
     }
+  ],
+  "thoughts": [
+    {
+      "action": "sleep",
+      "thought": "slept-in-bedroom"
+    }
   ]
 }
