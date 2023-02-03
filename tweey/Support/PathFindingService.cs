@@ -25,8 +25,8 @@ class PathFindingService
         cells[goalPosition.X + goalPosition.Y * world.Width] = 0;
 
         var open = new PriorityQueue<Node, float>();
-        var openSet = new HashSet<Vector2i>();
-        var closedSet = new HashSet<Vector2i>();
+        using var openSet = HashSetPool<Vector2i>.Get();
+        using var closedSet = HashSetPool<Vector2i>.Get();
         Node? goalNode = null;
 
         float getDistance(Vector2i position) =>

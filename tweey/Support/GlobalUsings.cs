@@ -23,6 +23,7 @@ global using Twee.Core;
 global using Twee.Core.Ecs;
 global using Twee.Core.JsonConverters;
 global using Twee.Core.Support;
+global using Twee.Core.Support.ObjectPools;
 global using Twee.Ecs;
 global using Twee.Renderer;
 global using Twee.Renderer.Support;

@@ -155,7 +155,7 @@ internal class ResourceBucket
         IEnumerable<BuildingResouceQuantityTemplate> _requiredResourceGroups, out double usedWeight)
     {
         usedWeight = 0;
-        var actions = new List<Action>();
+        using var actions = CollectionPool<Action>.Get();
         using var requiredResourceGroups = _requiredResourceGroups.ToPooledCollection();
         ResourceMarker marker = default;
 

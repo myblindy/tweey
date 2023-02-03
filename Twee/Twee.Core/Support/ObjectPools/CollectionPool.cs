@@ -1,6 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 
-namespace Twee.Core.Support;
+namespace Twee.Core.Support.ObjectPools;
 
 public static class CollectionPool<T>
 {

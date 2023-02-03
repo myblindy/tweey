@@ -47,7 +47,7 @@ partial class PlantTemplates : BaseTemplates<PlantTemplateIn, PlantTemplate>
     public PlantTemplates(ILoader loader, ResourceTemplates resourceTemplates)
         : base(loader, "Plants", x => x.FileName!, resourceTemplates)
     {
-        var files = new List<(string name, string path, int value)>();
+        using var files = CollectionPool<(string name, string path, int value)>.Get();
         foreach (var file in DiskLoader.Instance.VFS.EnumerateFiles("Data/Plants", SearchOption.TopDirectoryOnly))
             if (PathComponentExtractRegex().Match(file) is { Success: true } m)
                 files.Add((m.Groups[2].Value, m.Groups[1].Value, m.Groups[3].Success ? int.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture) : 0));
