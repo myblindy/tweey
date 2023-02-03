@@ -1,5 +1,6 @@
 ﻿using System.IO.Compression;
 using Twee.Core.Support;
+using Twee.Core.Support.ObjectPools;
 
 namespace Twee.Core;
 
@@ -9,7 +10,7 @@ public static class VFSWriter
     {
         ulong totalSize = 0, totalCompressedSize = 0;
 
-        var footerActions = new List<Action>();
+        using var footerActions = CollectionPool<Action>.Get();
 
         using var outputStream = File.Create(archivePath);
         using var outputWriter = new BinaryWriter(outputStream);

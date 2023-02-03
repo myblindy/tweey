@@ -1,4 +1,4 @@
-﻿namespace Twee.Core.Support;
+﻿namespace Twee.Core.Support.ObjectPools;
 
 public static class DictionaryPool<TKey, TVal> where TKey : notnull
 {

@@ -1,6 +1,7 @@
 ﻿using System.IO.Compression;
 using System.IO.MemoryMappedFiles;
 using Twee.Core.Support;
+using Twee.Core.Support.ObjectPools;
 
 namespace Twee.Core;
 
@@ -79,8 +80,8 @@ public class VFSReader : IDisposable
         if (GetEntry(path) is not { } entry)
             yield break;
 
-        var tempPartPathList = new List<string>();
-        var openSet = new Queue<VFSEntry>();
+        using var tempPartPathList = CollectionPool<string>.Get();
+        using var openSet = QueuePool<VFSEntry>.Get();
         openSet.Enqueue(entry);
 
         do
