@@ -1,11 +1,10 @@
-﻿using Nito.AsyncEx;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 
 namespace Tweey.WorldData;
 
 internal partial class World
 {
-    readonly AsyncContext asyncContext = new();
+    readonly AsyncContext asyncContext;
 
     public ResourceTemplates Resources { get; }
     public PlantTemplates PlantTemplates { get; }
@@ -50,6 +49,8 @@ internal partial class World
 
     public World(ILoader loader)
     {
+        SynchronizationContext.SetSynchronizationContext(asyncContext = new(Thread.CurrentThread));
+
         (Resources, Configuration, ThoughtTemplates) = (new(loader), new(loader), new(loader));
         (BuildingTemplates, PlantTemplates) = (new(loader, Resources), new(loader, Resources));
         Biomes = new(loader, PlantTemplates);
@@ -305,15 +306,14 @@ internal partial class World
             recalculateRoomsCancellationTokenSource.Cancel();
             var cts = recalculateRoomsCancellationTokenSource = new();
 
-            var currentContext = SynchronizationContext.Current!;
-
-            var rooms = await RecalculateRooms(RoomTemplates, (TerrainCell[,])TerrainCells!.Clone(), cts.Token);
-
-            currentContext.Post(_ =>
+            try
             {
+                var rooms = await RecalculateRooms(RoomTemplates, (TerrainCell[,])TerrainCells!.Clone(), cts.Token).ConfigureAwait(true);
+
                 Rooms.Clear();
                 Rooms.AddRange(rooms);
-            }, null);
+            }
+            catch (OperationCanceledException) { }
         };
 
         MarkAllPlantsForHarvest(locationComponent.Box);
@@ -748,7 +748,7 @@ internal partial class World
         RawOffset += deltaOffsetNextFrame * (float)deltaSec * deltaOffsetPerSecond;
 
         // run the async continuations
-        asyncContext.Run(() => { });
+        asyncContext.RunContinuations();
     }
 
     [GeneratedRegex("Data[/\\\\]Biomes[/\\\\](.*)[/\\\\].*\\.png", RegexOptions.IgnoreCase)]

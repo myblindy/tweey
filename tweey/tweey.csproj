@@ -15,7 +15,6 @@
   <ItemGroup>
     <PackageReference Include="MB.FastAutoMapper" Version="0.1.12" />
     <PackageReference Include="Microsoft.Extensions.ObjectPool" Version="7.0.2" />
-    <PackageReference Include="Nito.AsyncEx.Context" Version="5.1.2" />
     <PackageReference Include="NVorbis" Version="0.10.5" />
     <PackageReference Include="OpenAl.Native" Version="0.9.0" />
     <PackageReference Include="OpenAL.Soft" Version="1.19.1" />
