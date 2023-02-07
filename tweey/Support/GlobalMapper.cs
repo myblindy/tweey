@@ -30,11 +30,16 @@ internal static class GlobalMapper
         Mapper.CreateMap<ThoughtTemplateIn, ThoughtTemplate>()
             .ForMember(x => x.DurationInWorldTime, src => TimeSpan.FromDays(src.DurationInWorldDays));
         Mapper.CreateMap<RoomTemplateIn, RoomTemplate>()
-            .ForMember(x => x.Requirements, (src, buildings) => src.Requirements.Select(r => new RoomRequirementTemplate
+            .ForMember(x => x.Requirements, (src, extra) => src.Requirements.Select(r => new RoomRequirementTemplate
             {
                 Type = r.Type,
                 Value = r.Value,
-                Building = ((BuildingTemplates)buildings!)[r.Building]
+                Building = (((BuildingTemplates, ThoughtTemplates))(extra!)).Item1![r.Building]
+            }).ToArray())
+            .ForMember(x => x.Thoughts, (src, extra) => src.Thoughts.Select(t => new RoomThoughtTemplate
+            {
+                Action = t.Action,
+                Thought = (((BuildingTemplates, ThoughtTemplates))(extra!)).Item2[t.Thought]
             }).ToArray());
     }
 }

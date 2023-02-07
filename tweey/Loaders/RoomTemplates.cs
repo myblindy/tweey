@@ -9,10 +9,19 @@ class RoomRequirementTemplateIn
     public string Building { get; set; } = null!;
 }
 
+enum RoomThoughtActionType { Eat, Sleep }
+
+class RoomThoughtTemplateIn
+{
+    public RoomThoughtActionType Action { get; set; }
+    public string Thought { get; set; } = null!;
+}
+
 class RoomTemplateIn
 {
     public string Name { get; set; } = null!;
     public List<RoomRequirementTemplateIn> Requirements { get; set; } = null!;
+    public List<RoomThoughtTemplateIn> Thoughts { get; set; } = null!;
 }
 
 class RoomRequirementTemplate
@@ -22,20 +31,27 @@ class RoomRequirementTemplate
     public required BuildingTemplate Building { get; set; }
 }
 
+class RoomThoughtTemplate
+{
+    public required RoomThoughtActionType Action { get; set; }
+    public required ThoughtTemplate Thought { get; set; }
+}
+
 class RoomTemplate : ITemplateFileName
 {
     public required string Name { get; set; }
     public required RoomRequirementTemplate[] Requirements { get; set; }
+    public required RoomThoughtTemplate[] Thoughts { get; set; }
     public string FileName { get; set; } = null!;
 }
 
 readonly struct Room
 {
-    public Room(World world, IEnumerable<Vector2i> locations, IEnumerable<Entity> buildings)
+    public Room(RoomTemplates roomTemplates, IEnumerable<Vector2i> locations, IEnumerable<Entity> buildings)
     {
         Locations = locations.ToList();
         this.buildings = buildings.ToList();
-        Template = world.RoomTemplates.GetBestTemplate(this.buildings);
+        Template = roomTemplates.GetBestTemplate(this.buildings);
     }
 
     public IReadOnlyList<Vector2i> Locations { get; }
@@ -50,8 +66,8 @@ class RoomTemplates : BaseTemplates<RoomTemplateIn, RoomTemplate>
     public const string BedroomFileName = "bed-room";
     public const string BarracksFileName = "barracks";
 
-    public RoomTemplates(ILoader loader, BuildingTemplates buildingTemplates)
-        : base(loader, "Rooms", x => x.FileName!, buildingTemplates)
+    public RoomTemplates(ILoader loader, BuildingTemplates buildingTemplates, ThoughtTemplates thoughtTemplates)
+        : base(loader, "Rooms", x => x.FileName!, (buildingTemplates, thoughtTemplates))
     {
     }
 
