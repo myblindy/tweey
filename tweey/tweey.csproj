@@ -20,7 +20,7 @@
     <PackageReference Include="OpenAL.Soft" Version="1.19.1" />
     <PackageReference Include="SuperLinq" Version="4.7.0" />
     <PackageReference Include="OpenTK.OpenAL" Version="5.0.0-pre.7" />
-    <PackageReference Include="OpenTK.Graphics" Version="5.0.0-pre.7" />
+    <PackageReference Include="OpenTK.Graphics" Version="5.0.0-pre.8" />
     <PackageReference Include="OpenTK.Windowing.Desktop" Version="5.0.0-pre.7" />
   </ItemGroup>
 
