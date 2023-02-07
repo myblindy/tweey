@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="System.Drawing.Common" Version="7.0.0" />
-    <PackageReference Include="OpenTK.Graphics" Version="5.0.0-pre.7" />
+    <PackageReference Include="OpenTK.Graphics" Version="5.0.0-pre.8" />
     <PackageReference Include="OpenTK.Windowing.Desktop" Version="5.0.0-pre.7" />
     <PackageReference Include="SuperLinq" Version="4.7.0" />
   </ItemGroup>
