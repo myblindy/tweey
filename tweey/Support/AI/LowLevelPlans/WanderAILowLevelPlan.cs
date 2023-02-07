@@ -27,7 +27,7 @@ class WanderAILowLevelPlan : AILowLevelPlan
                     * MathF.Max(0.5f, MathF.Min(currentTile.GroundMovementModifier, currentTile.AboveGroundMovementModifier)));
 
             // would we run into unwalkable terrain?
-            if (World.TerrainCells![(int)Math.Round(currentPosition.X + deltaPosition.X), (int)Math.Round(currentPosition.Y + deltaPosition.Y)] is { } tile
+            if (World.TerrainCells![(int)(currentPosition.X + deltaPosition.X), (int)(currentPosition.Y + deltaPosition.Y)] is { } tile
                 && (tile.AboveGroundMovementModifier == 0 || tile.GroundMovementModifier == 0 || tile.IsBuildingEntityBlocking))
             {
                 return;

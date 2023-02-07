@@ -54,7 +54,7 @@ internal partial class World
         (Resources, Configuration, ThoughtTemplates) = (new(loader), new(loader), new(loader));
         (BuildingTemplates, PlantTemplates) = (new(loader, Resources), new(loader, Resources));
         Biomes = new(loader, PlantTemplates);
-        RoomTemplates = new(loader, BuildingTemplates);
+        RoomTemplates = new(loader, BuildingTemplates, ThoughtTemplates);
     }
 
     [MemberNotNull(nameof(TerrainCells))]

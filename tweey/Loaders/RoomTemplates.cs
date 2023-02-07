@@ -31,10 +31,17 @@ class RoomRequirementTemplate
     public required BuildingTemplate Building { get; set; }
 }
 
+class RoomThoughtTemplate
+{
+    public required RoomThoughtActionType Action { get; set; }
+    public required ThoughtTemplate Thought { get; set; }
+}
+
 class RoomTemplate : ITemplateFileName
 {
     public required string Name { get; set; }
     public required RoomRequirementTemplate[] Requirements { get; set; }
+    public required RoomThoughtTemplate[] Thoughts { get; set; }
     public string FileName { get; set; } = null!;
 }
 
@@ -59,8 +66,8 @@ class RoomTemplates : BaseTemplates<RoomTemplateIn, RoomTemplate>
     public const string BedroomFileName = "bed-room";
     public const string BarracksFileName = "barracks";
 
-    public RoomTemplates(ILoader loader, BuildingTemplates buildingTemplates)
-        : base(loader, "Rooms", x => x.FileName!, buildingTemplates)
+    public RoomTemplates(ILoader loader, BuildingTemplates buildingTemplates, ThoughtTemplates thoughtTemplates)
+        : base(loader, "Rooms", x => x.FileName!, (buildingTemplates, thoughtTemplates))
     {
     }
 
