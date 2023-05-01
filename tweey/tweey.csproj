@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -18,7 +18,7 @@
     <PackageReference Include="NVorbis" Version="0.10.5" />
     <PackageReference Include="OpenAl.Native" Version="0.9.0" />
     <PackageReference Include="OpenAL.Soft" Version="1.19.1" />
-    <PackageReference Include="SuperLinq" Version="4.7.0" />
+    <PackageReference Include="SuperLinq" Version="5.0.0" />
     <PackageReference Include="OpenTK.OpenAL" Version="5.0.0-pre.7" />
     <PackageReference Include="OpenTK.Graphics" Version="5.0.0-pre.7" />
     <PackageReference Include="OpenTK.Windowing.Desktop" Version="5.0.0-pre.7" />
